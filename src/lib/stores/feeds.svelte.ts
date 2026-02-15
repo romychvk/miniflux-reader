@@ -54,7 +54,7 @@ function createFeedsStore() {
 				tree.push({
 					id: catId,
 					title: catTitle,
-					apiPath: '',
+					apiPath: `categories/${catId}/entries`,
 					isFeed: false,
 					unread: catUnread,
 					children: catFeeds
