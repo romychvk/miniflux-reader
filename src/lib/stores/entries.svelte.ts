@@ -6,13 +6,15 @@ import { ui } from './ui.svelte';
 function createEntriesStore() {
 	let entries = $state<Entry[]>([]);
 	let loading = $state(false);
+	let showAll = $state(false);
 
 	async function loadEntries(apiPath: string) {
 		loading = true;
 		try {
 			const sep = apiPath.includes('?') ? '&' : '?';
+			const statusFilter = showAll ? '' : 'status=unread&';
 			const data = await apiCall<{ total: number; entries: Entry[] }>(
-				`${apiPath}${sep}status=unread&order=published_at&direction=desc&limit=100`
+				`${apiPath}${sep}${statusFilter}order=published_at&direction=desc&limit=100`
 			);
 			entries = data.entries || [];
 		} catch (e) {
@@ -21,6 +23,10 @@ function createEntriesStore() {
 		} finally {
 			loading = false;
 		}
+	}
+
+	function toggleShowAll() {
+		showAll = !showAll;
 	}
 
 	async function markRead(entryIds: number[], read: boolean) {
@@ -60,9 +66,11 @@ function createEntriesStore() {
 	return {
 		get entries() { return entries; },
 		get loading() { return loading; },
+		get showAll() { return showAll; },
 		loadEntries,
 		markRead,
-		fetchOriginalContent
+		fetchOriginalContent,
+		toggleShowAll
 	};
 }
 

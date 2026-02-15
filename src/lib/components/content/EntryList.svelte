@@ -34,7 +34,7 @@
 	{:else if entries.entries.length === 0}
 		<div class="flex items-center justify-center py-12 text-gray-400 text-sm">
 			{#if ui.selectedFeed}
-				No unread entries
+				No {entries.showAll ? '' : 'unread '}entries
 			{:else}
 				Select a feed
 			{/if}

@@ -18,9 +18,10 @@
 		feeds.loadFeeds();
 	});
 
-	// Load entries when feed changes
+	// Load entries when feed or filter changes
 	$effect(() => {
 		const feed = ui.selectedFeed;
+		const _showAll = entries.showAll;
 		if (feed) {
 			entries.loadEntries(feed.apiPath);
 		}
