@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import type { FeedNode } from '$lib/types';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { dnd } from '$lib/stores/dnd.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { makeFeedSlug } from '$lib/slug';
 
 	let { feed, parentCatId }: { feed: FeedNode; parentCatId?: number } = $props();
 
@@ -62,7 +64,12 @@
 </script>
 
 <button
-	onclick={() => ui.selectFeed(feed)}
+	onclick={() => {
+		if (feed.id === -1) goto('/');
+		else if (feed.isFeed) goto(`/feed/${makeFeedSlug(feed.id, feed.title)}`);
+		else goto(`/category/${makeFeedSlug(feed.id, feed.title)}`);
+		if (ui.isMobile) ui.toggleSidebar();
+	}}
 	draggable={isDraggable}
 	{ondragstart}
 	{ondragend}

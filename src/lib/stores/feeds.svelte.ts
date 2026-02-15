@@ -240,6 +240,22 @@ function createFeedsStore() {
 		}
 	}
 
+	function getAllNode(): FeedNode | null {
+		return feedTree.find(n => n.id === -1) ?? null;
+	}
+
+	function findFeedNodeById(id: number, isFeed: boolean): FeedNode | null {
+		for (const node of feedTree) {
+			if (node.id === id && node.isFeed === isFeed) return node;
+			if (node.children) {
+				for (const child of node.children) {
+					if (child.id === id && child.isFeed === isFeed) return child;
+				}
+			}
+		}
+		return null;
+	}
+
 	return {
 		get feedTree() { return feedTree; },
 		get loading() { return loading; },
@@ -247,7 +263,9 @@ function createFeedsStore() {
 		updateCounters,
 		reorderFeed,
 		reorderCategory,
-		moveFeedToCategory
+		moveFeedToCategory,
+		getAllNode,
+		findFeedNodeById
 	};
 }
 

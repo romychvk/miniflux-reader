@@ -3,28 +3,7 @@
 	import { ui } from '$lib/stores/ui.svelte';
 	import EntryRow from './EntryRow.svelte';
 	import Spinner from '../ui/Spinner.svelte';
-
-	let expandedEntryId = $state<number | null>(null);
-
-	function handleCollapse() {
-		expandedEntryId = null;
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') {
-			expandedEntryId = null;
-		}
-	}
-
-	$effect(() => {
-		// Scroll to top when feed changes
-		if (ui.selectedFeed) {
-			window.scrollTo(0, 0);
-		}
-	});
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 <div class="flex-1 overflow-y-auto">
 	{#if entries.loading}
@@ -41,7 +20,7 @@
 		</div>
 	{:else}
 		{#each entries.entries as entry (entry.id)}
-			<EntryRow {entry} onCollapse={handleCollapse} />
+			<EntryRow {entry} />
 		{/each}
 	{/if}
 </div>

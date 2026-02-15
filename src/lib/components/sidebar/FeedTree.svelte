@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { dnd } from '$lib/stores/dnd.svelte';
 	import FeedItem from './FeedItem.svelte';
 	import { ChevronRight, ChevronDown } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
+	import { makeFeedSlug } from '$lib/slug';
 
 	let expandedCategories = $state<Set<number>>(
 		new Set(JSON.parse(localStorage.getItem('expandedCategories') || '[]'))
@@ -146,7 +148,10 @@
 					{/if}
 				</button>
 				<button
-					onclick={() => ui.selectFeed(node)}
+					onclick={() => {
+						goto(`/category/${makeFeedSlug(node.id, node.title)}`);
+						if (ui.isMobile) ui.toggleSidebar();
+					}}
 					class="flex items-center gap-1 flex-1 min-w-0 py-1.5 pr-2 text-sm text-gray-600 text-left {isSelected ? 'font-medium' : 'font-semibold'}"
 				>
 					<span class="truncate flex-1 pointer-events-none">{node.title}</span>

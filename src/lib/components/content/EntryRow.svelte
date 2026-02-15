@@ -1,30 +1,24 @@
 <script lang="ts">
-	import { Circle, CircleDot, ChevronDown, ChevronUp } from 'lucide-svelte';
+	import { goto } from '$app/navigation';
+	import { Circle, CircleDot } from 'lucide-svelte';
 	import type { Entry } from '$lib/types';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { relaTimestamp } from '$lib/time';
-	import EntryContent from './EntryContent.svelte';
+	import { makeEntrySlug } from '$lib/slug';
 
-	let { entry, onCollapse }: { entry: Entry; onCollapse: () => void } = $props();
+	let { entry }: { entry: Entry } = $props();
 
-	let open = $state(false);
 	let rowEl: HTMLElement | undefined = $state();
-	let wasInView = $state(false);
 
 	const isRead = $derived(entry.status === 'read');
 
-	function toggleOpen() {
-		open = !open;
-		if (!open) onCollapse();
+	function openArticle() {
+		goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
 	}
 
 	function toggleRead(e: Event) {
 		e.stopPropagation();
 		entries.markRead([entry.id], !isRead);
-	}
-
-	export function collapse() {
-		open = false;
 	}
 
 	// IntersectionObserver action for auto-mark-read
@@ -67,13 +61,12 @@
 	bind:this={rowEl}
 	use:autoMarkRead
 >
-	<!-- Header row -->
 	<div
 		class="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors {isRead ? 'opacity-60' : ''}"
-		onclick={toggleOpen}
+		onclick={openArticle}
 		role="button"
 		tabindex="0"
-		onkeydown={(e) => e.key === 'Enter' && toggleOpen()}
+		onkeydown={(e) => e.key === 'Enter' && openArticle()}
 	>
 		<button
 			onclick={toggleRead}
@@ -93,28 +86,5 @@
 				{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
 			</p>
 		</div>
-
-		<span class="shrink-0 text-gray-400">
-			{#if open}
-				<ChevronUp size={16} />
-			{:else}
-				<ChevronDown size={16} />
-			{/if}
-		</span>
 	</div>
-
-	<!-- Expanded content -->
-	{#if open}
-		<div class="px-3 pb-4">
-			<a
-				href={entry.url}
-				target="_blank"
-				rel="noopener noreferrer"
-				class="text-xs text-blue-600 hover:underline mb-2 block"
-			>
-				Open original
-			</a>
-			<EntryContent {entry} />
-		</div>
-	{/if}
 </div>

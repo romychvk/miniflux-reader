@@ -63,6 +63,10 @@ function createEntriesStore() {
 		}
 	}
 
+	function findEntryById(id: number): Entry | null {
+		return entries.find(e => e.id === id) ?? null;
+	}
+
 	return {
 		get entries() { return entries; },
 		get loading() { return loading; },
@@ -70,7 +74,8 @@ function createEntriesStore() {
 		loadEntries,
 		markRead,
 		fetchOriginalContent,
-		toggleShowAll
+		toggleShowAll,
+		findEntryById
 	};
 }
 
