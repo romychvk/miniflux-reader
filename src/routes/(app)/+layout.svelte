@@ -30,6 +30,7 @@
 		mql.addEventListener('change', (e) => ui.setMobile(e.matches));
 		ui.initSidebarWidth();
 		ui.initLayoutMode();
+		ui.initViewMode();
 		ui.initArticlePanelWidth();
 
 		await feeds.loadFeeds();

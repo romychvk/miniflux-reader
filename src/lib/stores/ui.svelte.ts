@@ -6,12 +6,15 @@ const MIN_SIDEBAR_WIDTH = 180;
 const MAX_SIDEBAR_WIDTH = 480;
 
 const LAYOUT_MODE_KEY = 'layoutMode';
+const VIEW_MODE_KEY = 'viewMode';
 const ARTICLE_PANEL_WIDTH_KEY = 'articlePanelWidth';
 const DEFAULT_ARTICLE_PANEL_WIDTH = 550;
 const MIN_ARTICLE_PANEL_WIDTH = 300;
 const MIN_ENTRY_LIST_WIDTH = 320;
 
 type LayoutMode = 'two-column' | 'three-column';
+type ViewMode = 'list' | 'magazine' | 'cards';
+const VIEW_MODES: ViewMode[] = ['list', 'magazine', 'cards'];
 
 function createUI() {
 	let selectedFeed = $state<FeedNode | null>(null);
@@ -22,6 +25,7 @@ function createUI() {
 	let errorTimeout: ReturnType<typeof setTimeout> | null = null;
 	let sidebarWidth = $state(DEFAULT_SIDEBAR_WIDTH);
 	let layoutMode = $state<LayoutMode>('two-column');
+	let viewMode = $state<ViewMode>('list');
 	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
 
 	function initSidebarWidth() {
@@ -76,6 +80,16 @@ function createUI() {
 		localStorage.setItem(LAYOUT_MODE_KEY, layoutMode);
 	}
 
+	function initViewMode() {
+		const saved = localStorage.getItem(VIEW_MODE_KEY);
+		if (saved && VIEW_MODES.includes(saved as ViewMode)) viewMode = saved as ViewMode;
+	}
+
+	function setViewMode(mode: ViewMode) {
+		viewMode = mode;
+		localStorage.setItem(VIEW_MODE_KEY, mode);
+	}
+
 	function initArticlePanelWidth() {
 		const saved = localStorage.getItem(ARTICLE_PANEL_WIDTH_KEY);
 		if (saved) {
@@ -98,6 +112,7 @@ function createUI() {
 		get errorMessage() { return errorMessage; },
 		get sidebarWidth() { return sidebarWidth; },
 		get layoutMode() { return layoutMode; },
+		get viewMode() { return viewMode; },
 		get articlePanelWidth() { return articlePanelWidth; },
 		selectFeed,
 		selectEntry,
@@ -109,6 +124,8 @@ function createUI() {
 		setSidebarWidth,
 		initLayoutMode,
 		toggleLayoutMode,
+		initViewMode,
+		setViewMode,
 		initArticlePanelWidth,
 		setArticlePanelWidth
 	};

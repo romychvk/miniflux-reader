@@ -14,10 +14,18 @@
 	const isRead = $derived(entry.status === 'read');
 	const isSelected = $derived(ui.selectedEntry?.id === entry.id);
 
+	const viewMode = $derived(ui.viewMode);
+
 	const thumbnailUrl = $derived.by(() => {
 		if (!entry.content) return null;
 		const match = entry.content.match(/<img[^>]+src=["']([^"']+)["']/);
 		return match?.[1] ?? null;
+	});
+
+	const description = $derived.by(() => {
+		if (!entry.content) return '';
+		const text = entry.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+		return text.length > 150 ? text.slice(0, 150) + '...' : text;
 	});
 
 	function openArticle() {
@@ -71,44 +79,138 @@
 	}
 </script>
 
-<div
-	class="border-b border-gray-100"
-	bind:this={rowEl}
-	use:autoMarkRead
->
+{#if viewMode === 'list'}
+	<!-- List: compact single-line rows, no images -->
 	<div
-		class="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors {isRead ? 'opacity-60' : ''} {isSelected ? 'bg-blue-50' : ''}"
+		class="border-b border-gray-100"
+		bind:this={rowEl}
+		use:autoMarkRead
+	>
+		<div
+			class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors {isRead ? 'opacity-60' : ''} {isSelected ? 'bg-blue-50' : ''}"
+			onclick={openArticle}
+			role="button"
+			tabindex="0"
+			onkeydown={(e) => e.key === 'Enter' && openArticle()}
+		>
+			<button
+				onclick={toggleRead}
+				class="shrink-0 text-blue-500 hover:text-blue-700 p-0.5"
+				title={isRead ? 'Mark as unread' : 'Mark as read'}
+			>
+				{#if isRead}
+					<Circle size={14} />
+				{:else}
+					<CircleDot size={14} />
+				{/if}
+			</button>
+
+			<h3 class="text-sm font-medium truncate flex-1 min-w-0">{entry.title}</h3>
+			<span class="text-xs text-gray-400 shrink-0">{entry.feed.title}</span>
+			<span class="text-xs text-gray-300 shrink-0">&middot;</span>
+			<span class="text-xs text-gray-400 shrink-0">{relaTimestamp(entry.published_at)}</span>
+		</div>
+	</div>
+
+{:else if viewMode === 'magazine'}
+	<!-- Magazine: image left, title/date/description right -->
+	<div
+		class="border-b border-gray-100"
+		bind:this={rowEl}
+		use:autoMarkRead
+	>
+		<div
+			class="flex gap-4 px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors {isRead ? 'opacity-60' : ''} {isSelected ? 'bg-blue-50' : ''}"
+			onclick={openArticle}
+			role="button"
+			tabindex="0"
+			onkeydown={(e) => e.key === 'Enter' && openArticle()}
+		>
+			<div class="shrink-0 w-36 h-24 rounded-lg overflow-hidden bg-gray-100">
+				{#if thumbnailUrl}
+					<img
+						src={thumbnailUrl}
+						alt=""
+						class="w-full h-full object-cover"
+						loading="lazy"
+					/>
+				{:else}
+					<div class="w-full h-full flex items-center justify-center text-gray-300">
+						<svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+						</svg>
+					</div>
+				{/if}
+			</div>
+
+			<div class="flex-1 min-w-0 flex flex-col">
+				<div class="flex items-start gap-2">
+					<h3 class="text-sm font-semibold line-clamp-2 flex-1">{entry.title}</h3>
+					<button
+						onclick={toggleRead}
+						class="shrink-0 text-blue-500 hover:text-blue-700 p-0.5 mt-0.5"
+						title={isRead ? 'Mark as unread' : 'Mark as read'}
+					>
+						{#if isRead}
+							<Circle size={14} />
+						{:else}
+							<CircleDot size={14} />
+						{/if}
+					</button>
+				</div>
+				<p class="text-xs text-gray-400 mt-1">
+					{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
+				</p>
+				{#if description}
+					<p class="text-xs text-gray-500 mt-1.5 line-clamp-2">{description}</p>
+				{/if}
+			</div>
+		</div>
+	</div>
+
+{:else}
+	<!-- Cards: vertical card, image on top -->
+	<div
+		bind:this={rowEl}
+		use:autoMarkRead
+		class="rounded-lg border border-gray-200 bg-white overflow-hidden cursor-pointer hover:shadow-md transition-shadow {isRead ? 'opacity-60' : ''} {isSelected ? 'ring-2 ring-blue-400' : ''}"
 		onclick={openArticle}
 		role="button"
 		tabindex="0"
 		onkeydown={(e) => e.key === 'Enter' && openArticle()}
 	>
-		<button
-			onclick={toggleRead}
-			class="shrink-0 text-blue-500 hover:text-blue-700 p-0.5"
-			title={isRead ? 'Mark as unread' : 'Mark as read'}
-		>
-			{#if isRead}
-				<Circle size={16} />
-			{:else}
-				<CircleDot size={16} />
-			{/if}
-		</button>
+		{#if thumbnailUrl}
+			<div class="w-full aspect-video overflow-hidden bg-gray-100">
+				<img
+					src={thumbnailUrl}
+					alt=""
+					class="w-full h-full object-cover"
+					loading="lazy"
+				/>
+			</div>
+		{/if}
 
-		<div class="flex-1 min-w-0">
-			<h3 class="text-sm font-medium truncate">{entry.title}</h3>
-			<p class="text-xs text-gray-400 mt-0.5">
+		<div class="p-3">
+			<div class="flex items-start gap-2">
+				<h3 class="text-sm font-semibold line-clamp-3 flex-1">{entry.title}</h3>
+				<button
+					onclick={toggleRead}
+					class="shrink-0 text-blue-500 hover:text-blue-700 p-0.5"
+					title={isRead ? 'Mark as unread' : 'Mark as read'}
+				>
+					{#if isRead}
+						<Circle size={14} />
+					{:else}
+						<CircleDot size={14} />
+					{/if}
+				</button>
+			</div>
+			<p class="text-xs text-gray-400 mt-1.5">
 				{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
 			</p>
+			{#if description}
+				<p class="text-xs text-gray-500 mt-1.5 line-clamp-2">{description}</p>
+			{/if}
 		</div>
-
-		{#if thumbnailUrl}
-			<img
-				src={thumbnailUrl}
-				alt=""
-				class="shrink-0 w-16 h-12 object-cover rounded"
-				loading="lazy"
-			/>
-		{/if}
 	</div>
-</div>
+{/if}

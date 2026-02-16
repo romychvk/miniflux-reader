@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Menu, Circle, Columns2, Columns3 } from 'lucide-svelte';
+	import { Menu, Circle, Columns2, Columns3, List, LayoutList, LayoutGrid } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -37,6 +37,30 @@
 		</div>
 
 		{#if ui.selectedFeed}
+			<div class="flex items-center border border-gray-200 rounded-md overflow-hidden">
+				<button
+					onclick={() => ui.setViewMode('list')}
+					title="List view"
+					class="p-1.5 transition-colors {ui.viewMode === 'list' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+				>
+					<List size={18} />
+				</button>
+				<button
+					onclick={() => ui.setViewMode('magazine')}
+					title="Magazine view"
+					class="p-1.5 transition-colors {ui.viewMode === 'magazine' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+				>
+					<LayoutList size={18} />
+				</button>
+				<button
+					onclick={() => ui.setViewMode('cards')}
+					title="Cards view"
+					class="p-1.5 transition-colors {ui.viewMode === 'cards' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+				>
+					<LayoutGrid size={18} />
+				</button>
+			</div>
+
 			{#if !ui.isMobile}
 				<button
 					onclick={() => ui.toggleLayoutMode()}

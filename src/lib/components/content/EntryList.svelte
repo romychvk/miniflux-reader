@@ -18,6 +18,12 @@
 				Select a feed
 			{/if}
 		</div>
+	{:else if ui.viewMode === 'cards'}
+		<div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 p-4">
+			{#each entries.entries as entry (entry.id)}
+				<EntryRow {entry} />
+			{/each}
+		</div>
 	{:else}
 		{#each entries.entries as entry (entry.id)}
 			<EntryRow {entry} />
