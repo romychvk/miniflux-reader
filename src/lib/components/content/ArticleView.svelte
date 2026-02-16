@@ -20,7 +20,7 @@
 		Back
 	</button>
 
-	<h1 class="text-2xl font-bold mb-2">
+	<h1 class="text-3xl font-bold mb-3">
 		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
 	</h1>
 

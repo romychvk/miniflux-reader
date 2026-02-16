@@ -30,3 +30,15 @@
 		{@html content}
 	</article>
 </div>
+
+<style>                                                                                                               
+  @reference "../../../app.css";
+  article.prose :global {
+    p {
+      @apply mb-4;
+    }
+    img {
+      @apply my-4;
+    }
+  }                                                                                                
+</style>
