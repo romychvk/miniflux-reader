@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowLeft, ExternalLink } from 'lucide-svelte';
+	import { ArrowLeft } from 'lucide-svelte';
 	import type { Entry } from '$lib/types';
 	import { relaTimestamp } from '$lib/time';
 	import EntryContent from './EntryContent.svelte';
@@ -20,7 +20,9 @@
 		Back
 	</button>
 
-	<h1 class="text-xl font-bold mb-2">{entry.title}</h1>
+	<h1 class="text-2xl font-bold mb-2">
+		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
+	</h1>
 
 	<div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
 		<span>{entry.feed.title}</span>
@@ -30,15 +32,6 @@
 			<span>&middot;</span>
 			<span>{entry.author}</span>
 		{/if}
-		<a
-			href={entry.url}
-			target="_blank"
-			rel="noopener noreferrer"
-			class="inline-flex items-center gap-1 text-blue-600 hover:underline ml-auto"
-		>
-			<ExternalLink size={14} />
-			Original
-		</a>
 	</div>
 
 	<EntryContent {entry} />

@@ -1,1 +1,7 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+@layer base {
+	button {
+		cursor: pointer;
+	}
+}

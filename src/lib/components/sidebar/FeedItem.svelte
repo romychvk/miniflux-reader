@@ -76,7 +76,7 @@
 	{ondragover}
 	{ondragleave}
 	{ondrop}
-	class="w-full flex items-center gap-2 px-2 py-1.75 text-sm rounded hover:bg-gray-200 transition-colors text-left {isSelected ? 'bg-gray-200 font-medium' : feed.unread > 0 ? 'font-medium' : ''} {isDragged ? 'opacity-40' : ''}"
+	class="w-full flex items-center gap-2 px-2 py-1.75 text-sm rounded hover:bg-gray-200 text-left {isSelected ? 'bg-gray-200 font-medium' : feed.unread > 0 ? 'font-medium' : ''} {isDragged ? 'opacity-40' : ''}"
 >
 	{#if feed.iconData}
 		<img src={feed.iconData} alt="" class="w-4 h-4 shrink-0 pointer-events-none" />
