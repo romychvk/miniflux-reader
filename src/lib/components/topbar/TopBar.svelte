@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Menu, Circle } from 'lucide-svelte';
+	import { Menu, Circle, Columns2, Columns3 } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -37,12 +37,25 @@
 		</div>
 
 		{#if ui.selectedFeed}
+			{#if !ui.isMobile}
+				<button
+					onclick={() => ui.toggleLayoutMode()}
+					title={ui.layoutMode === 'two-column' ? 'Switch to 3-column layout' : 'Switch to 2-column layout'}
+					class="text-gray-400 hover:text-gray-600"
+				>
+					{#if ui.layoutMode === 'two-column'}
+						<Columns2 size={20} />
+					{:else}
+						<Columns3 size={20} />
+					{/if}
+				</button>
+			{/if}
 			<button
 				onclick={() => entries.toggleShowAll()}
 				title={entries.showAll ? 'Show unread only' : 'Show all'}
 				class="text-gray-400 hover:text-gray-600"
 			>
-				<Circle size={16} fill={entries.showAll ? 'none' : 'currentColor'} />
+				<Circle size={20} fill={entries.showAll ? 'none' : 'currentColor'} />
 			</button>
 		{/if}
 	{/if}

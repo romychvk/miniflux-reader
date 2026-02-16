@@ -3,6 +3,7 @@
 	import { Circle, CircleDot } from 'lucide-svelte';
 	import type { Entry } from '$lib/types';
 	import { entries } from '$lib/stores/entries.svelte';
+	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
 
@@ -11,9 +12,17 @@
 	let rowEl: HTMLElement | undefined = $state();
 
 	const isRead = $derived(entry.status === 'read');
+	const isSelected = $derived(ui.selectedEntry?.id === entry.id);
 
 	function openArticle() {
-		goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
+		if (!ui.isMobile && ui.layoutMode === 'three-column') {
+			ui.selectEntry(entry);
+			if (entry.status === 'unread') {
+				entries.markRead([entry.id], true);
+			}
+		} else {
+			goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
+		}
 	}
 
 	function toggleRead(e: Event) {
@@ -62,7 +71,7 @@
 	use:autoMarkRead
 >
 	<div
-		class="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors {isRead ? 'opacity-60' : ''}"
+		class="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-gray-50 transition-colors {isRead ? 'opacity-60' : ''} {isSelected ? 'bg-blue-50' : ''}"
 		onclick={openArticle}
 		role="button"
 		tabindex="0"

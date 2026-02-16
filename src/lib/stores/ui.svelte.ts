@@ -5,6 +5,14 @@ const DEFAULT_SIDEBAR_WIDTH = 256;
 const MIN_SIDEBAR_WIDTH = 180;
 const MAX_SIDEBAR_WIDTH = 480;
 
+const LAYOUT_MODE_KEY = 'layoutMode';
+const ARTICLE_PANEL_WIDTH_KEY = 'articlePanelWidth';
+const DEFAULT_ARTICLE_PANEL_WIDTH = 550;
+const MIN_ARTICLE_PANEL_WIDTH = 300;
+const MIN_ENTRY_LIST_WIDTH = 320;
+
+type LayoutMode = 'two-column' | 'three-column';
+
 function createUI() {
 	let selectedFeed = $state<FeedNode | null>(null);
 	let selectedEntry = $state<Entry | null>(null);
@@ -13,6 +21,8 @@ function createUI() {
 	let errorMessage = $state('');
 	let errorTimeout: ReturnType<typeof setTimeout> | null = null;
 	let sidebarWidth = $state(DEFAULT_SIDEBAR_WIDTH);
+	let layoutMode = $state<LayoutMode>('two-column');
+	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
 
 	function initSidebarWidth() {
 		const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
@@ -56,6 +66,30 @@ function createUI() {
 		selectedEntry = entry;
 	}
 
+	function initLayoutMode() {
+		const saved = localStorage.getItem(LAYOUT_MODE_KEY);
+		if (saved === 'two-column' || saved === 'three-column') layoutMode = saved;
+	}
+
+	function toggleLayoutMode() {
+		layoutMode = layoutMode === 'two-column' ? 'three-column' : 'two-column';
+		localStorage.setItem(LAYOUT_MODE_KEY, layoutMode);
+	}
+
+	function initArticlePanelWidth() {
+		const saved = localStorage.getItem(ARTICLE_PANEL_WIDTH_KEY);
+		if (saved) {
+			const w = parseInt(saved, 10);
+			if (w >= MIN_ARTICLE_PANEL_WIDTH) articlePanelWidth = w;
+		}
+	}
+
+	function setArticlePanelWidth(w: number) {
+		const maxW = window.innerWidth - sidebarWidth - MIN_ENTRY_LIST_WIDTH;
+		articlePanelWidth = Math.max(MIN_ARTICLE_PANEL_WIDTH, Math.min(maxW, w));
+		localStorage.setItem(ARTICLE_PANEL_WIDTH_KEY, String(articlePanelWidth));
+	}
+
 	return {
 		get selectedFeed() { return selectedFeed; },
 		get selectedEntry() { return selectedEntry; },
@@ -63,6 +97,8 @@ function createUI() {
 		get isMobile() { return isMobile; },
 		get errorMessage() { return errorMessage; },
 		get sidebarWidth() { return sidebarWidth; },
+		get layoutMode() { return layoutMode; },
+		get articlePanelWidth() { return articlePanelWidth; },
 		selectFeed,
 		selectEntry,
 		toggleSidebar,
@@ -70,7 +106,11 @@ function createUI() {
 		showError,
 		clearError,
 		initSidebarWidth,
-		setSidebarWidth
+		setSidebarWidth,
+		initLayoutMode,
+		toggleLayoutMode,
+		initArticlePanelWidth,
+		setArticlePanelWidth
 	};
 }
 

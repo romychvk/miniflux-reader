@@ -1,15 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
 	import TopBar from '$lib/components/topbar/TopBar.svelte';
+	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
 
 	let { children } = $props();
 	let ready = $state(false);
+
+	const isArticleRoute = $derived(page.route.id?.includes('/article/') ?? false);
+	const showArticlePanel = $derived(
+		ui.layoutMode === 'three-column' && !ui.isMobile && !isArticleRoute
+	);
 
 	onMount(async () => {
 		auth.init();
@@ -22,6 +29,8 @@
 		ui.setMobile(mql.matches);
 		mql.addEventListener('change', (e) => ui.setMobile(e.matches));
 		ui.initSidebarWidth();
+		ui.initLayoutMode();
+		ui.initArticlePanelWidth();
 
 		await feeds.loadFeeds();
 		ready = true;
@@ -37,6 +46,9 @@
 				{@render children()}
 			</main>
 		</div>
+		{#if showArticlePanel}
+			<ArticlePanel />
+		{/if}
 	</div>
 	<Toast />
 {/if}
