@@ -142,9 +142,9 @@
 					aria-label="{expandedCategories.has(node.id) ? 'Collapse' : 'Expand'} {node.title}"
 				>
 					{#if expandedCategories.has(node.id)}
-						<ChevronDown size={14} />
+						<ChevronDown size={20} />
 					{:else}
-						<ChevronRight size={14} />
+						<ChevronRight size={20} />
 					{/if}
 				</button>
 				<button
@@ -161,7 +161,7 @@
 				</button>
 			</div>
 			{#if expandedCategories.has(node.id)}
-				<div class="ml-4 flex flex-col gap-0.5">
+				<div class="ml-6 flex flex-col gap-0.5">
 					{#each node.children as child, childIndex}
 						{#if showInsertLine(node.id, childIndex)}
 							<div class="h-0.5 bg-blue-500 mx-2 rounded"></div>

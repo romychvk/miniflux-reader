@@ -76,14 +76,14 @@
 	{ondragover}
 	{ondragleave}
 	{ondrop}
-	class="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-200 transition-colors text-left {isSelected ? 'bg-gray-200 font-medium' : ''} {isDragged ? 'opacity-40' : ''}"
+	class="w-full flex items-center gap-2 px-2 py-1.75 text-sm rounded hover:bg-gray-200 transition-colors text-left {isSelected ? 'bg-gray-200 font-medium' : feed.unread > 0 ? 'font-medium' : ''} {isDragged ? 'opacity-40' : ''}"
 >
 	{#if feed.iconData}
 		<img src={feed.iconData} alt="" class="w-4 h-4 shrink-0 pointer-events-none" />
 	{/if}
 	<span class="truncate flex-1 pointer-events-none">{feed.title}</span>
 	{#if feed.unread > 0}
-		<span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium shrink-0 pointer-events-none">
+		<span class="text-xs text-gray-400 font-normal shrink-0 pointer-events-none">
 			{feed.unread}
 		</span>
 	{/if}
