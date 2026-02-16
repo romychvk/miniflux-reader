@@ -21,6 +21,7 @@
 		const mql = window.matchMedia('(max-width: 768px)');
 		ui.setMobile(mql.matches);
 		mql.addEventListener('change', (e) => ui.setMobile(e.matches));
+		ui.initSidebarWidth();
 
 		await feeds.loadFeeds();
 		ready = true;

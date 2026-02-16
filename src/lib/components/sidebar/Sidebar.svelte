@@ -9,6 +9,32 @@
 		auth.logout();
 		goto('/login');
 	}
+
+	let resizing = $state(false);
+
+	function onResizeStart(e: MouseEvent) {
+		e.preventDefault();
+		resizing = true;
+		document.body.style.userSelect = 'none';
+		document.body.style.cursor = 'col-resize';
+		const startX = e.clientX;
+		const startWidth = ui.sidebarWidth;
+
+		function onMouseMove(e: MouseEvent) {
+			ui.setSidebarWidth(startWidth + e.clientX - startX);
+		}
+
+		function onMouseUp() {
+			resizing = false;
+			document.body.style.userSelect = '';
+			document.body.style.cursor = '';
+			window.removeEventListener('mousemove', onMouseMove);
+			window.removeEventListener('mouseup', onMouseUp);
+		}
+
+		window.addEventListener('mousemove', onMouseMove);
+		window.addEventListener('mouseup', onMouseUp);
+	}
 </script>
 
 {#snippet logoutButton()}
@@ -25,7 +51,10 @@
 
 <!-- Desktop sidebar -->
 {#if !ui.isMobile}
-	<aside class="w-64 h-screen border-r border-gray-200 bg-white flex flex-col shrink-0">
+	<aside
+		class="h-screen border-r border-gray-200 bg-white flex flex-col shrink-0 relative"
+		style="width: {ui.sidebarWidth}px"
+	>
 		<div class="p-3 border-b border-gray-200">
 			<h2 class="font-bold text-lg">Feeds</h2>
 		</div>
@@ -33,6 +62,12 @@
 			<FeedTree />
 		</div>
 		{@render logoutButton()}
+		<!-- Resize handle -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-10 hover:bg-blue-400/30 transition-colors {resizing ? 'bg-blue-400/30' : ''}"
+			onmousedown={onResizeStart}
+		></div>
 	</aside>
 {/if}
 
