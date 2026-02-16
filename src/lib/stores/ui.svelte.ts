@@ -7,6 +7,7 @@ const MAX_SIDEBAR_WIDTH = 480;
 
 const LAYOUT_MODE_KEY = 'layoutMode';
 const VIEW_MODE_KEY = 'viewMode';
+const VIEW_MODES_MAP_KEY = 'viewModesMap';
 const ARTICLE_PANEL_WIDTH_KEY = 'articlePanelWidth';
 const DEFAULT_ARTICLE_PANEL_WIDTH = 550;
 const MIN_ARTICLE_PANEL_WIDTH = 300;
@@ -26,6 +27,7 @@ function createUI() {
 	let sidebarWidth = $state(DEFAULT_SIDEBAR_WIDTH);
 	let layoutMode = $state<LayoutMode>('two-column');
 	let viewMode = $state<ViewMode>('list');
+	let viewModesMap = $state<Record<string, ViewMode>>({});
 	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
 
 	function initSidebarWidth() {
@@ -41,8 +43,15 @@ function createUI() {
 		localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
 	}
 
+	function feedStorageKey(feed: FeedNode): string {
+		if (feed.id === -1) return 'all';
+		return feed.isFeed ? `feed:${feed.id}` : `category:${feed.id}`;
+	}
+
 	function selectFeed(feed: FeedNode) {
 		selectedFeed = feed;
+		const key = feedStorageKey(feed);
+		if (key in viewModesMap) viewMode = viewModesMap[key];
 		if (isMobile) sidebarOpen = false;
 	}
 
@@ -83,11 +92,20 @@ function createUI() {
 	function initViewMode() {
 		const saved = localStorage.getItem(VIEW_MODE_KEY);
 		if (saved && VIEW_MODES.includes(saved as ViewMode)) viewMode = saved as ViewMode;
+		try {
+			const map = JSON.parse(localStorage.getItem(VIEW_MODES_MAP_KEY) || '{}');
+			if (map && typeof map === 'object') viewModesMap = map;
+		} catch {}
 	}
 
 	function setViewMode(mode: ViewMode) {
 		viewMode = mode;
 		localStorage.setItem(VIEW_MODE_KEY, mode);
+		if (selectedFeed) {
+			const key = feedStorageKey(selectedFeed);
+			viewModesMap[key] = mode;
+			localStorage.setItem(VIEW_MODES_MAP_KEY, JSON.stringify(viewModesMap));
+		}
 	}
 
 	function initArticlePanelWidth() {
