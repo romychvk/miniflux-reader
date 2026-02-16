@@ -56,7 +56,7 @@
 		style="width: {ui.sidebarWidth}px"
 	>
 		<div class="p-3 border-b border-gray-200">
-			<h2 class="font-bold text-lg">Feeds</h2>
+			<h2 class="text-xl text-orange-600">Miniflux Reader</h2>
 		</div>
 		<div class="overflow-y-auto flex-1">
 			<FeedTree />
@@ -81,7 +81,7 @@
 	></div>
 	<aside class="fixed left-0 top-0 h-full w-72 bg-white z-50 shadow-lg flex flex-col">
 		<div class="p-3 border-b border-gray-200">
-			<h2 class="font-bold text-lg">Feeds</h2>
+			<h2 class="text-xl text-orange-600">Miniflux Reader</h2>
 		</div>
 		<div class="overflow-y-auto flex-1">
 			<FeedTree />

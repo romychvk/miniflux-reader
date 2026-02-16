@@ -14,6 +14,12 @@
 	const isRead = $derived(entry.status === 'read');
 	const isSelected = $derived(ui.selectedEntry?.id === entry.id);
 
+	const thumbnailUrl = $derived.by(() => {
+		if (!entry.content) return null;
+		const match = entry.content.match(/<img[^>]+src=["']([^"']+)["']/);
+		return match?.[1] ?? null;
+	});
+
 	function openArticle() {
 		if (!ui.isMobile && ui.layoutMode === 'three-column') {
 			ui.selectEntry(entry);
@@ -95,5 +101,14 @@
 				{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
 			</p>
 		</div>
+
+		{#if thumbnailUrl}
+			<img
+				src={thumbnailUrl}
+				alt=""
+				class="shrink-0 w-16 h-12 object-cover rounded"
+				loading="lazy"
+			/>
+		{/if}
 	</div>
 </div>
