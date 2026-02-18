@@ -180,7 +180,7 @@
 		onkeydown={(e) => e.key === 'Enter' && openArticle()}
 	>
 		{#if thumbnailUrl}
-			<div class="w-full aspect-video overflow-hidden bg-slate-100">
+			<div class="w-full overflow-hidden bg-slate-100 rounded-lg">
 				<img
 					src={thumbnailUrl}
 					alt=""
@@ -192,7 +192,7 @@
 
 		<div class="p-3">
 			<div class="flex items-start gap-2">
-				<h3 class="text-sm font-semibold line-clamp-3 flex-1">{entry.title}</h3>
+				<h3 class="text-base font-semibold line-clamp-3 flex-1">{entry.title}</h3>
 				<button
 					onclick={toggleRead}
 					class="shrink-0 text-blue-500 hover:text-blue-700 p-0.5"
@@ -205,11 +205,11 @@
 					{/if}
 				</button>
 			</div>
-			<p class="text-xs text-slate-400 mt-1.5">
+			<p class="text-sm text-slate-500 mt-1.5">
 				{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
 			</p>
 			{#if description}
-				<p class="text-xs text-slate-500 mt-1.5 line-clamp-2">{description}</p>
+				<p class="text-sm text-slate-800 mt-1.5 line-clamp-2">{description}</p>
 			{/if}
 		</div>
 	</div>

@@ -38,13 +38,19 @@
 			onclose();
 		}
 
+		function oncontextmenu(e: MouseEvent) {
+			if (menuEl && !menuEl.contains(e.target as Node)) onclose();
+		}
+
 		window.addEventListener('keydown', onkeydown);
 		window.addEventListener('click', onclick, true);
+		window.addEventListener('contextmenu', oncontextmenu, true);
 		window.addEventListener('scroll', onscroll, true);
 
 		return () => {
 			window.removeEventListener('keydown', onkeydown);
 			window.removeEventListener('click', onclick, true);
+			window.removeEventListener('contextmenu', oncontextmenu, true);
 			window.removeEventListener('scroll', onscroll, true);
 		};
 	});

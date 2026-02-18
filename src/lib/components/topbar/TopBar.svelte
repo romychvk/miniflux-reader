@@ -54,7 +54,7 @@
 			</button>
 		{/if}
 
-		<div class="text-lg font-bold truncate flex-1 flex gap-3 items-center">
+		<div class="text-2xl font-bold truncate flex-1 flex gap-3 items-center">
 			{#if selectedFeedNode?.iconData}
 				<img src={selectedFeedNode.iconData} alt="" class="size-5 shrink-0" />
 			{/if}

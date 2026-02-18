@@ -56,11 +56,11 @@
 <!-- Desktop sidebar -->
 {#if !ui.isMobile}
 	<aside
-		class="h-screen border-r border-slate-200 bg-white flex flex-col shrink-0 relative"
+		class="h-screen border-r-2 border-l-6 border-l-slate-500 border-r-slate-200 bg-white flex flex-col shrink-0 relative"
 		style="width: {ui.sidebarWidth}px"
 	>
 		<div class="p-3 border-b border-slate-200 bg-slate-200 flex items-center justify-between">
-			<h2 class="text-lg text-p font-medium leading-none">Miniflux Reader</h2>
+			<h2 class="text-lg text-slate-700 font-medium leading-none">Miniflux Reader</h2>
 			<button
 				onclick={() => showAddModal = true}
 				class="text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"

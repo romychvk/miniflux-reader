@@ -3,9 +3,14 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { dnd } from '$lib/stores/dnd.svelte';
 	import FeedItem from './FeedItem.svelte';
-	import { ChevronRight, ChevronDown } from 'lucide-svelte';
+	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
+	import { ChevronRight, ChevronDown, Pencil, RefreshCw } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { makeFeedSlug } from '$lib/slug';
+
+	let contextMenu = $state<{ x: number; y: number; catId: number } | null>(null);
+	let editingCatId = $state<number | null>(null);
 
 	let expandedCategories = $state<Set<number>>(
 		new Set(JSON.parse(localStorage.getItem('expandedCategories') || '[]'))
@@ -109,6 +114,11 @@
 		if (dnd.dragType !== 'category') return false;
 		return dnd.dropTarget.insertIndex === treeIndex;
 	}
+
+	function onCatContextMenu(e: MouseEvent, catId: number) {
+		e.preventDefault();
+		contextMenu = { x: e.clientX, y: e.clientY, catId };
+	}
 </script>
 
 <nav class="flex flex-col gap-0.5 p-2">
@@ -130,6 +140,7 @@
 					{isCatDragged ? 'opacity-40' : ''}
 					{isCatTarget ? 'ring-2 ring-blue-400 bg-blue-50' : ''}"
 				draggable="true"
+				oncontextmenu={(e: MouseEvent) => onCatContextMenu(e, node.id)}
 				ondragstart={(e: DragEvent) => onCatDragStart(e, node.id)}
 				ondragend={onCatDragEnd}
 				ondragover={(e: DragEvent) => onCatDragOver(e, node.id, treeIndex)}
@@ -187,3 +198,26 @@
 		<div class="h-0.5 bg-blue-500 mx-2 rounded"></div>
 	{/if}
 </nav>
+
+{#if contextMenu}
+	<ContextMenu
+		x={contextMenu.x}
+		y={contextMenu.y}
+		items={[
+			{ label: 'Edit Category', icon: Pencil, action: () => { editingCatId = contextMenu!.catId; } },
+			{ label: 'Refresh Feeds', icon: RefreshCw, action: () => { feeds.refreshCategoryFeeds(contextMenu!.catId); } }
+		]}
+		onclose={() => { contextMenu = null; }}
+	/>
+{/if}
+
+{#if editingCatId !== null}
+	{@const catNode = feeds.feedTree.find(n => n.id === editingCatId)}
+	{#if catNode}
+		<CategoryEditModal
+			title={catNode.title}
+			onclose={() => { editingCatId = null; }}
+			onsave={(title) => feeds.updateCategory(catNode.id, title)}
+		/>
+	{/if}
+{/if}

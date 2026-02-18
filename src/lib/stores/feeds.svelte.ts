@@ -299,6 +299,37 @@ function createFeedsStore() {
 		}
 	}
 
+	async function updateCategory(catId: number, title: string) {
+		try {
+			await apiCall(`categories/${catId}`, {
+				method: 'PUT',
+				body: JSON.stringify({ title })
+			});
+			await loadFeeds();
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to update category');
+			throw e;
+		}
+	}
+
+	async function refreshCategoryFeeds(catId: number) {
+		const cat = feedTree.find(n => n.id === catId);
+		if (!cat?.children) return;
+		const errors: string[] = [];
+		await Promise.all(
+			cat.children.map(async (child) => {
+				try {
+					await apiCall(`feeds/${child.id}/refresh`, { method: 'PUT' });
+				} catch (e) {
+					errors.push(child.title);
+				}
+			})
+		);
+		if (errors.length > 0) {
+			ui.showError(`Failed to refresh: ${errors.join(', ')}`);
+		}
+	}
+
 	return {
 		get feedTree() { return feedTree; },
 		get loading() { return loading; },
@@ -312,7 +343,9 @@ function createFeedsStore() {
 		getRawFeed,
 		getCategories,
 		createFeed,
-		updateFeed
+		updateFeed,
+		updateCategory,
+		refreshCategoryFeeds
 	};
 }
 
