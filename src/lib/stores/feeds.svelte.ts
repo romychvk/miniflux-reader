@@ -1,10 +1,11 @@
 import { apiCall } from '$lib/api';
 import { createFeedIcon } from '$lib/icons';
-import type { Feed, FeedCounters, FeedIcon, FeedNode } from '$lib/types';
+import type { Category, Feed, FeedCounters, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
 import { ui } from './ui.svelte';
 
 function createFeedsStore() {
 	let feedTree = $state<FeedNode[]>([]);
+	let rawFeeds = $state<Feed[]>([]);
 	let loading = $state(false);
 
 	function applySavedOrder(tree: FeedNode[]) {
@@ -65,16 +66,17 @@ function createFeedsStore() {
 	async function loadFeeds() {
 		loading = true;
 		try {
-			const [feeds, counters] = await Promise.all([
+			const [feedList, counters] = await Promise.all([
 				apiCall<Feed[]>('feeds'),
 				apiCall<FeedCounters>('feeds/counters')
 			]);
 
+			rawFeeds = feedList;
 			const unreads = counters.unreads;
 
 			// Extract unique categories
 			const categoryMap = new Map<number, string>();
-			for (const f of feeds) {
+			for (const f of feedList) {
 				if (f.category && !categoryMap.has(f.category.id)) {
 					categoryMap.set(f.category.id, f.category.title);
 				}
@@ -92,7 +94,7 @@ function createFeedsStore() {
 			);
 
 			for (const [catId, catTitle] of sortedCategories) {
-				const catFeeds = feeds
+				const catFeeds = feedList
 					.filter((f) => f.category?.id === catId)
 					.sort((a, b) => a.title.localeCompare(b.title))
 					.map((f) => ({
@@ -120,7 +122,7 @@ function createFeedsStore() {
 			feedTree = tree;
 
 			// Load icons in background
-			loadIcons(feeds);
+			loadIcons(feedList);
 		} catch (e) {
 			ui.showError(e instanceof Error ? e.message : 'Failed to load feeds');
 		} finally {
@@ -128,12 +130,12 @@ function createFeedsStore() {
 		}
 	}
 
-	async function loadIcons(feeds: Feed[]) {
+	async function loadIcons(feedList: Feed[]) {
 		const cache: Record<string, string> = JSON.parse(
 			localStorage.getItem('favicons') || '{}'
 		);
 
-		for (const feed of feeds) {
+		for (const feed of feedList) {
 			if (!feed.icon) continue;
 
 			const feedId = feed.id;
@@ -256,6 +258,34 @@ function createFeedsStore() {
 		return null;
 	}
 
+	function getRawFeed(feedId: number): Feed | null {
+		return rawFeeds.find(f => f.id === feedId) ?? null;
+	}
+
+	function getCategories(): Category[] {
+		return feedTree
+			.filter(n => n.id !== -1 && n.children)
+			.map(n => ({ id: n.id, title: n.title }));
+	}
+
+	async function updateFeed(feedId: number, changes: FeedUpdate) {
+		try {
+			await apiCall(`feeds/${feedId}`, {
+				method: 'PUT',
+				body: JSON.stringify(changes)
+			});
+			await loadFeeds();
+			// Re-select feed if it was selected
+			if (ui.selectedFeed?.isFeed && ui.selectedFeed.id === feedId) {
+				const updated = findFeedNodeById(feedId, true);
+				if (updated) ui.selectFeed(updated);
+			}
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to update feed');
+			throw e;
+		}
+	}
+
 	return {
 		get feedTree() { return feedTree; },
 		get loading() { return loading; },
@@ -265,7 +295,10 @@ function createFeedsStore() {
 		reorderCategory,
 		moveFeedToCategory,
 		getAllNode,
-		findFeedNodeById
+		findFeedNodeById,
+		getRawFeed,
+		getCategories,
+		updateFeed
 	};
 }
 

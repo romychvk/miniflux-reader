@@ -1,16 +1,29 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { apiCall } from '$lib/api';
 	import type { FeedNode } from '$lib/types';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { dnd } from '$lib/stores/dnd.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { makeFeedSlug } from '$lib/slug';
+	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
+	import FeedEditModal from '$lib/components/ui/FeedEditModal.svelte';
+	import { Pencil, RefreshCw } from 'lucide-svelte';
 
 	let { feed, parentCatId }: { feed: FeedNode; parentCatId?: number } = $props();
 
 	const isSelected = $derived(ui.selectedFeed?.id === feed.id && ui.selectedFeed?.isFeed === feed.isFeed);
 	const isDragged = $derived(dnd.dragType === 'feed' && dnd.dragId === feed.id);
 	const isDraggable = $derived(feed.id !== -1 && feed.isFeed);
+
+	let contextMenu = $state<{ x: number; y: number } | null>(null);
+	let showEditModal = $state(false);
+
+	function oncontextmenu(e: MouseEvent) {
+		if (!feed.isFeed || feed.id === -1) return;
+		e.preventDefault();
+		contextMenu = { x: e.clientX, y: e.clientY };
+	}
 
 	function ondragstart(e: DragEvent) {
 		if (!isDraggable || parentCatId === undefined) return;
@@ -61,6 +74,14 @@
 
 		dnd.reset();
 	}
+
+	async function refreshFeed() {
+		try {
+			await apiCall(`feeds/${feed.id}/refresh`, { method: 'PUT' });
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to refresh feed');
+		}
+	}
 </script>
 
 <button
@@ -70,6 +91,7 @@
 		else goto(`/category/${makeFeedSlug(feed.id, feed.title)}`);
 		if (ui.isMobile) ui.toggleSidebar();
 	}}
+	{oncontextmenu}
 	draggable={isDraggable}
 	{ondragstart}
 	{ondragend}
@@ -88,3 +110,27 @@
 		</span>
 	{/if}
 </button>
+
+{#if contextMenu}
+	<ContextMenu
+		x={contextMenu.x}
+		y={contextMenu.y}
+		items={[
+			{ label: 'Edit Feed', icon: Pencil, action: () => { showEditModal = true; } },
+			{ label: 'Refresh Feed', icon: RefreshCw, action: refreshFeed }
+		]}
+		onclose={() => { contextMenu = null; }}
+	/>
+{/if}
+
+{#if showEditModal}
+	{@const rawFeed = feeds.getRawFeed(feed.id)}
+	{#if rawFeed}
+		<FeedEditModal
+			feed={rawFeed}
+			categories={feeds.getCategories()}
+			onclose={() => { showEditModal = false; }}
+			onsave={(changes) => feeds.updateFeed(feed.id, changes)}
+		/>
+	{/if}
+{/if}

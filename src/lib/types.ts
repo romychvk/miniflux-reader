@@ -9,7 +9,16 @@ export interface Feed {
 	site_url: string;
 	feed_url: string;
 	category: Category;
+	crawler?: boolean;
 	icon?: { feed_id: number; icon_id: number };
+}
+
+export interface FeedUpdate {
+	title?: string;
+	site_url?: string;
+	feed_url?: string;
+	category_id?: number;
+	crawler?: boolean;
 }
 
 export interface Entry {
