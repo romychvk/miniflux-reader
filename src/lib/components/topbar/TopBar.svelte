@@ -14,7 +14,7 @@
 	);
 </script>
 
-<header class="h-12 border-b border-gray-200 bg-white flex items-center px-4 gap-3 shrink-0">
+<header class="h-12 border-b border-slate-200 bg-white flex items-center px-4 gap-3 shrink-0">
 	{#if isArticleView}
     <button onclick={() => history.back()} class="hover:underline flex gap-3 items-center text-lg font-bold truncate">
       {#if articleFeedNode?.iconData}
@@ -24,7 +24,7 @@
     </button>
 	{:else}
 		{#if ui.isMobile}
-			<button onclick={() => ui.toggleSidebar()} class="text-gray-600 hover:text-gray-900">
+			<button onclick={() => ui.toggleSidebar()} class="text-slate-600 hover:text-slate-900">
 				<Menu size={20} />
 			</button>
 		{/if}
@@ -37,50 +37,52 @@
 		</div>
 
 		{#if ui.selectedFeed}
-			<div class="flex items-center border border-gray-200 rounded-md overflow-hidden">
+    <button
+				onclick={() => entries.toggleShowAll()}
+				title={entries.showAll ? 'Show unread only' : 'Show all'}
+				class="text-slate-400 hover:text-slate-600"
+			>
+				<Circle size={20} fill={entries.showAll ? 'none' : 'currentColor'} />
+			</button>
+			<div class="flex items-center border-l border-slate-300 overflow-hidden pl-3 gap-2">
+        {#if !ui.isMobile}
+          <button
+            onclick={() => ui.toggleLayoutMode()}
+            title={ui.layoutMode === 'two-column' ? 'Switch to 3-column layout' : 'Switch to 2-column layout'}
+            class="text-slate-400 hover:text-slate-600"
+          >
+            {#if ui.layoutMode === 'two-column'}
+              <Columns2 size={24} />
+            {:else}
+              <Columns3 size={24} />
+            {/if}
+          </button>
+        {/if}
 				<button
 					onclick={() => ui.setViewMode('list')}
 					title="List view"
-					class="p-1.5 transition-colors {ui.viewMode === 'list' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+					class=" {ui.viewMode === 'list' ? 'bg-slate-100 text-p-dark' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}"
 				>
-					<List size={18} />
+					<List size={24} />
 				</button>
 				<button
 					onclick={() => ui.setViewMode('magazine')}
 					title="Magazine view"
-					class="p-1.5 transition-colors {ui.viewMode === 'magazine' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+					class=" {ui.viewMode === 'magazine' ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}"
 				>
-					<LayoutList size={18} />
+					<LayoutList size={24} />
 				</button>
 				<button
 					onclick={() => ui.setViewMode('cards')}
 					title="Cards view"
-					class="p-1.5 transition-colors {ui.viewMode === 'cards' ? 'bg-gray-100 text-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+					class=" {ui.viewMode === 'cards' ? 'bg-slate-100 text-slate-700' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}"
 				>
-					<LayoutGrid size={18} />
+					<LayoutGrid size={24} />
 				</button>
 			</div>
 
-			{#if !ui.isMobile}
-				<button
-					onclick={() => ui.toggleLayoutMode()}
-					title={ui.layoutMode === 'two-column' ? 'Switch to 3-column layout' : 'Switch to 2-column layout'}
-					class="text-gray-400 hover:text-gray-600"
-				>
-					{#if ui.layoutMode === 'two-column'}
-						<Columns2 size={20} />
-					{:else}
-						<Columns3 size={20} />
-					{/if}
-				</button>
-			{/if}
-			<button
-				onclick={() => entries.toggleShowAll()}
-				title={entries.showAll ? 'Show unread only' : 'Show all'}
-				class="text-gray-400 hover:text-gray-600"
-			>
-				<Circle size={20} fill={entries.showAll ? 'none' : 'currentColor'} />
-			</button>
+			
+			
 		{/if}
 	{/if}
 </header>
