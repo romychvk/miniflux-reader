@@ -1,5 +1,11 @@
 @import 'tailwindcss';
 
+@theme {
+	/* Colors */
+	--color-p: var(--color-orange-600);
+	--color-p-dark: var(--color-orange-700);
+}
+
 @layer base {
 	button {
 		cursor: pointer;

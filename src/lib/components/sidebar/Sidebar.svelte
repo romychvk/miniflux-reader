@@ -38,10 +38,10 @@
 </script>
 
 {#snippet logoutButton()}
-	<div class="border-t border-gray-200 p-3 mt-auto">
+	<div class="border-t border-slate-200 p-3 mt-auto">
 		<button
 			onclick={handleLogout}
-			class="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors w-full cursor-pointer"
+			class="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors w-full cursor-pointer"
 		>
 			<LogOut size={16} />
 			Logout
@@ -52,11 +52,11 @@
 <!-- Desktop sidebar -->
 {#if !ui.isMobile}
 	<aside
-		class="h-screen border-r border-gray-200 bg-white flex flex-col shrink-0 relative"
+		class="h-screen border-r border-slate-200 bg-white flex flex-col shrink-0 relative"
 		style="width: {ui.sidebarWidth}px"
 	>
-		<div class="p-3 border-b border-gray-200">
-			<h2 class="text-xl text-orange-600">Miniflux Reader</h2>
+		<div class="p-3 border-b border-slate-200 bg-slate-200">
+			<h2 class="text-lg text-p font-medium leading-none">Miniflux Reader</h2>
 		</div>
 		<div class="overflow-y-auto flex-1">
 			<FeedTree />
@@ -80,8 +80,8 @@
 		onkeydown={(e) => e.key === 'Escape' && ui.toggleSidebar()}
 	></div>
 	<aside class="fixed left-0 top-0 h-full w-72 bg-white z-50 shadow-lg flex flex-col">
-		<div class="p-3 border-b border-gray-200">
-			<h2 class="text-xl text-orange-600">Miniflux Reader</h2>
+		<div class="p-3 border-b border-slate-200">
+			<h2 class="text-xl text-orange-600 font-medium">Miniflux Reader</h2>
 		</div>
 		<div class="overflow-y-auto flex-1">
 			<FeedTree />
