@@ -1,5 +1,6 @@
 import { apiCall } from '$lib/api';
 import { createFeedIcon } from '$lib/icons';
+import { storageGet, storageSet } from '$lib/storage';
 import type { Category, Feed, FeedCounters, FeedCreate, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
 import { ui } from './ui.svelte';
 
@@ -9,11 +10,10 @@ function createFeedsStore() {
 	let loading = $state(false);
 
 	function applySavedOrder(tree: FeedNode[]) {
-		const catOrderJson = localStorage.getItem('categoryOrder');
-		const feedOrderJson = localStorage.getItem('feedOrder');
+		const catOrder = storageGet<number[] | null>('categoryOrder', null);
+		const feedOrder = storageGet<Record<string, number[]> | null>('feedOrder', null);
 
-		if (catOrderJson) {
-			const catOrder: number[] = JSON.parse(catOrderJson);
+		if (catOrder) {
 			// Separate "All" node from categories
 			const allNode = tree[0]; // id: -1
 			const categories = tree.slice(1);
@@ -31,8 +31,7 @@ function createFeedsStore() {
 			tree.push(allNode, ...categories);
 		}
 
-		if (feedOrderJson) {
-			const feedOrder: Record<string, number[]> = JSON.parse(feedOrderJson);
+		if (feedOrder) {
 			for (const node of tree) {
 				if (!node.children) continue;
 				const order = feedOrder[node.id];
@@ -52,15 +51,15 @@ function createFeedsStore() {
 	function persistOrder() {
 		const categories = feedTree.filter(n => n.id !== -1);
 		const catOrder = categories.map(c => c.id);
-		localStorage.setItem('categoryOrder', JSON.stringify(catOrder));
+		storageSet('categoryOrder', catOrder);
 
-		const feedOrder: Record<string, number[]> = {};
+		const feedOrderMap: Record<string, number[]> = {};
 		for (const cat of categories) {
 			if (cat.children) {
-				feedOrder[cat.id] = cat.children.map(f => f.id);
+				feedOrderMap[cat.id] = cat.children.map(f => f.id);
 			}
 		}
-		localStorage.setItem('feedOrder', JSON.stringify(feedOrder));
+		storageSet('feedOrder', feedOrderMap);
 	}
 
 	async function loadFeeds() {
@@ -131,35 +130,46 @@ function createFeedsStore() {
 	}
 
 	async function loadIcons(feedList: Feed[]) {
-		const cache: Record<string, string> = JSON.parse(
-			localStorage.getItem('favicons') || '{}'
-		);
+		const cache: Record<string, string> = storageGet('favicons', {});
 
-		for (const feed of feedList) {
-			if (!feed.icon) continue;
+		const feedsWithIcons = feedList.filter(f => f.icon);
+		const uncachedFeeds = feedsWithIcons.filter(f => !(f.id in cache));
 
-			const feedId = feed.id;
-			let iconData: string;
-
-			if (feedId in cache) {
-				iconData = cache[feedId];
-			} else {
-				try {
-					const icon = await apiCall<FeedIcon>(`feeds/${feedId}/icon`);
-					iconData = `data:${icon.data}`;
-					cache[feedId] = iconData;
-					localStorage.setItem('favicons', JSON.stringify(cache));
-				} catch {
-					continue;
-				}
+		// Apply cached icons immediately
+		for (const feed of feedsWithIcons) {
+			if (feed.id in cache) {
+				applyIconToTree(feed.id, cache[feed.id]);
 			}
+		}
 
-			// Update the feed node in tree
-			for (const node of feedTree) {
-				if (node.children) {
-					const child = node.children.find((c) => c.id === feedId);
-					if (child) child.iconData = iconData;
-				}
+		// Fetch uncached icons in parallel
+		if (uncachedFeeds.length > 0) {
+			let cacheUpdated = false;
+			await Promise.allSettled(
+				uncachedFeeds.map(async (feed) => {
+					try {
+						const icon = await apiCall<FeedIcon>(`feeds/${feed.id}/icon`);
+						const iconData = `data:${icon.data}`;
+						cache[feed.id] = iconData;
+						cacheUpdated = true;
+						applyIconToTree(feed.id, iconData);
+					} catch {
+						// skip failed icons
+					}
+				})
+			);
+
+			if (cacheUpdated) {
+				storageSet('favicons', cache);
+			}
+		}
+	}
+
+	function applyIconToTree(feedId: number, iconData: string) {
+		for (const node of feedTree) {
+			if (node.children) {
+				const child = node.children.find((c) => c.id === feedId);
+				if (child) child.iconData = iconData;
 			}
 		}
 	}
@@ -287,7 +297,32 @@ function createFeedsStore() {
 				method: 'PUT',
 				body: JSON.stringify(changes)
 			});
-			await loadFeeds();
+
+			// Update tree locally
+			for (const node of feedTree) {
+				if (node.children) {
+					const child = node.children.find((c) => c.id === feedId);
+					if (child) {
+						if (changes.title) child.title = changes.title;
+						break;
+					}
+				}
+			}
+
+			// Update rawFeeds
+			const raw = rawFeeds.find(f => f.id === feedId);
+			if (raw) {
+				if (changes.title) raw.title = changes.title;
+				if (changes.site_url) raw.site_url = changes.site_url;
+				if (changes.feed_url) raw.feed_url = changes.feed_url;
+				if (changes.crawler !== undefined) raw.crawler = changes.crawler;
+			}
+
+			// Handle category change — needs full reload since tree structure changes
+			if (changes.category_id) {
+				await loadFeeds();
+			}
+
 			// Re-select feed if it was selected
 			if (ui.selectedFeed?.isFeed && ui.selectedFeed.id === feedId) {
 				const updated = findFeedNodeById(feedId, true);
@@ -305,7 +340,16 @@ function createFeedsStore() {
 				method: 'PUT',
 				body: JSON.stringify({ title })
 			});
-			await loadFeeds();
+
+			// Update tree locally
+			const cat = feedTree.find(n => n.id === catId);
+			if (cat) cat.title = title;
+
+			// Re-select if selected
+			if (ui.selectedFeed && !ui.selectedFeed.isFeed && ui.selectedFeed.id === catId) {
+				const updated = findFeedNodeById(catId, false);
+				if (updated) ui.selectFeed(updated);
+			}
 		} catch (e) {
 			ui.showError(e instanceof Error ? e.message : 'Failed to update category');
 			throw e;

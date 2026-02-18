@@ -1,25 +1,27 @@
+import { storageGetString, storageSet, storageRemove } from '$lib/storage';
+
 function createAuth() {
 	let serverUrl = $state('');
 	let apiToken = $state('');
 	const isLoggedIn = $derived(!!serverUrl && !!apiToken);
 
 	function init() {
-		serverUrl = localStorage.getItem('miniflux_server') || '';
-		apiToken = localStorage.getItem('miniflux_api_key') || '';
+		serverUrl = storageGetString('miniflux_server');
+		apiToken = storageGetString('miniflux_api_key');
 	}
 
 	function login(server: string, token: string) {
 		serverUrl = server.replace(/\/+$/, '');
 		apiToken = token;
-		localStorage.setItem('miniflux_server', serverUrl);
-		localStorage.setItem('miniflux_api_key', apiToken);
+		storageSet('miniflux_server', serverUrl);
+		storageSet('miniflux_api_key', apiToken);
 	}
 
 	function logout() {
 		serverUrl = '';
 		apiToken = '';
-		localStorage.removeItem('miniflux_server');
-		localStorage.removeItem('miniflux_api_key');
+		storageRemove('miniflux_server');
+		storageRemove('miniflux_api_key');
 	}
 
 	return {

@@ -8,12 +8,13 @@
 	import { ChevronRight, ChevronDown, Pencil, RefreshCw } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { makeFeedSlug } from '$lib/slug';
+	import { storageGet, storageSet } from '$lib/storage';
 
 	let contextMenu = $state<{ x: number; y: number; catId: number } | null>(null);
 	let editingCatId = $state<number | null>(null);
 
 	let expandedCategories = $state<Set<number>>(
-		new Set(JSON.parse(localStorage.getItem('expandedCategories') || '[]'))
+		new Set(storageGet<number[]>('expandedCategories', []))
 	);
 
 	function toggleCategory(id: number) {
@@ -23,7 +24,7 @@
 			expandedCategories.add(id);
 		}
 		expandedCategories = new Set(expandedCategories);
-		localStorage.setItem('expandedCategories', JSON.stringify([...expandedCategories]));
+		storageSet('expandedCategories', [...expandedCategories]);
 	}
 
 	// Category drag handlers

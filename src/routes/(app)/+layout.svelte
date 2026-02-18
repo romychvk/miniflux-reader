@@ -26,8 +26,9 @@
 		}
 
 		const mql = window.matchMedia('(max-width: 768px)');
+		const onMediaChange = (e: MediaQueryListEvent) => ui.setMobile(e.matches);
 		ui.setMobile(mql.matches);
-		mql.addEventListener('change', (e) => ui.setMobile(e.matches));
+		mql.addEventListener('change', onMediaChange);
 		ui.initSidebarWidth();
 		ui.initLayoutMode();
 		ui.initViewMode();
@@ -35,6 +36,10 @@
 
 		await feeds.loadFeeds();
 		ready = true;
+
+		return () => {
+			mql.removeEventListener('change', onMediaChange);
+		};
 	});
 </script>
 

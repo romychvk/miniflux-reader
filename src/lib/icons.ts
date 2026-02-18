@@ -6,7 +6,12 @@ function hashCode(s: string): number {
 	return hash;
 }
 
+const iconCache = new Map<string, string>();
+
 export function createFeedIcon(feedName: string): string {
+	const cached = iconCache.get(feedName);
+	if (cached) return cached;
+
 	const canvas = document.createElement('canvas');
 	canvas.width = 16;
 	canvas.height = 16;
@@ -23,5 +28,7 @@ export function createFeedIcon(feedName: string): string {
 	ctx.textAlign = 'center';
 	ctx.fillText(feedName[0] || '?', 8, 9);
 
-	return canvas.toDataURL();
+	const dataUrl = canvas.toDataURL();
+	iconCache.set(feedName, dataUrl);
+	return dataUrl;
 }

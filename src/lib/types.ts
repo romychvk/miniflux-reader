@@ -36,6 +36,8 @@ export interface Entry {
 	status: 'unread' | 'read';
 	published_at: string;
 	feed: Feed;
+	_thumbnailUrl?: string | null;
+	_description?: string;
 }
 
 export interface FeedNode {

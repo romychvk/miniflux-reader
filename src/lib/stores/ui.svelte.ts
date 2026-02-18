@@ -1,4 +1,5 @@
 import type { Entry, FeedNode } from '$lib/types';
+import { storageGet, storageGetString, storageSet } from '$lib/storage';
 
 const SIDEBAR_WIDTH_KEY = 'sidebarWidth';
 const DEFAULT_SIDEBAR_WIDTH = 256;
@@ -31,7 +32,7 @@ function createUI() {
 	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
 
 	function initSidebarWidth() {
-		const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
+		const saved = storageGetString(SIDEBAR_WIDTH_KEY);
 		if (saved) {
 			const w = parseInt(saved, 10);
 			if (w >= MIN_SIDEBAR_WIDTH && w <= MAX_SIDEBAR_WIDTH) sidebarWidth = w;
@@ -40,7 +41,7 @@ function createUI() {
 
 	function setSidebarWidth(w: number) {
 		sidebarWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, w));
-		localStorage.setItem(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
+		storageSet(SIDEBAR_WIDTH_KEY, String(sidebarWidth));
 	}
 
 	function feedStorageKey(feed: FeedNode): string {
@@ -80,36 +81,34 @@ function createUI() {
 	}
 
 	function initLayoutMode() {
-		const saved = localStorage.getItem(LAYOUT_MODE_KEY);
+		const saved = storageGetString(LAYOUT_MODE_KEY);
 		if (saved === 'two-column' || saved === 'three-column') layoutMode = saved;
 	}
 
 	function toggleLayoutMode() {
 		layoutMode = layoutMode === 'two-column' ? 'three-column' : 'two-column';
-		localStorage.setItem(LAYOUT_MODE_KEY, layoutMode);
+		storageSet(LAYOUT_MODE_KEY, layoutMode);
 	}
 
 	function initViewMode() {
-		const saved = localStorage.getItem(VIEW_MODE_KEY);
+		const saved = storageGetString(VIEW_MODE_KEY);
 		if (saved && VIEW_MODES.includes(saved as ViewMode)) viewMode = saved as ViewMode;
-		try {
-			const map = JSON.parse(localStorage.getItem(VIEW_MODES_MAP_KEY) || '{}');
-			if (map && typeof map === 'object') viewModesMap = map;
-		} catch {}
+		const map = storageGet<Record<string, ViewMode>>(VIEW_MODES_MAP_KEY, {});
+		if (map && typeof map === 'object') viewModesMap = map;
 	}
 
 	function setViewMode(mode: ViewMode) {
 		viewMode = mode;
-		localStorage.setItem(VIEW_MODE_KEY, mode);
+		storageSet(VIEW_MODE_KEY, mode);
 		if (selectedFeed) {
 			const key = feedStorageKey(selectedFeed);
 			viewModesMap[key] = mode;
-			localStorage.setItem(VIEW_MODES_MAP_KEY, JSON.stringify(viewModesMap));
+			storageSet(VIEW_MODES_MAP_KEY, viewModesMap);
 		}
 	}
 
 	function initArticlePanelWidth() {
-		const saved = localStorage.getItem(ARTICLE_PANEL_WIDTH_KEY);
+		const saved = storageGetString(ARTICLE_PANEL_WIDTH_KEY);
 		if (saved) {
 			const w = parseInt(saved, 10);
 			if (w >= MIN_ARTICLE_PANEL_WIDTH) articlePanelWidth = w;
@@ -119,7 +118,7 @@ function createUI() {
 	function setArticlePanelWidth(w: number) {
 		const maxW = window.innerWidth - sidebarWidth - MIN_ENTRY_LIST_WIDTH;
 		articlePanelWidth = Math.max(MIN_ARTICLE_PANEL_WIDTH, Math.min(maxW, w));
-		localStorage.setItem(ARTICLE_PANEL_WIDTH_KEY, String(articlePanelWidth));
+		storageSet(ARTICLE_PANEL_WIDTH_KEY, String(articlePanelWidth));
 	}
 
 	return {

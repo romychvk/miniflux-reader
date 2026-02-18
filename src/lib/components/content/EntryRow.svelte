@@ -6,6 +6,7 @@
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
+	import { getScrollDirection, addScrollTracker, removeScrollTracker } from '$lib/scroll';
 
 	let { entry }: { entry: Entry } = $props();
 
@@ -16,17 +17,8 @@
 
 	const viewMode = $derived(ui.viewMode);
 
-	const thumbnailUrl = $derived.by(() => {
-		if (!entry.content) return null;
-		const match = entry.content.match(/<img[^>]+src=["']([^"']+)["']/);
-		return match?.[1] ?? null;
-	});
-
-	const description = $derived.by(() => {
-		if (!entry.content) return '';
-		const text = entry.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-		return text.length > 150 ? text.slice(0, 150) + '...' : text;
-	});
+	const thumbnailUrl = $derived(entry._thumbnailUrl ?? null);
+	const description = $derived(entry._description ?? '');
 
 	function openArticle() {
 		if (!ui.isMobile && ui.layoutMode === 'three-column') {
@@ -47,21 +39,12 @@
 	// IntersectionObserver action for auto-mark-read
 	function autoMarkRead(node: HTMLElement) {
 		let prevInView = false;
-		let scrollDirection: 'up' | 'down' = 'down';
-		let lastScrollY = 0;
-
-		function onScroll() {
-			const currentScrollY = window.scrollY;
-			scrollDirection = currentScrollY > lastScrollY ? 'down' : 'up';
-			lastScrollY = currentScrollY;
-		}
-
-		window.addEventListener('scroll', onScroll, { passive: true });
+		addScrollTracker();
 
 		const observer = new IntersectionObserver(
 			([e]) => {
 				const inView = e.isIntersecting;
-				if (!inView && prevInView && entry.status === 'unread' && scrollDirection === 'down') {
+				if (!inView && prevInView && entry.status === 'unread' && getScrollDirection() === 'down') {
 					entries.markRead([entry.id], true);
 				}
 				prevInView = inView;
@@ -73,7 +56,7 @@
 		return {
 			destroy() {
 				observer.disconnect();
-				window.removeEventListener('scroll', onScroll);
+				removeScrollTracker();
 			}
 		};
 	}
