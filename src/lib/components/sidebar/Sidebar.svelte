@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { LogOut } from 'lucide-svelte';
+	import { LogOut, Plus } from 'lucide-svelte';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import FeedTree from './FeedTree.svelte';
+	import FeedAddModal from '$lib/components/ui/FeedAddModal.svelte';
+
+	let showAddModal = $state(false);
 
 	function handleLogout() {
 		auth.logout();
@@ -55,8 +59,15 @@
 		class="h-screen border-r border-slate-200 bg-white flex flex-col shrink-0 relative"
 		style="width: {ui.sidebarWidth}px"
 	>
-		<div class="p-3 border-b border-slate-200 bg-slate-200">
+		<div class="p-3 border-b border-slate-200 bg-slate-200 flex items-center justify-between">
 			<h2 class="text-lg text-p font-medium leading-none">Miniflux Reader</h2>
+			<button
+				onclick={() => showAddModal = true}
+				class="text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+				title="Add feed"
+			>
+				<Plus size={20} />
+			</button>
 		</div>
 		<div class="overflow-y-auto flex-1">
 			<FeedTree />
@@ -80,12 +91,27 @@
 		onkeydown={(e) => e.key === 'Escape' && ui.toggleSidebar()}
 	></div>
 	<aside class="fixed left-0 top-0 h-full w-72 bg-white z-50 shadow-lg flex flex-col">
-		<div class="p-3 border-b border-slate-200">
+		<div class="p-3 border-b border-slate-200 flex items-center justify-between">
 			<h2 class="text-xl text-orange-600 font-medium">Miniflux Reader</h2>
+			<button
+				onclick={() => showAddModal = true}
+				class="text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+				title="Add feed"
+			>
+				<Plus size={20} />
+			</button>
 		</div>
 		<div class="overflow-y-auto flex-1">
 			<FeedTree />
 		</div>
 		{@render logoutButton()}
 	</aside>
+{/if}
+
+{#if showAddModal}
+	<FeedAddModal
+		categories={feeds.getCategories()}
+		onclose={() => showAddModal = false}
+		onsave={(data) => feeds.createFeed(data)}
+	/>
 {/if}

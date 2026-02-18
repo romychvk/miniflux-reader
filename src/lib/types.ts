@@ -13,6 +13,12 @@ export interface Feed {
 	icon?: { feed_id: number; icon_id: number };
 }
 
+export interface FeedCreate {
+	feed_url: string;
+	category_id: number;
+	crawler?: boolean;
+}
+
 export interface FeedUpdate {
 	title?: string;
 	site_url?: string;

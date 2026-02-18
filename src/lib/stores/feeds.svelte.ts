@@ -1,6 +1,6 @@
 import { apiCall } from '$lib/api';
 import { createFeedIcon } from '$lib/icons';
-import type { Category, Feed, FeedCounters, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
+import type { Category, Feed, FeedCounters, FeedCreate, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
 import { ui } from './ui.svelte';
 
 function createFeedsStore() {
@@ -268,6 +268,19 @@ function createFeedsStore() {
 			.map(n => ({ id: n.id, title: n.title }));
 	}
 
+	async function createFeed(data: FeedCreate) {
+		try {
+			await apiCall('feeds', {
+				method: 'POST',
+				body: JSON.stringify(data)
+			});
+			await loadFeeds();
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to create feed');
+			throw e;
+		}
+	}
+
 	async function updateFeed(feedId: number, changes: FeedUpdate) {
 		try {
 			await apiCall(`feeds/${feedId}`, {
@@ -298,6 +311,7 @@ function createFeedsStore() {
 		findFeedNodeById,
 		getRawFeed,
 		getCategories,
+		createFeed,
 		updateFeed
 	};
 }
