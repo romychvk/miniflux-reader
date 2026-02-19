@@ -8,8 +8,12 @@
 	} = $props();
 
 	let feedUrl = $state('');
-	let categoryId = $state(categories[0]?.id ?? 0);
+	let categoryId: number = $state(0);
 	let crawler = $state(false);
+
+	$effect(() => {
+		if (!categoryId && categories.length) categoryId = categories[0].id;
+	});
 	let saving = $state(false);
 
 	function onkeydown(e: KeyboardEvent) {
