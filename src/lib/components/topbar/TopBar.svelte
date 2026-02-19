@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { Menu, Circle, Columns2, Columns3, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw } from 'lucide-svelte';
-	import { apiCall } from '$lib/api';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -61,14 +60,19 @@
 			return [
 				{ label: 'Edit Feed', icon: Pencil, action: () => { showFeedEdit = true; } },
 				{ label: 'Refresh Feed', icon: RefreshCw, action: async () => {
-					try { await apiCall(`feeds/${feed.id}/refresh`, { method: 'PUT' }); }
-					catch (e) { ui.showError(e instanceof Error ? e.message : 'Failed to refresh feed'); }
+					try {
+						await feeds.refreshFeed(feed.id);
+						if (ui.selectedFeed) entries.loadEntries(ui.selectedFeed.apiPath);
+					} catch { /* already handled */ }
 				}}
 			];
 		}
 		return [
 			{ label: 'Edit Category', icon: Pencil, action: () => { showCatEdit = true; } },
-			{ label: 'Refresh Feeds', icon: RefreshCw, action: () => { feeds.refreshCategoryFeeds(feed.id); } }
+			{ label: 'Refresh Feeds', icon: RefreshCw, action: async () => {
+				await feeds.refreshCategoryFeeds(feed.id);
+				if (ui.selectedFeed) entries.loadEntries(ui.selectedFeed.apiPath);
+			}}
 		];
 	}
 </script>

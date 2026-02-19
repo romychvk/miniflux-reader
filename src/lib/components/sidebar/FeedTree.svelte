@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { entries } from '$lib/stores/entries.svelte';
 	import { dnd } from '$lib/stores/dnd.svelte';
 	import FeedItem from './FeedItem.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
@@ -206,7 +207,10 @@
 		y={contextMenu.y}
 		items={[
 			{ label: 'Edit Category', icon: Pencil, action: () => { editingCatId = contextMenu!.catId; } },
-			{ label: 'Refresh Feeds', icon: RefreshCw, action: () => { feeds.refreshCategoryFeeds(contextMenu!.catId); } }
+			{ label: 'Refresh Feeds', icon: RefreshCw, action: async () => {
+				await feeds.refreshCategoryFeeds(contextMenu!.catId);
+				if (ui.selectedFeed) entries.loadEntries(ui.selectedFeed.apiPath);
+			}}
 		]}
 		onclose={() => { contextMenu = null; }}
 	/>

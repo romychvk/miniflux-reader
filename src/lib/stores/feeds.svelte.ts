@@ -356,6 +356,40 @@ function createFeedsStore() {
 		}
 	}
 
+	async function loadCounters() {
+		try {
+			const counters = await apiCall<FeedCounters>('feeds/counters');
+			const unreads = counters.unreads;
+			let totalUnread = 0;
+			for (const node of feedTree) {
+				if (node.id === -1) continue;
+				if (node.children) {
+					let catUnread = 0;
+					for (const child of node.children) {
+						child.unread = unreads[child.id] || 0;
+						catUnread += child.unread;
+					}
+					node.unread = catUnread;
+					totalUnread += catUnread;
+				}
+			}
+			const allNode = feedTree.find(n => n.id === -1);
+			if (allNode) allNode.unread = totalUnread;
+		} catch {
+			// silently fail — counters will update on next full reload
+		}
+	}
+
+	async function refreshFeed(feedId: number) {
+		try {
+			await apiCall(`feeds/${feedId}/refresh`, { method: 'PUT' });
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to refresh feed');
+			throw e;
+		}
+		await loadCounters();
+	}
+
 	async function refreshCategoryFeeds(catId: number) {
 		const cat = feedTree.find(n => n.id === catId);
 		if (!cat?.children) return;
@@ -372,6 +406,7 @@ function createFeedsStore() {
 		if (errors.length > 0) {
 			ui.showError(`Failed to refresh: ${errors.join(', ')}`);
 		}
+		await loadCounters();
 	}
 
 	return {
@@ -389,6 +424,7 @@ function createFeedsStore() {
 		createFeed,
 		updateFeed,
 		updateCategory,
+		refreshFeed,
 		refreshCategoryFeeds
 	};
 }

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { apiCall } from '$lib/api';
 	import type { FeedNode } from '$lib/types';
 	import { ui } from '$lib/stores/ui.svelte';
+	import { entries } from '$lib/stores/entries.svelte';
 	import { dnd } from '$lib/stores/dnd.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { makeFeedSlug } from '$lib/slug';
@@ -77,10 +77,9 @@
 
 	async function refreshFeed() {
 		try {
-			await apiCall(`feeds/${feed.id}/refresh`, { method: 'PUT' });
-		} catch (e) {
-			ui.showError(e instanceof Error ? e.message : 'Failed to refresh feed');
-		}
+			await feeds.refreshFeed(feed.id);
+			if (ui.selectedFeed) entries.loadEntries(ui.selectedFeed.apiPath);
+		} catch { /* already handled */ }
 	}
 </script>
 
