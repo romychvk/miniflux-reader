@@ -101,18 +101,8 @@
 			{ui.selectedFeed?.title || 'Miniflux Reader'}
 		</div>
 
-		{#if showDotMenu}
-			<button
-				onclick={openDotMenu}
-				class="text-slate-400 hover:text-slate-600 shrink-0"
-				title="Menu"
-			>
-				<EllipsisVertical size={20} />
-			</button>
-		{/if}
-
 		{#if ui.selectedFeed}
-      <div class="flex items-center border-l border-slate-300 pl-3 gap-3.5">
+      <div class="flex items-center border-l border-slate-300 px-3 gap-3.5">
         <button
           onclick={() => entries.toggleShowAll()}
           title={entries.showAll ? 'Show unread only' : 'Show all'}
@@ -156,9 +146,16 @@
 					{/if}
 				</div>
 			</div>
+		{/if}
 
-			
-			
+    {#if showDotMenu}
+			<button
+				onclick={openDotMenu}
+				class="text-slate-400 hover:text-slate-600 shrink-0"
+				title="Menu"
+			>
+				<EllipsisVertical size={20} />
+			</button>
 		{/if}
 	{/if}
 </header>

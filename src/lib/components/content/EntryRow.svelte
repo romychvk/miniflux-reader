@@ -88,7 +88,7 @@
 				{/if}
 			</button>
 
-			<h3 class="text-sm font-medium truncate flex-1 min-w-0">{entry.title}</h3>
+			<p class="truncate text-sm font-medium flex-1 min-w-0">{entry.title}</p>
 			<span class="text-xs text-slate-400 shrink-0">{entry.feed.title}</span>
 			<span class="text-xs text-slate-300 shrink-0">&middot;</span>
 			<span class="text-xs text-slate-400 shrink-0">{relaTimestamp(entry.published_at)}</span>
