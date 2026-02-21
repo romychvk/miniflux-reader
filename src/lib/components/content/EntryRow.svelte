@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Circle, CircleDot } from 'lucide-svelte';
 	import type { Entry } from '$lib/types';
 	import { entries } from '$lib/stores/entries.svelte';
+	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
 	import { getScrollDirection, addScrollTracker, removeScrollTracker } from '$lib/scroll';
 
 	let { entry }: { entry: Entry } = $props();
+
+	const feedIcon = $derived(feeds.findFeedNodeById(entry.feed.id, true)?.iconData);
 
 	let rowEl: HTMLElement | undefined = $state();
 
@@ -29,11 +31,6 @@
 		} else {
 			goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
 		}
-	}
-
-	function toggleRead(e: Event) {
-		e.stopPropagation();
-		entries.markRead([entry.id], !isRead);
 	}
 
 	// IntersectionObserver action for auto-mark-read
@@ -76,17 +73,9 @@
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && openArticle()}
 		>
-			<button
-				onclick={toggleRead}
-				class="shrink-0 text-blue-500 hover:text-blue-700 p-0.5"
-				title={isRead ? 'Mark as unread' : 'Mark as read'}
-			>
-				{#if isRead}
-					<Circle size={14} />
-				{:else}
-					<CircleDot size={14} />
-				{/if}
-			</button>
+			{#if feedIcon}
+				<img src={feedIcon} alt="" class="w-4 h-4 shrink-0" />
+			{/if}
 
 			<p class="truncate text-sm font-medium flex-1 min-w-0">{entry.title}</p>
 			<span class="text-xs text-slate-400 shrink-0">{entry.feed.title}</span>
@@ -127,21 +116,11 @@
 			</div>
 
 			<div class="flex-1 min-w-0 flex flex-col">
-				<div class="flex items-start gap-2">
-					<h3 class="text-lg font-semibold line-clamp-2 flex-1">{entry.title}</h3>
-					<button
-						onclick={toggleRead}
-						class="shrink-0 text-blue-500 hover:text-blue-700 p-0.5 mt-0.5"
-						title={isRead ? 'Mark as unread' : 'Mark as read'}
-					>
-						{#if isRead}
-							<Circle size={14} />
-						{:else}
-							<CircleDot size={14} />
-						{/if}
-					</button>
-				</div>
-				<p class="text-sm text-slate-500 mt-1">
+				<h3 class="text-lg font-semibold line-clamp-2">{entry.title}</h3>
+				<p class="text-sm text-slate-500 mt-1 flex items-center gap-1">
+					{#if feedIcon}
+						<img src={feedIcon} alt="" class="w-3.5 h-3.5 shrink-0" />
+					{/if}
 					{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
 				</p>
 				{#if description}
@@ -174,21 +153,11 @@
 		{/if}
 
 		<div class="p-3">
-			<div class="flex items-start gap-2">
-				<h3 class="text-base font-semibold line-clamp-3 flex-1">{entry.title}</h3>
-				<button
-					onclick={toggleRead}
-					class="shrink-0 text-blue-500 hover:text-blue-700 p-0.5"
-					title={isRead ? 'Mark as unread' : 'Mark as read'}
-				>
-					{#if isRead}
-						<Circle size={14} />
-					{:else}
-						<CircleDot size={14} />
-					{/if}
-				</button>
-			</div>
-			<p class="text-sm text-slate-500 mt-1.5">
+			<h3 class="text-base font-semibold line-clamp-3">{entry.title}</h3>
+			<p class="text-sm text-slate-500 mt-1.5 flex items-center gap-1">
+				{#if feedIcon}
+					<img src={feedIcon} alt="" class="w-3.5 h-3.5 shrink-0" />
+				{/if}
 				{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
 			</p>
 			{#if description}
