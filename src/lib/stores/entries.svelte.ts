@@ -3,19 +3,31 @@ import type { Entry } from '$lib/types';
 import { feeds } from './feeds.svelte';
 import { ui } from './ui.svelte';
 
+function decodeContent(html: string): string {
+	const trimmed = html.trim();
+	if (trimmed.startsWith('&lt;') || (!trimmed.startsWith('<') && trimmed.includes('&lt;'))) {
+		const ta = document.createElement('textarea');
+		ta.innerHTML = html;
+		return ta.value;
+	}
+	return html;
+}
+
 function extractThumbnail(content: string): string | null {
 	const match = content.match(/<img[^>]+src=["']([^"']+)["']/);
 	return match?.[1] ?? null;
 }
 
 function extractDescription(content: string): string {
-	const text = content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+	const doc = new DOMParser().parseFromString(content, 'text/html');
+	const text = (doc.body.textContent ?? '').replace(/\s+/g, ' ').trim();
 	return text.length > 150 ? text.slice(0, 150) + '...' : text;
 }
 
 function enrichEntries(entries: Entry[]): Entry[] {
 	for (const entry of entries) {
 		if (entry.content) {
+			entry.content = decodeContent(entry.content);
 			entry._thumbnailUrl = extractThumbnail(entry.content);
 			entry._description = extractDescription(entry.content);
 		} else {
@@ -87,7 +99,7 @@ function createEntriesStore() {
 	async function fetchOriginalContent(entryId: number): Promise<string | null> {
 		try {
 			const data = await apiCall<{ content: string }>(`entries/${entryId}/original-content`);
-			return data.content;
+			return decodeContent(data.content);
 		} catch {
 			return null;
 		}
