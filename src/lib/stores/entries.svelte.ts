@@ -42,6 +42,7 @@ function createEntriesStore() {
 	let entries = $state<Entry[]>([]);
 	let loading = $state(false);
 	let showAll = $state(false);
+	let searchQuery = $state('');
 	let abortController: AbortController | null = null;
 
 	async function loadEntries(apiPath: string) {
@@ -52,9 +53,14 @@ function createEntriesStore() {
 		loading = true;
 		try {
 			const sep = apiPath.includes('?') ? '&' : '?';
-			const statusFilter = showAll ? '' : 'status=unread&';
+			let params = '';
+			if (searchQuery) {
+				params = `search=${encodeURIComponent(searchQuery)}&`;
+			} else if (!showAll) {
+				params = 'status=unread&';
+			}
 			const data = await apiCall<{ total: number; entries: Entry[] }>(
-				`${apiPath}${sep}${statusFilter}order=published_at&direction=desc&limit=100`,
+				`${apiPath}${sep}${params}order=published_at&direction=desc&limit=100`,
 				{ signal }
 			);
 			entries = enrichEntries(data.entries || []);
@@ -69,6 +75,14 @@ function createEntriesStore() {
 
 	function toggleShowAll() {
 		showAll = !showAll;
+	}
+
+	function setSearchQuery(query: string) {
+		searchQuery = query;
+	}
+
+	function clearSearch() {
+		searchQuery = '';
 	}
 
 	async function markRead(entryIds: number[], read: boolean) {
@@ -113,10 +127,13 @@ function createEntriesStore() {
 		get entries() { return entries; },
 		get loading() { return loading; },
 		get showAll() { return showAll; },
+		get searchQuery() { return searchQuery; },
 		loadEntries,
 		markRead,
 		fetchOriginalContent,
 		toggleShowAll,
+		setSearchQuery,
+		clearSearch,
 		findEntryById
 	};
 }

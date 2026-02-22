@@ -12,7 +12,9 @@
 		</div>
 	{:else if entries.entries.length === 0}
 		<div class="flex items-center justify-center py-12 text-n-400 text-sm">
-			{#if ui.selectedFeed}
+			{#if entries.searchQuery}
+				No results for "{entries.searchQuery}"
+			{:else if ui.selectedFeed}
 				No {entries.showAll ? '' : 'unread '}entries
 			{:else}
 				Select a feed

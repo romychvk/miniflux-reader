@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { page } from '$app/state';
-	import { Menu, Circle, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck } from 'lucide-svelte';
+	import { Menu, Circle, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -111,9 +112,59 @@
 			{ label: 'Edit Category', icon: Pencil, action: () => { showCatEdit = true; } },
 		];
 	}
+
+	let searchOpen = $state(false);
+	let searchInput = $state('');
+	let searchInputEl = $state<HTMLInputElement | null>(null);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	function openSearch() {
+		searchOpen = true;
+		tick().then(() => searchInputEl?.focus());
+	}
+
+	function closeSearch() {
+		searchOpen = false;
+		searchInput = '';
+		if (debounceTimer) clearTimeout(debounceTimer);
+		entries.clearSearch();
+	}
+
+	function onSearchInput() {
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			entries.setSearchQuery(searchInput);
+		}, 300);
+	}
+
+	function onSearchKeydown(e: KeyboardEvent) {
+		if (e.key === 'Escape') {
+			closeSearch();
+		}
+	}
+
+	function onGlobalKeydown(e: KeyboardEvent) {
+		if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+			e.preventDefault();
+			if (searchOpen) {
+				searchInputEl?.focus();
+			} else if (ui.selectedFeed) {
+				openSearch();
+			}
+		}
+	}
+
+	let prevFeedId: number | undefined;
+	$effect(() => {
+		const id = ui.selectedFeed?.id;
+		if (prevFeedId !== undefined && id !== prevFeedId && searchOpen) {
+			closeSearch();
+		}
+		prevFeedId = id;
+	});
 </script>
 
-<svelte:document onclick={viewDropdownOpen ? handleClickOutside : undefined} />
+<svelte:document onclick={viewDropdownOpen ? handleClickOutside : undefined} onkeydown={onGlobalKeydown} />
 
 <header class="h-12 border-b border-n-200 bg-surface flex justify-between items-center px-4 gap-3 shrink-0">
 	{#if ui.isMobile}
@@ -130,14 +181,45 @@
 			{ui.selectedEntry?.feed?.title || 'Article'}
 		</button>
 	{:else}
-		<div class="text-2xl font-bold truncate flex-1 flex gap-3 items-center">
-			{#if selectedFeedNode?.iconData}
-				<img src={selectedFeedNode.iconData} alt="" class="size-5 shrink-0" />
-			{/if}
-			{ui.selectedFeed?.title || 'Miniflux Reader'}
-		</div>
+		{#if searchOpen}
+			<div class="flex items-center gap-2 flex-1 min-w-0">
+				<Search size={18} class="text-n-400 shrink-0" />
+				<input
+					bind:this={searchInputEl}
+					bind:value={searchInput}
+					oninput={onSearchInput}
+					onkeydown={onSearchKeydown}
+					type="text"
+					placeholder="Search articles..."
+					class="flex-1 min-w-0 bg-transparent outline-none text-sm text-n-900 placeholder:text-n-400"
+				/>
+				<button
+					onclick={closeSearch}
+					class="text-n-500 hover:text-n-700 p-1 rounded-full hover:bg-n-200 shrink-0"
+					title="Close search"
+				>
+					<X size={16} />
+				</button>
+			</div>
+		{:else}
+			<div class="text-2xl font-bold truncate flex-1 flex gap-3 items-center">
+				{#if selectedFeedNode?.iconData}
+					<img src={selectedFeedNode.iconData} alt="" class="size-5 shrink-0" />
+				{/if}
+				{ui.selectedFeed?.title || 'Miniflux Reader'}
+			</div>
+		{/if}
 
 		{#if ui.selectedFeed}
+			{#if !searchOpen}
+				<button
+					onclick={openSearch}
+					title="Search (Ctrl+K)"
+					class="text-n-700 hover:bg-n-200 p-2 rounded-full"
+				>
+					<Search size={20} />
+				</button>
+			{/if}
 			{#if refreshResult}
 				<span class="text-xs text-a-600 whitespace-nowrap">{refreshResult}</span>
 			{/if}

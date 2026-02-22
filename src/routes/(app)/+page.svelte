@@ -6,6 +6,7 @@
 
 	$effect(() => {
 		const _showAll = entries.showAll;
+		const _search = entries.searchQuery;
 		const allNode = feeds.getAllNode();
 		if (allNode) {
 			ui.selectFeed(allNode);

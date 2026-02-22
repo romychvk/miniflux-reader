@@ -8,6 +8,7 @@
 
 	$effect(() => {
 		const _showAll = entries.showAll;
+		const _search = entries.searchQuery;
 		const slug = page.params.slug;
 		const id = parseFeedSlugId(slug);
 		if (id === null) return;
