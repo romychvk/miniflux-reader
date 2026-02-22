@@ -34,6 +34,7 @@
 		ui.initLayoutMode();
 		ui.initViewMode();
 		ui.initArticlePanelWidth();
+		ui.initAutoMarkRead();
 		theme.init();
 
 		await feeds.loadFeeds();

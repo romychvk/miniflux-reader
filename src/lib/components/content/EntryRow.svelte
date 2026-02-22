@@ -41,7 +41,7 @@
 		const observer = new IntersectionObserver(
 			([e]) => {
 				const inView = e.isIntersecting;
-				if (!inView && prevInView && entry.status === 'unread' && getScrollDirection() === 'down') {
+				if (!inView && prevInView && entry.status === 'unread' && getScrollDirection() === 'down' && ui.autoMarkReadOnScroll) {
 					entries.markRead([entry.id], true);
 				}
 				prevInView = inView;

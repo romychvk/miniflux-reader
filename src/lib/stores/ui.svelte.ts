@@ -13,6 +13,7 @@ const ARTICLE_PANEL_WIDTH_KEY = 'articlePanelWidth';
 const DEFAULT_ARTICLE_PANEL_WIDTH = 550;
 const MIN_ARTICLE_PANEL_WIDTH = 300;
 const MIN_ENTRY_LIST_WIDTH = 320;
+const AUTO_MARK_READ_KEY = 'autoMarkReadOnScroll';
 
 type LayoutMode = 'two-column' | 'three-column';
 type ViewMode = 'list' | 'magazine' | 'cards';
@@ -30,6 +31,17 @@ function createUI() {
 	let viewMode = $state<ViewMode>('list');
 	let viewModesMap = $state<Record<string, ViewMode>>({});
 	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
+	let autoMarkReadOnScroll = $state(true);
+
+	function initAutoMarkRead() {
+		const saved = storageGetString(AUTO_MARK_READ_KEY);
+		if (saved === 'false') autoMarkReadOnScroll = false;
+	}
+
+	function toggleAutoMarkRead() {
+		autoMarkReadOnScroll = !autoMarkReadOnScroll;
+		storageSet(AUTO_MARK_READ_KEY, String(autoMarkReadOnScroll));
+	}
 
 	function initSidebarWidth() {
 		const saved = storageGetString(SIDEBAR_WIDTH_KEY);
@@ -131,6 +143,7 @@ function createUI() {
 		get layoutMode() { return layoutMode; },
 		get viewMode() { return viewMode; },
 		get articlePanelWidth() { return articlePanelWidth; },
+		get autoMarkReadOnScroll() { return autoMarkReadOnScroll; },
 		selectFeed,
 		selectEntry,
 		toggleSidebar,
@@ -143,6 +156,8 @@ function createUI() {
 		toggleLayoutMode,
 		initViewMode,
 		setViewMode,
+		initAutoMarkRead,
+		toggleAutoMarkRead,
 		initArticlePanelWidth,
 		setArticlePanelWidth
 	};

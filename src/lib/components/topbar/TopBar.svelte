@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Menu, Circle, Columns2, Columns3, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw } from 'lucide-svelte';
+	import { Menu, Circle, Columns2, Columns3, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, Settings, Square, SquareCheck } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -19,6 +19,7 @@
 
 	let viewDropdownOpen = $state(false);
 	let themeDropdownOpen = $state(false);
+	let settingsDropdownOpen = $state(false);
 
 	const viewModes = [
 		{ id: 'list' as const, label: 'List view', icon: List },
@@ -41,6 +42,9 @@
 		}
 		if (!target.closest('.theme-dropdown')) {
 			themeDropdownOpen = false;
+		}
+		if (!target.closest('.settings-dropdown')) {
+			settingsDropdownOpen = false;
 		}
 	}
 
@@ -82,7 +86,7 @@
 	}
 </script>
 
-<svelte:document onclick={(viewDropdownOpen || themeDropdownOpen) ? handleClickOutside : undefined} />
+<svelte:document onclick={(viewDropdownOpen || themeDropdownOpen || settingsDropdownOpen) ? handleClickOutside : undefined} />
 
 <header class="h-12 border-b border-n-200 bg-surface flex items-center px-4 gap-3 shrink-0">
 	{#if ui.isMobile}
@@ -167,6 +171,32 @@
 			{/if}
 		</button>
 	{/if}
+
+	<!-- Settings gear -->
+	<div class="relative settings-dropdown flex items-center">
+		<button
+			onclick={() => settingsDropdownOpen = !settingsDropdownOpen}
+			title="Settings"
+			class="text-n-400 hover:text-n-600"
+		>
+			<Settings size={20} />
+		</button>
+		{#if settingsDropdownOpen}
+			<div class="absolute right-0 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-md py-1 z-50 min-w-48">
+				<button
+					onclick={() => ui.toggleAutoMarkRead()}
+					class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-50 text-n-700 flex items-center gap-2"
+				>
+					{#if ui.autoMarkReadOnScroll}
+						<SquareCheck size={16} class="shrink-0 text-a-600" />
+					{:else}
+						<Square size={16} class="shrink-0 text-n-400" />
+					{/if}
+					Mark read on scroll
+				</button>
+			</div>
+		{/if}
+	</div>
 
 	<!-- Theme picker (always visible) -->
 	<div class="relative theme-dropdown flex items-center">
