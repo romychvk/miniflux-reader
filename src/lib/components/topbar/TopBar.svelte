@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Menu, Circle, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw } from 'lucide-svelte';
+	import { Menu, Circle, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -71,6 +71,20 @@
 		}
 	}
 
+	let markingAllRead = $state(false);
+	const hasUnread = $derived(entries.entries.some(e => e.status === 'unread'));
+
+	async function markAllAsRead() {
+		const unreadIds = entries.entries.filter(e => e.status === 'unread').map(e => e.id);
+		if (unreadIds.length === 0) return;
+		markingAllRead = true;
+		try {
+			await entries.markRead(unreadIds, true);
+		} finally {
+			markingAllRead = false;
+		}
+	}
+
 	let dotMenu = $state<{ x: number; y: number } | null>(null);
 	let showFeedEdit = $state(false);
 	let showCatEdit = $state(false);
@@ -134,6 +148,14 @@
 				class="text-n-700 hover:bg-n-200 p-2 rounded-full disabled:opacity-50"
 			>
 				<RefreshCw size={20} class={refreshing ? 'animate-spin' : ''} />
+			</button>
+			<button
+				onclick={markAllAsRead}
+				disabled={markingAllRead || !hasUnread}
+				title="Mark all as read"
+				class="text-n-700 hover:bg-n-200 p-2 rounded-full disabled:opacity-50"
+			>
+				<CheckCheck size={20} />
 			</button>
 			<div class="display-buttons flex items-center gap-1 relative">
 				<button
