@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { ArrowLeft } from 'lucide-svelte';
 	import type { Entry } from '$lib/types';
+	import { feeds } from '$lib/stores/feeds.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import EntryContent from './EntryContent.svelte';
 
 	let { entry }: { entry: Entry } = $props();
 
+	const feedIcon = $derived(feeds.findFeedNodeById(entry.feed.id, true)?.iconData);
+  
 	function goBack() {
 		history.back();
 	}
@@ -25,8 +28,11 @@
 	</h1>
 
 	<div class="flex items-center gap-2 text-sm text-n-500 mb-4">
+		{#if feedIcon}
+			<img src={feedIcon} alt="" class="size-5 shrink-0" />
+		{/if}
 		<span>{entry.feed.title}</span>
-		<span>&middot;</span>
+    <span>&middot;</span>
 		<span>{relaTimestamp(entry.published_at)}</span>
 		{#if entry.author}
 			<span>&middot;</span>

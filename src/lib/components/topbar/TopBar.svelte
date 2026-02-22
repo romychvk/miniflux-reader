@@ -84,7 +84,7 @@
 
 <svelte:document onclick={(viewDropdownOpen || settingsDropdownOpen) ? handleClickOutside : undefined} />
 
-<header class="h-12 border-b border-n-200 bg-surface flex items-center px-4 gap-3 shrink-0">
+<header class="h-12 border-b border-n-200 bg-surface flex justify-between items-center px-4 gap-3 shrink-0">
 	{#if ui.isMobile}
 		<button onclick={() => ui.toggleSidebar()} class="text-n-600 hover:text-n-900">
 			<Menu size={20} />
@@ -92,7 +92,7 @@
 	{/if}
 
 	{#if isArticleView}
-		<button onclick={() => history.back()} class="hover:underline flex gap-3 items-center text-lg font-bold truncate flex-1 min-w-0">
+		<button onclick={() => history.back()} class="max-w-fit hover:underline flex gap-3 items-center text-2xl font-bold truncate flex-1 min-w-0">
 			{#if articleFeedNode?.iconData}
 				<img src={articleFeedNode.iconData} alt="" class="size-5 shrink-0" />
 			{/if}
@@ -174,20 +174,23 @@
 					Mark read on scroll
 				</button>
 
-				<div class="border-t border-n-200 mt-1 pt-4">
-					<div class="px-3 text-sm mb-2 font-medium text-n-500">Theme</div>
-					{#each theme.themes as t}
-						<button
-							onclick={() => theme.setTheme(t.id)}
-							class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center gap-2 {theme.current === t.id ? 'font-bold' : ''}"
-						>
-							<span class="flex overflow-hidden rounded-full border border-n-200">
-								<span class="block w-3 h-6" style="background:{t.neutral}"></span>
-								<span class="block w-3 h-6" style="background:{t.accent}"></span>
-							</span>
-							{t.label}
-						</button>
-					{/each}
+				<div class="border-t border-n-200 mt-1 py-4">
+					<div class="px-3 text-sm mb-3 font-medium text-n-500">Theme</div>
+          <div class="px-3 flex flex-wrap gap-3">
+            {#each theme.themes as t}
+              <button
+                onclick={() => theme.setTheme(t.id)}
+                class="text-sm text-n-700 flex rounded-full hover:outline-n-400 hover:outline-2 items-center gap-2 {theme.current === t.id ? 'font-bold outline-a-600 outline-2' : ''}"
+                title={t.label}
+              >
+                <span class="flex overflow-hidden rounded-full border border-n-200">
+                  <span class="block w-4 h-8" style="background:{t.neutral}"></span>
+                  <span class="block w-4 h-8" style="background:{t.accent}"></span>
+                </span>
+                <!-- {t.label} -->
+              </button>
+            {/each}
+          </div>
 				</div>
 
 				{#if !ui.isMobile}

@@ -51,7 +51,7 @@
 		<Sidebar />
 		<div class="flex flex-col flex-1 min-w-0">
 			<TopBar />
-			<main class="flex-1 overflow-y-auto">
+			<main class="flex-1 overflow-y-auto py-2">
 				{@render children()}
 			</main>
 		</div>

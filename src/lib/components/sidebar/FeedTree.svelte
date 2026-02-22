@@ -123,7 +123,7 @@
 	}
 </script>
 
-<nav class="flex flex-col gap-0.5 p-2">
+<nav class="flex flex-col gap-0.5 p-4">
 	{#each feeds.feedTree as node, treeIndex}
 		{#if node.children}
 			<!-- Category insert line (before) -->

@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { X } from 'lucide-svelte';
+	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import EntryContent from './EntryContent.svelte';
+
+	const feedIcon = $derived(ui.selectedEntry ? feeds.findFeedNodeById(ui.selectedEntry.feed.id, true)?.iconData : null);
 
 	let resizing = $state(false);
 
@@ -58,6 +61,9 @@
 					</h1>
 
 					<div class="flex items-center gap-2 text-sm text-n-500 mb-4">
+						{#if feedIcon}
+							<img src={feedIcon} alt="" class="size-5 shrink-0" />
+						{/if}
 						<span>{ui.selectedEntry.feed.title}</span>
 						<span>&middot;</span>
 						<span>{relaTimestamp(ui.selectedEntry.published_at)}</span>

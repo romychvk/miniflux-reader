@@ -67,20 +67,20 @@
 		use:autoMarkRead
 	>
 		<div
-			class="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-n-200  {isRead ? 'opacity-60' : ''} {isSelected ? 'bg-a-50' : ''}"
+			class="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-n-200 {isSelected ? 'bg-a-50' : ''}"
 			onclick={openArticle}
 			role="button"
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && openArticle()}
 		>
 			{#if feedIcon}
-				<img src={feedIcon} alt="" class="w-4 h-4 shrink-0" />
+				<img src={feedIcon} alt="" class="size-5 shrink-0" />
 			{/if}
 
 			<div class="flex-1 min-w-0 truncate">
-				<span class="text-sm font-medium">{entry.title}</span>
+				<span class="text-sm {isRead ? '' : 'font-bold'}">{entry.title}</span>
 				{#if description}
-					<span class="text-sm text-n-400 ml-2">{description}</span>
+					<span class="text-sm text-n-500">&nbsp;-&nbsp;{description}</span>
 				{/if}
 			</div>
 			<span class="text-xs text-n-400 shrink-0">{entry.feed.title}</span>
@@ -97,13 +97,13 @@
 		use:autoMarkRead
 	>
 		<div
-			class="flex gap-4 px-4 py-3 cursor-pointer hover:bg-n-50 transition-colors {isRead ? 'opacity-60' : ''} {isSelected ? 'bg-a-50' : ''}"
+			class="flex gap-4 px-4 py-3 cursor-pointer hover:bg-n-50 transition-colors {isSelected ? 'bg-a-50' : ''}"
 			onclick={openArticle}
 			role="button"
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && openArticle()}
 		>
-			<div class="shrink-0 w-36 h-36 rounded overflow-hidden bg-n-100">
+			<div class="shrink-0 w-56 h-32 rounded overflow-hidden bg-n-100">
 				{#if thumbnailUrl}
 					<img
 						src={thumbnailUrl}
@@ -121,15 +121,15 @@
 			</div>
 
 			<div class="flex-1 min-w-0 flex flex-col">
-				<h3 class="text-lg font-semibold line-clamp-2">{entry.title}</h3>
-				<p class="text-sm text-n-500 mt-1 flex items-center gap-1">
+				<h3 class="text-lg line-clamp-2 mb-1.5 {isRead ? 'font-normal' : 'font-bold'}">{entry.title}</h3>
+				<p class="text-sm text-n-600 mb-3 flex items-center gap-3">
 					{#if feedIcon}
-						<img src={feedIcon} alt="" class="w-3.5 h-3.5 shrink-0" />
+						<img src={feedIcon} alt="" class="size-5 shrink-0 {isRead ? 'opacity-80' : ''}" />
 					{/if}
-					{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
+					{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
 				</p>
 				{#if description}
-					<p class="text-sm text-n-800 mt-1.5 line-clamp-4">{description}</p>
+					<p class="text-sm text-n-800 line-clamp-4">{description}</p>
 				{/if}
 			</div>
 		</div>
@@ -140,7 +140,7 @@
 	<div
 		bind:this={rowEl}
 		use:autoMarkRead
-		class="rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-shadow {isRead ? 'opacity-60' : ''} {isSelected ? 'ring-2 ring-a-400' : ''}"
+		class="rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-shadow {isSelected ? 'ring-2 ring-a-400' : ''}"
 		onclick={openArticle}
 		role="button"
 		tabindex="0"
@@ -157,13 +157,13 @@
 			</div>
 		{/if}
 
-		<div class="p-3">
-			<h3 class="text-base font-semibold line-clamp-3">{entry.title}</h3>
-			<p class="text-sm text-n-500 mt-1.5 flex items-center gap-1">
+		<div class="px-4 py-3">
+			<h3 class="leading-snug line-clamp-3 mb-2 {isRead ? 'font-normal' : 'font-bold'}">{entry.title}</h3>
+			<p class="text-xs text-n-500 mb-3 flex items-center gap-2">
 				{#if feedIcon}
-					<img src={feedIcon} alt="" class="w-3.5 h-3.5 shrink-0" />
+					<img src={feedIcon} alt="" class="size-4 shrink-0 {isRead ? 'opacity-80' : ''} " />
 				{/if}
-				{entry.feed.title} &middot; {relaTimestamp(entry.published_at)}
+				{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
 			</p>
 			{#if description}
 				<p class="text-sm text-n-800 mt-1.5 line-clamp-2">{description}</p>
