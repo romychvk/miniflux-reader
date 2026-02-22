@@ -26,6 +26,8 @@ function createUI() {
 	let isMobile = $state(false);
 	let errorMessage = $state('');
 	let errorTimeout: ReturnType<typeof setTimeout> | null = null;
+	let successMessage = $state('');
+	let successTimeout: ReturnType<typeof setTimeout> | null = null;
 	let sidebarWidth = $state(DEFAULT_SIDEBAR_WIDTH);
 	let layoutMode = $state<LayoutMode>('two-column');
 	let viewMode = $state<ViewMode>('list');
@@ -88,6 +90,17 @@ function createUI() {
 		if (errorTimeout) clearTimeout(errorTimeout);
 	}
 
+	function showSuccess(msg: string) {
+		successMessage = msg;
+		if (successTimeout) clearTimeout(successTimeout);
+		successTimeout = setTimeout(() => { successMessage = ''; }, 5000);
+	}
+
+	function clearSuccess() {
+		successMessage = '';
+		if (successTimeout) clearTimeout(successTimeout);
+	}
+
 	function selectEntry(entry: Entry | null) {
 		selectedEntry = entry;
 	}
@@ -139,6 +152,7 @@ function createUI() {
 		get sidebarOpen() { return sidebarOpen; },
 		get isMobile() { return isMobile; },
 		get errorMessage() { return errorMessage; },
+		get successMessage() { return successMessage; },
 		get sidebarWidth() { return sidebarWidth; },
 		get layoutMode() { return layoutMode; },
 		get viewMode() { return viewMode; },
@@ -150,6 +164,8 @@ function createUI() {
 		setMobile,
 		showError,
 		clearError,
+		showSuccess,
+		clearSuccess,
 		initSidebarWidth,
 		setSidebarWidth,
 		initLayoutMode,

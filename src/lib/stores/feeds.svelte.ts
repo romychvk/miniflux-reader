@@ -390,6 +390,16 @@ function createFeedsStore() {
 		await loadCounters();
 	}
 
+	async function refreshAllFeeds() {
+		try {
+			await apiCall('feeds/refresh', { method: 'PUT' });
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to refresh feeds');
+			throw e;
+		}
+		await loadCounters();
+	}
+
 	async function refreshCategoryFeeds(catId: number) {
 		const cat = feedTree.find(n => n.id === catId);
 		if (!cat?.children) return;
@@ -425,6 +435,7 @@ function createFeedsStore() {
 		updateFeed,
 		updateCategory,
 		refreshFeed,
+		refreshAllFeeds,
 		refreshCategoryFeeds
 	};
 }

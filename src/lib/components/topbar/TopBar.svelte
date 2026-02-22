@@ -19,6 +19,9 @@
 
 	let viewDropdownOpen = $state(false);
 	let settingsDropdownOpen = $state(false);
+	let refreshing = $state(false);
+	let refreshResult = $state('');
+	let refreshResultTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	const viewModes = [
 		{ id: 'list' as const, label: 'List view', icon: List },
@@ -44,6 +47,35 @@
 		}
 	}
 
+	async function refreshCurrentFeed() {
+		const feed = ui.selectedFeed;
+		if (!feed) return;
+		refreshing = true;
+		const countBefore = entries.entries.length;
+		try {
+			if (feed.isFeed) {
+				await feeds.refreshFeed(feed.id);
+			} else if (feed.id === -1) {
+				await feeds.refreshAllFeeds();
+			} else {
+				await feeds.refreshCategoryFeeds(feed.id);
+			}
+			await entries.loadEntries(feed.apiPath);
+			const newCount = entries.entries.length - countBefore;
+			if (newCount > 0) {
+				refreshResult = `+${newCount} new`;
+			} else {
+				refreshResult = 'No new';
+			}
+			if (refreshResultTimeout) clearTimeout(refreshResultTimeout);
+			refreshResultTimeout = setTimeout(() => { refreshResult = ''; }, 3000);
+		} catch {
+			/* errors already handled by store methods */
+		} finally {
+			refreshing = false;
+		}
+	}
+
 	let dotMenu = $state<{ x: number; y: number } | null>(null);
 	let showFeedEdit = $state(false);
 	let showCatEdit = $state(false);
@@ -64,20 +96,10 @@
 		if (feed.isFeed) {
 			return [
 				{ label: 'Edit Feed', icon: Pencil, action: () => { showFeedEdit = true; } },
-				{ label: 'Refresh Feed', icon: RefreshCw, action: async () => {
-					try {
-						await feeds.refreshFeed(feed.id);
-						if (ui.selectedFeed) entries.loadEntries(ui.selectedFeed.apiPath);
-					} catch { /* already handled */ }
-				}}
 			];
 		}
 		return [
 			{ label: 'Edit Category', icon: Pencil, action: () => { showCatEdit = true; } },
-			{ label: 'Refresh Feeds', icon: RefreshCw, action: async () => {
-				await feeds.refreshCategoryFeeds(feed.id);
-				if (ui.selectedFeed) entries.loadEntries(ui.selectedFeed.apiPath);
-			}}
 		];
 	}
 </script>
@@ -107,6 +129,17 @@
 		</div>
 
 		{#if ui.selectedFeed}
+			{#if refreshResult}
+				<span class="text-xs text-a-600 whitespace-nowrap">{refreshResult}</span>
+			{/if}
+			<button
+				onclick={refreshCurrentFeed}
+				disabled={refreshing}
+				title={ui.selectedFeed.isFeed ? 'Refresh Feed' : 'Refresh Feeds'}
+				class="text-n-400 hover:text-n-600 disabled:opacity-50"
+			>
+				<RefreshCw size={18} class={refreshing ? 'animate-spin' : ''} />
+			</button>
 			<div class="flex items-center border-l border-n-300 px-3 gap-3.5">
 				<button
 					onclick={() => entries.toggleShowAll()}
