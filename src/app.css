@@ -132,6 +132,11 @@
 }
 
 @layer base {
+	body {
+		color: var(--color-n-900);
+		background-color: var(--color-n-50);
+	}
+
 	button {
 		cursor: pointer;
 	}
