@@ -97,14 +97,14 @@
 	{ondragover}
 	{ondragleave}
 	{ondrop}
-	class="w-full flex items-center gap-2 px-2 py-1.75 text-sm rounded hover:bg-slate-200 text-left {isSelected ? 'bg-slate-200 text-p-dark' : ''} {feed.unread > 0 ? 'font-bold' : ''} {isDragged ? 'opacity-40' : ''}"
+	class="w-full flex items-center gap-2 px-2 py-1.75 text-sm rounded hover:bg-n-200 text-left {isSelected ? 'bg-n-200 text-a-700' : ''} {feed.unread > 0 ? 'font-bold' : ''} {isDragged ? 'opacity-40' : ''}"
 >
 	{#if feed.iconData}
 		<img src={feed.iconData} alt="" class="w-4 h-4 shrink-0 pointer-events-none" />
 	{/if}
 	<span class="truncate flex-1 pointer-events-none">{feed.title}</span>
 	{#if feed.unread > 0}
-		<span class="pl-2 text-xs text-slate-600 font-normal shrink-0 pointer-events-none">
+		<span class="pl-2 text-xs text-n-600 font-normal shrink-0 pointer-events-none">
 			{feed.unread}
 		</span>
 	{/if}

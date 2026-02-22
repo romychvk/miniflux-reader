@@ -1,9 +1,102 @@
 @import 'tailwindcss';
 
 @theme {
-	/* Colors */
-	--color-p: var(--color-orange-600);
-	--color-p-dark: var(--color-orange-700);
+	--color-n-50: var(--n-50);
+	--color-n-100: var(--n-100);
+	--color-n-200: var(--n-200);
+	--color-n-300: var(--n-300);
+	--color-n-400: var(--n-400);
+	--color-n-500: var(--n-500);
+	--color-n-600: var(--n-600);
+	--color-n-700: var(--n-700);
+	--color-n-800: var(--n-800);
+	--color-n-900: var(--n-900);
+
+	--color-a-50: var(--a-50);
+	--color-a-400: var(--a-400);
+	--color-a-500: var(--a-500);
+	--color-a-600: var(--a-600);
+	--color-a-700: var(--a-700);
+}
+
+/* Default theme: slate neutrals + orange accent */
+:root {
+	--n-50: #f8fafc;
+	--n-100: #f1f5f9;
+	--n-200: #e2e8f0;
+	--n-300: #cbd5e1;
+	--n-400: #94a3b8;
+	--n-500: #64748b;
+	--n-600: #475569;
+	--n-700: #334155;
+	--n-800: #1e293b;
+	--n-900: #0f172a;
+
+	--a-50: #fff7ed;
+	--a-400: #fb923c;
+	--a-500: #f97316;
+	--a-600: #ea580c;
+	--a-700: #c2410c;
+}
+
+/* Warm: stone neutrals + orange accent */
+:root[data-theme="warm"] {
+	--n-50: #fafaf9;
+	--n-100: #f5f5f4;
+	--n-200: #e7e5e4;
+	--n-300: #d6d3d1;
+	--n-400: #a8a29e;
+	--n-500: #78716c;
+	--n-600: #57534e;
+	--n-700: #44403c;
+	--n-800: #292524;
+	--n-900: #1c1917;
+
+	--a-50: #fff7ed;
+	--a-400: #fb923c;
+	--a-500: #f97316;
+	--a-600: #ea580c;
+	--a-700: #c2410c;
+}
+
+/* Cool: gray neutrals + cyan accent */
+:root[data-theme="cool"] {
+	--n-50: #f9fafb;
+	--n-100: #f3f4f6;
+	--n-200: #e5e7eb;
+	--n-300: #d1d5db;
+	--n-400: #9ca3af;
+	--n-500: #6b7280;
+	--n-600: #4b5563;
+	--n-700: #374151;
+	--n-800: #1f2937;
+	--n-900: #111827;
+
+	--a-50: #ecfeff;
+	--a-400: #22d3ee;
+	--a-500: #06b6d4;
+	--a-600: #0891b2;
+	--a-700: #0e7490;
+}
+
+/* Rose: zinc neutrals + rose accent */
+:root[data-theme="rose"] {
+	--n-50: #fafafa;
+	--n-100: #f4f4f5;
+	--n-200: #e4e4e7;
+	--n-300: #d4d4d8;
+	--n-400: #a1a1aa;
+	--n-500: #71717a;
+	--n-600: #52525b;
+	--n-700: #3f3f46;
+	--n-800: #27272a;
+	--n-900: #18181b;
+
+	--a-50: #fff1f2;
+	--a-400: #fb7185;
+	--a-500: #f43f5e;
+	--a-600: #e11d48;
+	--a-700: #be123c;
 }
 
 @layer base {

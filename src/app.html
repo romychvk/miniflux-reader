@@ -5,6 +5,12 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<link rel="icon" href="data:," />
 		<title>Miniflux Reader</title>
+		<script>
+			(function() {
+				var t = localStorage.getItem('theme');
+				if (t && t !== 'default') document.documentElement.setAttribute('data-theme', t);
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body>

@@ -17,7 +17,7 @@
 	}
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-100">
+<div class="min-h-screen flex items-center justify-center bg-n-100">
 	<form onsubmit={handleSubmit} class="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
 		<h1 class="text-2xl font-bold mb-6 text-center">Miniflux Reader</h1>
 
@@ -26,28 +26,28 @@
 		{/if}
 
 		<label class="block mb-4">
-			<span class="text-sm font-medium text-gray-700">Server URL</span>
+			<span class="text-sm font-medium text-n-700">Server URL</span>
 			<input
 				type="url"
 				bind:value={server}
 				placeholder="https://miniflux.example.com"
-				class="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+				class="mt-1 block w-full rounded border border-n-300 px-3 py-2 text-sm focus:border-a-500 focus:ring-1 focus:ring-a-500 outline-none"
 			/>
 		</label>
 
 		<label class="block mb-6">
-			<span class="text-sm font-medium text-gray-700">API Token</span>
+			<span class="text-sm font-medium text-n-700">API Token</span>
 			<input
 				type="password"
 				bind:value={token}
 				placeholder="Your API token"
-				class="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+				class="mt-1 block w-full rounded border border-n-300 px-3 py-2 text-sm focus:border-a-500 focus:ring-1 focus:ring-a-500 outline-none"
 			/>
 		</label>
 
 		<button
 			type="submit"
-			class="w-full bg-blue-600 text-white py-2 px-4 rounded font-medium hover:bg-blue-700 transition-colors"
+			class="w-full bg-a-600 text-white py-2 px-4 rounded font-medium hover:bg-a-700 transition-colors"
 		>
 			Login
 		</button>

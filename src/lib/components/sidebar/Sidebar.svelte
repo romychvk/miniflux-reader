@@ -42,10 +42,10 @@
 </script>
 
 {#snippet logoutButton()}
-	<div class="border-t border-slate-200 p-3 mt-auto">
+	<div class="border-t border-n-200 p-3 mt-auto">
 		<button
 			onclick={handleLogout}
-			class="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors w-full cursor-pointer"
+			class="flex items-center gap-2 text-sm text-n-500 hover:text-n-700 transition-colors w-full cursor-pointer"
 		>
 			<LogOut size={16} />
 			Logout
@@ -56,14 +56,14 @@
 <!-- Desktop sidebar -->
 {#if !ui.isMobile}
 	<aside
-		class="h-screen border-r-2 border-l-6 border-l-slate-500 border-r-slate-200 bg-white flex flex-col shrink-0 relative"
+		class="h-screen border-r-2 border-l-6 border-l-n-500 border-r-n-200 bg-white flex flex-col shrink-0 relative"
 		style="width: {ui.sidebarWidth}px"
 	>
-		<div class="p-3 border-b border-slate-200 bg-slate-200 flex items-center justify-between">
-			<h2 class="text-lg text-slate-700 font-medium leading-none">Miniflux Reader</h2>
+		<div class="p-3 border-b border-n-200 bg-n-200 flex items-center justify-between">
+			<h2 class="text-lg text-n-700 font-medium leading-none">Miniflux Reader</h2>
 			<button
 				onclick={() => showAddModal = true}
-				class="text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+				class="text-n-500 hover:text-n-700 transition-colors cursor-pointer"
 				title="Add feed"
 			>
 				<Plus size={20} />
@@ -76,7 +76,7 @@
 		<!-- Resize handle -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
-			class="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-10 hover:bg-blue-400/30 transition-colors {resizing ? 'bg-blue-400/30' : ''}"
+			class="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-10 hover:bg-a-400/30 transition-colors {resizing ? 'bg-a-400/30' : ''}"
 			onmousedown={onResizeStart}
 		></div>
 	</aside>
@@ -91,11 +91,11 @@
 		onkeydown={(e) => e.key === 'Escape' && ui.toggleSidebar()}
 	></div>
 	<aside class="fixed left-0 top-0 h-full w-72 bg-white z-50 shadow-lg flex flex-col">
-		<div class="p-3 border-b border-slate-200 flex items-center justify-between">
-			<h2 class="text-xl text-orange-600 font-medium">Miniflux Reader</h2>
+		<div class="p-3 border-b border-n-200 flex items-center justify-between">
+			<h2 class="text-xl text-a-600 font-medium">Miniflux Reader</h2>
 			<button
 				onclick={() => showAddModal = true}
-				class="text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+				class="text-n-500 hover:text-n-700 transition-colors cursor-pointer"
 				title="Add feed"
 			>
 				<Plus size={20} />

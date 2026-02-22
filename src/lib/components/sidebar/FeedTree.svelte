@@ -128,7 +128,7 @@
 		{#if node.children}
 			<!-- Category insert line (before) -->
 			{#if showCatInsertLine(treeIndex)}
-				<div class="h-0.5 bg-blue-500 mx-2 rounded"></div>
+				<div class="h-0.5 bg-a-500 mx-2 rounded"></div>
 			{/if}
 
 			<!-- Category -->
@@ -137,10 +137,10 @@
 			{@const isCatTarget = isCatDropTarget(node.id)}
 			<div
 				role="listitem"
-				class="flex items-center gap-0 rounded hover:bg-slate-200 transition-colors
-          {isSelected ? 'bg-slate-200 text-p-dark' : 'text-slate-900'}
+				class="flex items-center gap-0 rounded hover:bg-n-200 transition-colors
+          {isSelected ? 'bg-n-200 text-a-700' : 'text-n-900'}
 					{isCatDragged ? 'opacity-40' : ''}
-					{isCatTarget ? 'ring-2 ring-blue-400 bg-blue-50' : ''}"
+					{isCatTarget ? 'ring-2 ring-a-400 bg-a-50' : ''}"
 				draggable="true"
 				oncontextmenu={(e: MouseEvent) => onCatContextMenu(e, node.id)}
 				ondragstart={(e: DragEvent) => onCatDragStart(e, node.id)}
@@ -166,14 +166,14 @@
 						if (ui.isMobile) ui.toggleSidebar();
 					}}
 					class="
-            flex items-center gap-1 flex-1 min-w-0 py-1.5 pr-2 text-sm text-left 
-            
+            flex items-center gap-1 flex-1 min-w-0 py-1.5 pr-2 text-sm text-left
+
             {node.unread > 0 ? 'font-bold' : ''}
           "
 				>
 					<span class="truncate flex-1 pointer-events-none">{node.title}</span>
 					{#if node.unread > 0}
-						<span class="text-xs text-slate-400 font-normal pointer-events-none">{node.unread}</span>
+						<span class="text-xs text-n-400 font-normal pointer-events-none">{node.unread}</span>
 					{/if}
 				</button>
 			</div>
@@ -181,12 +181,12 @@
 				<div class="ml-6 flex flex-col">
 					{#each node.children as child, childIndex}
 						{#if showInsertLine(node.id, childIndex)}
-							<div class="h-0.5 bg-blue-500 mx-2 rounded"></div>
+							<div class="h-0.5 bg-a-500 mx-2 rounded"></div>
 						{/if}
 						<FeedItem feed={child} parentCatId={node.id} />
 					{/each}
 					{#if showInsertLineAfterLast(node.id)}
-						<div class="h-0.5 bg-blue-500 mx-2 rounded"></div>
+						<div class="h-0.5 bg-a-500 mx-2 rounded"></div>
 					{/if}
 				</div>
 			{/if}
@@ -197,7 +197,7 @@
 	{/each}
 	<!-- Category insert line (after last category) -->
 	{#if showCatInsertLine(feeds.feedTree.length)}
-		<div class="h-0.5 bg-blue-500 mx-2 rounded"></div>
+		<div class="h-0.5 bg-a-500 mx-2 rounded"></div>
 	{/if}
 </nav>
 

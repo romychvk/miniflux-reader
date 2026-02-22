@@ -54,47 +54,47 @@
 
 <div class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
 	<div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 pointer-events-auto">
-		<div class="px-5 py-4 border-b border-slate-200">
-			<h2 class="text-lg font-semibold text-slate-800">Edit Feed</h2>
+		<div class="px-5 py-4 border-b border-n-200">
+			<h2 class="text-lg font-semibold text-n-800">Edit Feed</h2>
 		</div>
 
 		<form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="px-5 py-4 space-y-4">
 			<div>
-				<label for="feed-title" class="block text-sm font-medium text-slate-700 mb-1">Title</label>
+				<label for="feed-title" class="block text-sm font-medium text-n-700 mb-1">Title</label>
 				<input
 					id="feed-title"
 					type="text"
 					bind:value={title}
-					class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 				/>
 			</div>
 
 			<div>
-				<label for="feed-site-url" class="block text-sm font-medium text-slate-700 mb-1">Site URL</label>
+				<label for="feed-site-url" class="block text-sm font-medium text-n-700 mb-1">Site URL</label>
 				<input
 					id="feed-site-url"
 					type="url"
 					bind:value={siteUrl}
-					class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 				/>
 			</div>
 
 			<div>
-				<label for="feed-feed-url" class="block text-sm font-medium text-slate-700 mb-1">Feed URL</label>
+				<label for="feed-feed-url" class="block text-sm font-medium text-n-700 mb-1">Feed URL</label>
 				<input
 					id="feed-feed-url"
 					type="url"
 					bind:value={feedUrl}
-					class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 				/>
 			</div>
 
 			<div>
-				<label for="feed-category" class="block text-sm font-medium text-slate-700 mb-1">Category</label>
+				<label for="feed-category" class="block text-sm font-medium text-n-700 mb-1">Category</label>
 				<select
 					id="feed-category"
 					bind:value={categoryId}
-					class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white"
+					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 bg-white"
 				>
 					{#each categories as cat}
 						<option value={cat.id}>{cat.title}</option>
@@ -107,23 +107,23 @@
 					id="feed-crawler"
 					type="checkbox"
 					bind:checked={crawler}
-					class="rounded border-slate-300"
+					class="rounded border-n-300"
 				/>
-				<label for="feed-crawler" class="text-sm text-slate-700">Fetch original content (crawler)</label>
+				<label for="feed-crawler" class="text-sm text-n-700">Fetch original content (crawler)</label>
 			</div>
 
 			<div class="flex justify-end gap-2 pt-2">
 				<button
 					type="button"
 					onclick={onclose}
-					class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-md"
+					class="px-4 py-2 text-sm text-n-600 hover:bg-n-100 rounded-md"
 				>
 					Cancel
 				</button>
 				<button
 					type="submit"
 					disabled={saving}
-					class="px-4 py-2 text-sm bg-slate-700 text-white rounded-md hover:bg-slate-800 disabled:opacity-50"
+					class="px-4 py-2 text-sm bg-n-700 text-white rounded-md hover:bg-n-800 disabled:opacity-50"
 				>
 					{saving ? 'Saving...' : 'Save'}
 				</button>

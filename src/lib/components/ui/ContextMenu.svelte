@@ -58,13 +58,13 @@
 
 <div
 	bind:this={menuEl}
-	class="fixed z-50 min-w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1"
+	class="fixed z-50 min-w-40 bg-white border border-n-200 rounded-lg shadow-lg py-1"
 	style="left: {x}px; top: {y}px;"
 >
 	{#each items as item}
 		<button
 			onclick={() => { item.action(); onclose(); }}
-			class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 text-left"
+			class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-n-700 hover:bg-n-100 text-left"
 		>
 			{#if item.icon}
 				<item.icon size={15} />

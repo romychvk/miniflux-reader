@@ -4,6 +4,7 @@
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { theme } from '$lib/stores/theme.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import FeedEditModal from '$lib/components/ui/FeedEditModal.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
@@ -17,6 +18,7 @@
 	);
 
 	let viewDropdownOpen = $state(false);
+	let themeDropdownOpen = $state(false);
 
 	const viewModes = [
 		{ id: 'list' as const, label: 'List view', icon: List },
@@ -36,6 +38,9 @@
 		const target = e.target as HTMLElement;
 		if (!target.closest('.view-mode-dropdown')) {
 			viewDropdownOpen = false;
+		}
+		if (!target.closest('.theme-dropdown')) {
+			themeDropdownOpen = false;
 		}
 	}
 
@@ -77,9 +82,9 @@
 	}
 </script>
 
-<svelte:document onclick={viewDropdownOpen ? handleClickOutside : undefined} />
+<svelte:document onclick={(viewDropdownOpen || themeDropdownOpen) ? handleClickOutside : undefined} />
 
-<header class="h-12 border-b border-slate-200 bg-white flex items-center px-4 gap-3 shrink-0">
+<header class="h-12 border-b border-n-200 bg-white flex items-center px-4 gap-3 shrink-0">
 	{#if isArticleView}
     <button onclick={() => history.back()} class="hover:underline flex gap-3 items-center text-lg font-bold truncate">
       {#if articleFeedNode?.iconData}
@@ -89,7 +94,7 @@
     </button>
 	{:else}
 		{#if ui.isMobile}
-			<button onclick={() => ui.toggleSidebar()} class="text-slate-600 hover:text-slate-900">
+			<button onclick={() => ui.toggleSidebar()} class="text-n-600 hover:text-n-900">
 				<Menu size={20} />
 			</button>
 		{/if}
@@ -102,11 +107,11 @@
 		</div>
 
 		{#if ui.selectedFeed}
-      <div class="flex items-center border-l border-slate-300 px-3 gap-3.5">
+      <div class="flex items-center border-l border-n-300 px-3 gap-3.5">
         <button
           onclick={() => entries.toggleShowAll()}
           title={entries.showAll ? 'Show unread only' : 'Show all'}
-          class="text-slate-400 hover:text-slate-600"
+          class="text-n-400 hover:text-n-600"
         >
           <Circle size={20} fill={entries.showAll ? 'none' : 'currentColor'} />
         </button>
@@ -114,7 +119,7 @@
           <button
             onclick={() => ui.toggleLayoutMode()}
             title={ui.layoutMode === 'two-column' ? 'Switch to 3-column layout' : 'Switch to 2-column layout'}
-            class="text-slate-400 hover:text-slate-600"
+            class="text-n-400 hover:text-n-600"
           >
             {#if ui.layoutMode === 'two-column'}
               <Columns2 size={24} />
@@ -127,17 +132,17 @@
 					<button
 						onclick={() => viewDropdownOpen = !viewDropdownOpen}
 						title={currentViewMode.label}
-						class="flex items-center gap-0.5 text-slate-400 hover:text-slate-600"
+						class="flex items-center gap-0.5 text-n-400 hover:text-n-600"
 					>
 						<currentViewMode.icon size={24} />
 					</button>
 					{#if viewDropdownOpen}
-						<div class="absolute -right-3 top-full mt-1 bg-white border border-slate-200 rounded-md shadow-md py-1 z-50">
+						<div class="absolute -right-3 top-full mt-1 bg-white border border-n-200 rounded-md shadow-md py-1 z-50">
 							{#each otherViewModes as mode}
 								<button
 									onclick={() => selectViewMode(mode.id)}
 									title={mode.label}
-									class="flex items-center px-3 py-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+									class="flex items-center px-3 py-1.5 text-n-400 hover:text-n-600 hover:bg-n-50"
 								>
 									<mode.icon size={24} />
 								</button>
@@ -148,10 +153,36 @@
 			</div>
 		{/if}
 
+		<!-- Theme picker -->
+		<div class="relative theme-dropdown">
+			<button
+				onclick={() => themeDropdownOpen = !themeDropdownOpen}
+				title="Theme"
+				class="text-n-400 hover:text-n-600"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+					<circle cx="12" cy="12" r="10"/>
+					<path d="M12 2a7 7 0 0 0 0 20z"/>
+				</svg>
+			</button>
+			{#if themeDropdownOpen}
+				<div class="absolute right-0 top-full mt-1 bg-white border border-n-200 rounded-md shadow-md py-1 z-50 min-w-28">
+					{#each theme.themes as t}
+						<button
+							onclick={() => { theme.setTheme(t.id); themeDropdownOpen = false; }}
+							class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-50 {theme.current === t.id ? 'text-a-600 font-medium' : 'text-n-700'}"
+						>
+							{t.label}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
     {#if showDotMenu}
 			<button
 				onclick={openDotMenu}
-				class="text-slate-400 hover:text-slate-600 shrink-0"
+				class="text-n-400 hover:text-n-600 shrink-0"
 				title="Menu"
 			>
 				<EllipsisVertical size={20} />

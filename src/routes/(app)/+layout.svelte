@@ -5,6 +5,7 @@
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
+	import { theme } from '$lib/stores/theme.svelte';
 	import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
 	import TopBar from '$lib/components/topbar/TopBar.svelte';
 	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
@@ -33,6 +34,7 @@
 		ui.initLayoutMode();
 		ui.initViewMode();
 		ui.initArticlePanelWidth();
+		theme.init();
 
 		await feeds.loadFeeds();
 		ready = true;
@@ -44,7 +46,7 @@
 </script>
 
 {#if ready}
-	<div class="flex h-screen bg-gray-50">
+	<div class="flex h-screen bg-n-50">
 		<Sidebar />
 		<div class="flex flex-col flex-1 min-w-0">
 			<TopBar />

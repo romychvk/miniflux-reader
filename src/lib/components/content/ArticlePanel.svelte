@@ -31,13 +31,13 @@
 </script>
 
 <aside
-	class="h-screen border-l border-gray-200 bg-white flex flex-col shrink-0 relative"
+	class="h-screen border-l border-n-200 bg-white flex flex-col shrink-0 relative"
 	style="width: {ui.articlePanelWidth}px"
 >
 	<!-- Resize handle on left edge -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="absolute top-0 -left-1 w-2 h-full cursor-col-resize z-10 hover:bg-blue-400/30 transition-colors {resizing ? 'bg-blue-400/30' : ''}"
+		class="absolute top-0 -left-1 w-2 h-full cursor-col-resize z-10 hover:bg-a-400/30 transition-colors {resizing ? 'bg-a-400/30' : ''}"
 		onmousedown={onResizeStart}
 	></div>
 
@@ -49,7 +49,7 @@
 						<a href={ui.selectedEntry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{ui.selectedEntry.title}</a>
 					</h1>
 
-					<div class="flex items-center gap-2 text-sm text-gray-500 mb-4">
+					<div class="flex items-center gap-2 text-sm text-n-500 mb-4">
 						<span>{ui.selectedEntry.feed.title}</span>
 						<span>&middot;</span>
 						<span>{relaTimestamp(ui.selectedEntry.published_at)}</span>
@@ -64,7 +64,7 @@
 			</div>
 		{/key}
 	{:else}
-		<div class="flex-1 flex items-center justify-center text-gray-400 text-sm">
+		<div class="flex-1 flex items-center justify-center text-n-400 text-sm">
 			Select an article to read
 		</div>
 	{/if}
