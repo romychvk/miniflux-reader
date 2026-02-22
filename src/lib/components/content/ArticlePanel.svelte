@@ -44,7 +44,7 @@
 	{#if ui.selectedEntry}
 		{#key ui.selectedEntry.id}
 			<div class="flex-1 overflow-y-auto">
-				<div class="max-w-3xl mx-auto px-4 py-4">
+				<div class="max-w-3xl mx-auto px-8 py-6">
 					<h1 class="text-3xl font-bold mb-3">
 						<a href={ui.selectedEntry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{ui.selectedEntry.title}</a>
 					</h1>

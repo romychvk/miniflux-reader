@@ -182,8 +182,8 @@
 							class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center gap-2 {theme.current === t.id ? 'font-bold' : ''}"
 						>
 							<span class="flex overflow-hidden rounded-full border border-n-200">
-								<span class="block w-3 h-6" style="background:{t.accent}"></span>
 								<span class="block w-3 h-6" style="background:{t.neutral}"></span>
+								<span class="block w-3 h-6" style="background:{t.accent}"></span>
 							</span>
 							{t.label}
 						</button>

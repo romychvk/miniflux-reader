@@ -11,7 +11,7 @@
 	}
 </script>
 
-<div class="max-w-3xl mx-auto px-4 py-4">
+<div class="max-w-3xl mx-auto px-8 py-6">
 	<button
 		onclick={goBack}
 		class="flex items-center gap-1 text-sm text-n-500 hover:text-n-700 mb-4"

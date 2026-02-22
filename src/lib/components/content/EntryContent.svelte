@@ -38,7 +38,7 @@
       @apply mb-4;
     }
     img {
-      @apply my-4;
+      @apply mb-6;
     }
   }                                                                                                
 </style>

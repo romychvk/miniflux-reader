@@ -67,7 +67,7 @@
 		use:autoMarkRead
 	>
 		<div
-			class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-n-50 transition-colors {isRead ? 'opacity-60' : ''} {isSelected ? 'bg-a-50' : ''}"
+			class="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-n-200  {isRead ? 'opacity-60' : ''} {isSelected ? 'bg-a-50' : ''}"
 			onclick={openArticle}
 			role="button"
 			tabindex="0"
