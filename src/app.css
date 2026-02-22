@@ -146,4 +146,7 @@
 	a {
 		@apply underline text-a-700;
 	}
+	td {
+		@apply px-2 py-1;
+	}
 }

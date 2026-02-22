@@ -115,20 +115,7 @@
 				>
 					<Circle size={20} fill={entries.showAll ? 'none' : 'currentColor'} />
 				</button>
-				{#if !ui.isMobile}
-					<button
-						onclick={() => ui.toggleLayoutMode()}
-						title={ui.layoutMode === 'two-column' ? 'Switch to 3-column layout' : 'Switch to 2-column layout'}
-						class="text-n-400 hover:text-n-600"
-					>
-						{#if ui.layoutMode === 'two-column'}
-							<Columns2 size={24} />
-						{:else}
-							<Columns3 size={24} />
-						{/if}
-					</button>
-				{/if}
-				<div class="relative view-mode-dropdown">
+					<div class="relative view-mode-dropdown">
 					<button
 						onclick={() => viewDropdownOpen = !viewDropdownOpen}
 						title={currentViewMode.label}
@@ -162,6 +149,23 @@
 				<EllipsisVertical size={20} />
 			</button>
 		{/if}
+	{/if}
+
+	{#if !ui.isMobile}
+		<button
+			onclick={() => {
+				ui.toggleLayoutMode();
+				if (isArticleView && ui.layoutMode === 'three-column') history.back();
+			}}
+			title={ui.layoutMode === 'two-column' ? 'Switch to 3-column layout' : 'Switch to 2-column layout'}
+			class="text-n-400 hover:text-n-600"
+		>
+			{#if ui.layoutMode === 'two-column'}
+				<Columns2 size={24} />
+			{:else}
+				<Columns3 size={24} />
+			{/if}
+		</button>
 	{/if}
 
 	<!-- Theme picker (always visible) -->
