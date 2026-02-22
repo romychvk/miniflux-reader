@@ -77,7 +77,12 @@
 				<img src={feedIcon} alt="" class="w-4 h-4 shrink-0" />
 			{/if}
 
-			<p class="truncate text-sm font-medium flex-1 min-w-0">{entry.title}</p>
+			<div class="flex-1 min-w-0 truncate">
+				<span class="text-sm font-medium">{entry.title}</span>
+				{#if description}
+					<span class="text-sm text-n-400 ml-2">{description}</span>
+				{/if}
+			</div>
 			<span class="text-xs text-n-400 shrink-0">{entry.feed.title}</span>
 			<span class="text-xs text-n-300 shrink-0">&middot;</span>
 			<span class="text-xs text-n-400 shrink-0">{relaTimestamp(entry.published_at)}</span>
