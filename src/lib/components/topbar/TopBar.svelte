@@ -18,7 +18,6 @@
 	);
 
 	let viewDropdownOpen = $state(false);
-	let themeDropdownOpen = $state(false);
 	let settingsDropdownOpen = $state(false);
 
 	const viewModes = [
@@ -39,9 +38,6 @@
 		const target = e.target as HTMLElement;
 		if (!target.closest('.view-mode-dropdown')) {
 			viewDropdownOpen = false;
-		}
-		if (!target.closest('.theme-dropdown')) {
-			themeDropdownOpen = false;
 		}
 		if (!target.closest('.settings-dropdown')) {
 			settingsDropdownOpen = false;
@@ -86,7 +82,7 @@
 	}
 </script>
 
-<svelte:document onclick={(viewDropdownOpen || themeDropdownOpen || settingsDropdownOpen) ? handleClickOutside : undefined} />
+<svelte:document onclick={(viewDropdownOpen || settingsDropdownOpen) ? handleClickOutside : undefined} />
 
 <header class="h-12 border-b border-n-200 bg-surface flex items-center px-4 gap-3 shrink-0">
 	{#if ui.isMobile}
@@ -178,6 +174,22 @@
 					Mark read on scroll
 				</button>
 
+				<div class="border-t border-n-200 mt-1 pt-4">
+					<div class="px-3 text-sm mb-2 font-medium text-n-500">Theme</div>
+					{#each theme.themes as t}
+						<button
+							onclick={() => theme.setTheme(t.id)}
+							class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center gap-2 {theme.current === t.id ? 'font-bold' : ''}"
+						>
+							<span class="flex overflow-hidden rounded-full border border-n-200">
+								<span class="block w-3 h-6" style="background:{t.accent}"></span>
+								<span class="block w-3 h-6" style="background:{t.neutral}"></span>
+							</span>
+							{t.label}
+						</button>
+					{/each}
+				</div>
+
 				{#if !ui.isMobile}
 					<div class="border-t border-n-200 mt-1 pt-4">
 						<div class="px-3 text-sm mb-2 font-medium text-n-500">Reading pane</div>
@@ -224,31 +236,6 @@
 		{/if}
 	</div>
 
-	<!-- Theme picker (always visible) -->
-	<div class="relative theme-dropdown flex items-center">
-		<button
-			onclick={() => themeDropdownOpen = !themeDropdownOpen}
-			title="Theme"
-			class="text-n-400 hover:text-n-600"
-		>
-			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-				<circle cx="12" cy="12" r="10"/>
-				<path d="M12 2a7 7 0 0 0 0 20z"/>
-			</svg>
-		</button>
-		{#if themeDropdownOpen}
-			<div class="absolute right-0 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-md py-1 z-50 min-w-28">
-				{#each theme.themes as t}
-					<button
-						onclick={() => { theme.setTheme(t.id); themeDropdownOpen = false; }}
-						class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-50 {theme.current === t.id ? 'text-a-600 font-medium' : 'text-n-700'}"
-					>
-						{t.label}
-					</button>
-				{/each}
-			</div>
-		{/if}
-	</div>
 </header>
 
 {#if dotMenu}
