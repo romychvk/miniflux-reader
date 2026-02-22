@@ -84,7 +84,7 @@
 
 <svelte:document onclick={(viewDropdownOpen || themeDropdownOpen) ? handleClickOutside : undefined} />
 
-<header class="h-12 border-b border-n-200 bg-white flex items-center px-4 gap-3 shrink-0">
+<header class="h-12 border-b border-n-200 bg-surface flex items-center px-4 gap-3 shrink-0">
 	{#if isArticleView}
     <button onclick={() => history.back()} class="hover:underline flex gap-3 items-center text-lg font-bold truncate">
       {#if articleFeedNode?.iconData}
@@ -137,7 +137,7 @@
 						<currentViewMode.icon size={24} />
 					</button>
 					{#if viewDropdownOpen}
-						<div class="absolute -right-3 top-full mt-1 bg-white border border-n-200 rounded-md shadow-md py-1 z-50">
+						<div class="absolute -right-3 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-md py-1 z-50">
 							{#each otherViewModes as mode}
 								<button
 									onclick={() => selectViewMode(mode.id)}
@@ -154,7 +154,7 @@
 		{/if}
 
 		<!-- Theme picker -->
-		<div class="relative theme-dropdown">
+		<div class="relative theme-dropdown flex items-center">
 			<button
 				onclick={() => themeDropdownOpen = !themeDropdownOpen}
 				title="Theme"
@@ -166,7 +166,7 @@
 				</svg>
 			</button>
 			{#if themeDropdownOpen}
-				<div class="absolute right-0 top-full mt-1 bg-white border border-n-200 rounded-md shadow-md py-1 z-50 min-w-28">
+				<div class="absolute right-0 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-md py-1 z-50 min-w-28">
 					{#each theme.themes as t}
 						<button
 							onclick={() => { theme.setTheme(t.id); themeDropdownOpen = false; }}

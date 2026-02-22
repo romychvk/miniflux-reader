@@ -135,7 +135,7 @@
 	<div
 		bind:this={rowEl}
 		use:autoMarkRead
-		class="rounded-lg border border-n-200 bg-white overflow-hidden cursor-pointer hover:shadow-md transition-shadow {isRead ? 'opacity-60' : ''} {isSelected ? 'ring-2 ring-a-400' : ''}"
+		class="rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-shadow {isRead ? 'opacity-60' : ''} {isSelected ? 'ring-2 ring-a-400' : ''}"
 		onclick={openArticle}
 		role="button"
 		tabindex="0"

@@ -58,7 +58,7 @@
 
 <div
 	bind:this={menuEl}
-	class="fixed z-50 min-w-40 bg-white border border-n-200 rounded-lg shadow-lg py-1"
+	class="fixed z-50 min-w-40 bg-surface border border-n-200 rounded-lg shadow-lg py-1"
 	style="left: {x}px; top: {y}px;"
 >
 	{#each items as item}

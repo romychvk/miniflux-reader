@@ -7,6 +7,7 @@ const themes = [
 	{ id: 'warm', label: 'Warm' },
 	{ id: 'cool', label: 'Cool' },
 	{ id: 'rose', label: 'Rose' },
+	{ id: 'dark', label: 'Dark' },
 ] as const;
 
 type ThemeId = (typeof themes)[number]['id'];

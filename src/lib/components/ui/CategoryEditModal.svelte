@@ -37,7 +37,7 @@
 <div class="fixed inset-0 z-40 bg-black/30" onclick={onclose}></div>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-	<div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 pointer-events-auto">
+	<div class="bg-surface rounded-lg shadow-xl w-full max-w-sm mx-4 pointer-events-auto">
 		<div class="px-5 py-4 border-b border-n-200">
 			<h2 class="text-lg font-semibold text-n-800">Edit Category</h2>
 		</div>
@@ -64,7 +64,7 @@
 				<button
 					type="submit"
 					disabled={saving}
-					class="px-4 py-2 text-sm bg-n-700 text-white rounded-md hover:bg-n-800 disabled:opacity-50"
+					class="px-4 py-2 text-sm bg-a-600 text-white rounded-md hover:bg-a-700 disabled:opacity-50"
 				>
 					{saving ? 'Saving...' : 'Save'}
 				</button>

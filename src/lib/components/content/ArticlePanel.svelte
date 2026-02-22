@@ -31,7 +31,7 @@
 </script>
 
 <aside
-	class="h-screen border-l border-n-200 bg-white flex flex-col shrink-0 relative"
+	class="h-screen border-l border-n-200 bg-surface flex flex-col shrink-0 relative"
 	style="width: {ui.articlePanelWidth}px"
 >
 	<!-- Resize handle on left edge -->

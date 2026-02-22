@@ -56,7 +56,7 @@
 <!-- Desktop sidebar -->
 {#if !ui.isMobile}
 	<aside
-		class="h-screen border-r-2 border-l-6 border-l-n-500 border-r-n-200 bg-white flex flex-col shrink-0 relative"
+		class="h-screen border-r-2 border-l-6 border-l-n-500 border-r-n-200 bg-surface flex flex-col shrink-0 relative"
 		style="width: {ui.sidebarWidth}px"
 	>
 		<div class="p-3 border-b border-n-200 bg-n-200 flex items-center justify-between">
@@ -90,7 +90,7 @@
 		onclick={() => ui.toggleSidebar()}
 		onkeydown={(e) => e.key === 'Escape' && ui.toggleSidebar()}
 	></div>
-	<aside class="fixed left-0 top-0 h-full w-72 bg-white z-50 shadow-lg flex flex-col">
+	<aside class="fixed left-0 top-0 h-full w-72 bg-surface z-50 shadow-lg flex flex-col">
 		<div class="p-3 border-b border-n-200 flex items-center justify-between">
 			<h2 class="text-xl text-a-600 font-medium">Miniflux Reader</h2>
 			<button
