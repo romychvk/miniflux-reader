@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { X } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import EntryContent from './EntryContent.svelte';
@@ -43,7 +44,14 @@
 
 	{#if ui.selectedEntry}
 		{#key ui.selectedEntry.id}
-			<div class="flex-1 overflow-y-auto">
+			<div class="flex-1 overflow-y-auto relative">
+				<button
+					onclick={() => ui.selectEntry(null)}
+					class="absolute top-3 right-3 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors z-10"
+					title="Close article"
+				>
+					<X size={18} />
+				</button>
 				<div class="max-w-3xl mx-auto px-8 py-6">
 					<h1 class="text-3xl font-bold mb-3">
 						<a href={ui.selectedEntry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{ui.selectedEntry.title}</a>
