@@ -83,9 +83,9 @@
 					<span class="text-sm text-n-500">&nbsp;-&nbsp;{description}</span>
 				{/if}
 			</div>
-			<span class="text-xs text-n-400 shrink-0">{entry.feed.title}</span>
-			<span class="text-xs text-n-300 shrink-0">&middot;</span>
-			<span class="text-xs text-n-400 shrink-0">{relaTimestamp(entry.published_at)}</span>
+			<span class="text-xs text-n-500 shrink-0">{entry.feed.title}</span>
+			<span class="text-xs text-n-500 shrink-0">&middot;</span>
+			<span class="text-xs text-n-500 shrink-0">{relaTimestamp(entry.published_at)}</span>
 		</div>
 	</div>
 

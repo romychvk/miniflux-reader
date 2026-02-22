@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Menu, Circle, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, Settings, Square, SquareCheck } from 'lucide-svelte';
+	import { Menu, Circle, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
-	import { theme } from '$lib/stores/theme.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import FeedEditModal from '$lib/components/ui/FeedEditModal.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
@@ -18,7 +17,6 @@
 	);
 
 	let viewDropdownOpen = $state(false);
-	let settingsDropdownOpen = $state(false);
 	let refreshing = $state(false);
 	let refreshResult = $state('');
 	let refreshResultTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -41,9 +39,6 @@
 		const target = e.target as HTMLElement;
 		if (!target.closest('.view-mode-dropdown')) {
 			viewDropdownOpen = false;
-		}
-		if (!target.closest('.settings-dropdown')) {
-			settingsDropdownOpen = false;
 		}
 	}
 
@@ -104,7 +99,7 @@
 	}
 </script>
 
-<svelte:document onclick={(viewDropdownOpen || settingsDropdownOpen) ? handleClickOutside : undefined} />
+<svelte:document onclick={viewDropdownOpen ? handleClickOutside : undefined} />
 
 <header class="h-12 border-b border-n-200 bg-surface flex justify-between items-center px-4 gap-3 shrink-0">
 	{#if ui.isMobile}
@@ -136,15 +131,15 @@
 				onclick={refreshCurrentFeed}
 				disabled={refreshing}
 				title={ui.selectedFeed.isFeed ? 'Refresh Feed' : 'Refresh Feeds'}
-				class="text-n-400 hover:text-n-600 disabled:opacity-50"
+				class="text-n-700 hover:bg-n-200 p-2 rounded-full disabled:opacity-50"
 			>
-				<RefreshCw size={18} class={refreshing ? 'animate-spin' : ''} />
+				<RefreshCw size={20} class={refreshing ? 'animate-spin' : ''} />
 			</button>
-			<div class="flex items-center border-l border-n-300 px-3 gap-3.5">
+			<div class="display-buttons flex items-center gap-1 relative">
 				<button
 					onclick={() => entries.toggleShowAll()}
 					title={entries.showAll ? 'Show unread only' : 'Show all'}
-					class="text-n-400 hover:text-n-600"
+					class="text-n-700 hover:bg-n-200 p-2 rounded-full transition-colors"
 				>
 					<Circle size={20} fill={entries.showAll ? 'none' : 'currentColor'} />
 				</button>
@@ -152,7 +147,7 @@
 					<button
 						onclick={() => viewDropdownOpen = !viewDropdownOpen}
 						title={currentViewMode.label}
-						class="flex items-center gap-0.5 text-n-400 hover:text-n-600"
+						class="text-n-700 hover:bg-n-200 p-2 rounded-full"
 					>
 						<currentViewMode.icon size={24} />
 					</button>
@@ -176,7 +171,7 @@
 		{#if showDotMenu}
 			<button
 				onclick={openDotMenu}
-				class="text-n-400 hover:text-n-600 shrink-0"
+				class="text-n-700 hover:bg-n-200 p-2 rounded-full shrink-0"
 				title="Menu"
 			>
 				<EllipsisVertical size={20} />
@@ -184,93 +179,6 @@
 		{/if}
 	{/if}
 
-	<!-- Settings gear -->
-	<div class="relative settings-dropdown flex items-center">
-		<button
-			onclick={() => settingsDropdownOpen = !settingsDropdownOpen}
-			title="Settings"
-			class="text-n-600 hover:bg-n-100 p-2 rounded-full"
-		>
-			<Settings size={20} />
-		</button>
-		{#if settingsDropdownOpen}
-			<div class="absolute right-0 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-md py-1 z-50 min-w-52">
-				<button
-					onclick={() => ui.toggleAutoMarkRead()}
-					class="w-full text-left px-3 py-2.5 text-sm hover:bg-n-100 flex items-center gap-2"
-				>
-					{#if ui.autoMarkReadOnScroll}
-						<SquareCheck size={18} class="shrink-0 text-a-600" />
-					{:else}
-						<Square size={18} class="shrink-0 text-n-500" />
-					{/if}
-					Mark read on scroll
-				</button>
-
-				<div class="border-t border-n-200 mt-1 py-4">
-					<div class="px-3 text-sm mb-3 font-medium text-n-500">Theme</div>
-          <div class="px-3 flex flex-wrap gap-3">
-            {#each theme.themes as t}
-              <button
-                onclick={() => theme.setTheme(t.id)}
-                class="text-sm text-n-700 flex rounded-full hover:outline-n-400 hover:outline-2 items-center gap-2 {theme.current === t.id ? 'font-bold outline-a-600 outline-2' : ''}"
-                title={t.label}
-              >
-                <span class="flex overflow-hidden rounded-full border border-n-200">
-                  <span class="block w-4 h-8" style="background:{t.neutral}"></span>
-                  <span class="block w-4 h-8" style="background:{t.accent}"></span>
-                </span>
-                <!-- {t.label} -->
-              </button>
-            {/each}
-          </div>
-				</div>
-
-				{#if !ui.isMobile}
-					<div class="border-t border-n-200 mt-1 pt-4">
-						<div class="px-3 text-sm mb-2 font-medium text-n-500">Reading pane</div>
-						<button
-							onclick={() => { if (ui.layoutMode !== 'two-column') { ui.toggleLayoutMode(); } }}
-							class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
-						>
-							<span class="flex items-center gap-2">
-								<span class="size-4 flex items-center justify-center">
-									{#if ui.layoutMode === 'two-column'}
-										<Circle size={12} fill="currentColor" class="text-a-600" />
-									{:else}
-										<Circle size={12} class="text-n-400" />
-									{/if}
-								</span>
-								No split
-							</span>
-							<img src="/previewpaneoff.png" alt="" class="w-18" />
-						</button>
-						<button
-							onclick={() => {
-								if (ui.layoutMode !== 'three-column') {
-									ui.toggleLayoutMode();
-									if (isArticleView) history.back();
-								}
-							}}
-							class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
-						>
-							<span class="flex items-center gap-2">
-								<span class="size-4 flex items-center justify-center">
-									{#if ui.layoutMode === 'three-column'}
-										<Circle size={12} fill="currentColor" class="text-a-600" />
-									{:else}
-										<Circle size={12} class="text-n-400" />
-									{/if}
-								</span>
-								Right of feeds
-							</span>
-							<img src="/previewpaneright.png" alt="" class="w-18" />
-						</button>
-					</div>
-				{/if}
-			</div>
-		{/if}
-	</div>
 
 </header>
 
@@ -302,3 +210,14 @@
 		onsave={(title) => feeds.updateCategory(ui.selectedFeed!.id, title)}
 	/>
 {/if}
+
+<style>
+  @reference "../../../app.css";
+  .display-buttons {
+    @apply ml-4;
+    &::before {
+      @apply content-[''] block absolute left-[-13px] top-[12px] w-0.5 h-[16px] bg-n-200;
+    }
+  }
+
+</style>
