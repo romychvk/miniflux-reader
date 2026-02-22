@@ -150,3 +150,18 @@
 		@apply px-2 py-1;
 	}
 }
+
+/* 
+  Tech Styles - use custom utilities 
+  https://tailwindcss.com/docs/adding-custom-styles#adding-custom-utilities
+*/
+
+@utility brdr {
+	@apply border border-red-500;
+}
+@utility brdr-b {
+	@apply border border-blue-500;
+}
+@utility brdr-g {
+	@apply border border-green-500;
+}

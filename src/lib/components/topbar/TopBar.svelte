@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Menu, Circle, Columns2, Columns3, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, Settings, Square, SquareCheck } from 'lucide-svelte';
+	import { Menu, Circle, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, Settings, Square, SquareCheck } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -155,45 +155,71 @@
 		{/if}
 	{/if}
 
-	{#if !ui.isMobile}
-		<button
-			onclick={() => {
-				ui.toggleLayoutMode();
-				if (isArticleView && ui.layoutMode === 'three-column') history.back();
-			}}
-			title={ui.layoutMode === 'two-column' ? 'Switch to 3-column layout' : 'Switch to 2-column layout'}
-			class="text-n-400 hover:text-n-600"
-		>
-			{#if ui.layoutMode === 'two-column'}
-				<Columns2 size={24} />
-			{:else}
-				<Columns3 size={24} />
-			{/if}
-		</button>
-	{/if}
-
 	<!-- Settings gear -->
 	<div class="relative settings-dropdown flex items-center">
 		<button
 			onclick={() => settingsDropdownOpen = !settingsDropdownOpen}
 			title="Settings"
-			class="text-n-400 hover:text-n-600"
+			class="text-n-600 hover:bg-n-100 p-2 rounded-full"
 		>
 			<Settings size={20} />
 		</button>
 		{#if settingsDropdownOpen}
-			<div class="absolute right-0 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-md py-1 z-50 min-w-48">
+			<div class="absolute right-0 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-md py-1 z-50 min-w-52">
 				<button
 					onclick={() => ui.toggleAutoMarkRead()}
-					class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-50 text-n-700 flex items-center gap-2"
+					class="w-full text-left px-3 py-2.5 text-sm hover:bg-n-100 flex items-center gap-2"
 				>
 					{#if ui.autoMarkReadOnScroll}
-						<SquareCheck size={16} class="shrink-0 text-a-600" />
+						<SquareCheck size={18} class="shrink-0 text-a-600" />
 					{:else}
-						<Square size={16} class="shrink-0 text-n-400" />
+						<Square size={18} class="shrink-0 text-n-500" />
 					{/if}
 					Mark read on scroll
 				</button>
+
+				{#if !ui.isMobile}
+					<div class="border-t border-n-200 mt-1 pt-4">
+						<div class="px-3 text-sm mb-2 font-medium text-n-500">Reading pane</div>
+						<button
+							onclick={() => { if (ui.layoutMode !== 'two-column') { ui.toggleLayoutMode(); } }}
+							class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
+						>
+							<span class="flex items-center gap-2">
+								<span class="size-4 flex items-center justify-center">
+									{#if ui.layoutMode === 'two-column'}
+										<Circle size={12} fill="currentColor" class="text-a-600" />
+									{:else}
+										<Circle size={12} class="text-n-400" />
+									{/if}
+								</span>
+								No split
+							</span>
+							<img src="/previewpaneoff.png" alt="" class="w-18" />
+						</button>
+						<button
+							onclick={() => {
+								if (ui.layoutMode !== 'three-column') {
+									ui.toggleLayoutMode();
+									if (isArticleView) history.back();
+								}
+							}}
+							class="w-full text-left px-3 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
+						>
+							<span class="flex items-center gap-2">
+								<span class="size-4 flex items-center justify-center">
+									{#if ui.layoutMode === 'three-column'}
+										<Circle size={12} fill="currentColor" class="text-a-600" />
+									{:else}
+										<Circle size={12} class="text-n-400" />
+									{/if}
+								</span>
+								Right of feeds
+							</span>
+							<img src="/previewpaneright.png" alt="" class="w-18" />
+						</button>
+					</div>
+				{/if}
 			</div>
 		{/if}
 	</div>
