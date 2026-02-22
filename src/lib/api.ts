@@ -14,8 +14,7 @@ export async function apiCall<T>(path: string, options?: RequestInit): Promise<T
 
 	const response = await fetch(`/api/proxy/${path}`, {
 		...options,
-		headers,
-		signal: options?.signal
+		headers
 	});
 
 	if (!response.ok) {

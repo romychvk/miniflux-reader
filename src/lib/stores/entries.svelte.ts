@@ -18,8 +18,10 @@ function extractThumbnail(content: string): string | null {
 	return match?.[1] ?? null;
 }
 
+const domParser = new DOMParser();
+
 function extractDescription(content: string): string {
-	const doc = new DOMParser().parseFromString(content, 'text/html');
+	const doc = domParser.parseFromString(content, 'text/html');
 	const text = (doc.body.textContent ?? '').replace(/\s+/g, ' ').trim();
 	return text.length > 150 ? text.slice(0, 150) + '...' : text;
 }

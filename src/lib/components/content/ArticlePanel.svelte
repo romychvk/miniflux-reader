@@ -3,35 +3,10 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
+	import { resizable } from '$lib/actions/resize';
 	import EntryContent from './EntryContent.svelte';
 
 	const feedIcon = $derived(ui.selectedEntry ? feeds.findFeedNodeById(ui.selectedEntry.feed.id, true)?.iconData : null);
-
-	let resizing = $state(false);
-
-	function onResizeStart(e: MouseEvent) {
-		e.preventDefault();
-		resizing = true;
-		document.body.style.userSelect = 'none';
-		document.body.style.cursor = 'col-resize';
-		const startX = e.clientX;
-		const startWidth = ui.articlePanelWidth;
-
-		function onMouseMove(e: MouseEvent) {
-			ui.setArticlePanelWidth(startWidth - (e.clientX - startX));
-		}
-
-		function onMouseUp() {
-			resizing = false;
-			document.body.style.userSelect = '';
-			document.body.style.cursor = '';
-			window.removeEventListener('mousemove', onMouseMove);
-			window.removeEventListener('mouseup', onMouseUp);
-		}
-
-		window.addEventListener('mousemove', onMouseMove);
-		window.addEventListener('mouseup', onMouseUp);
-	}
 </script>
 
 <aside
@@ -41,8 +16,8 @@
 	<!-- Resize handle on left edge -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="absolute top-0 -left-1 w-2 h-full cursor-col-resize z-10 hover:bg-a-400/30 transition-colors {resizing ? 'bg-a-400/30' : ''}"
-		onmousedown={onResizeStart}
+		class="absolute top-0 -left-1 w-2 h-full cursor-col-resize z-10 hover:bg-a-400/30 transition-colors [&.active]:bg-a-400/30"
+		use:resizable={{ getCurrentValue: () => ui.articlePanelWidth, onResize: ui.setArticlePanelWidth, invert: true }}
 	></div>
 
 	{#if ui.selectedEntry}

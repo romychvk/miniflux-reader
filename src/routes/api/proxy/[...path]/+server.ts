@@ -17,7 +17,21 @@ export const fallback: RequestHandler = async ({ request, params, url }) => {
 		});
 	}
 
+	if (!params.path || params.path.includes('..') || params.path.startsWith('/')) {
+		return new Response(JSON.stringify({ error: 'Invalid path' }), {
+			status: 400,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
+
 	const target = new URL(`/v1/${params.path}`, server);
+
+	if (!target.pathname.startsWith('/v1/')) {
+		return new Response(JSON.stringify({ error: 'Invalid path' }), {
+			status: 400,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
 
 	for (const [key, value] of url.searchParams) {
 		target.searchParams.set(key, value);

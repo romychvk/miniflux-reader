@@ -8,6 +8,24 @@ function createFeedsStore() {
 	let feedTree = $state<FeedNode[]>([]);
 	let rawFeeds = $state<Feed[]>([]);
 	let loading = $state(false);
+	let abortController: AbortController | null = null;
+
+	// O(1) lookup indexes: feedId → FeedNode, feedId → parent category node
+	let feedIndex = new Map<number, FeedNode>();
+	let parentIndex = new Map<number, FeedNode>();
+
+	function rebuildFeedIndex() {
+		feedIndex = new Map();
+		parentIndex = new Map();
+		for (const node of feedTree) {
+			if (node.children) {
+				for (const child of node.children) {
+					feedIndex.set(child.id, child);
+					parentIndex.set(child.id, node);
+				}
+			}
+		}
+	}
 
 	function applySavedOrder(tree: FeedNode[]) {
 		const catOrder = storageGet<number[] | null>('categoryOrder', null);
@@ -23,7 +41,7 @@ function createFeedsStore() {
 				const bi = catOrder.indexOf(b.id);
 				if (ai === -1 && bi === -1) return a.title.localeCompare(b.title);
 				if (ai === -1) return 1;
-				if (bi === -1) return 1;
+				if (bi === -1) return -1;
 				return ai - bi;
 			});
 
@@ -41,7 +59,7 @@ function createFeedsStore() {
 					const bi = order.indexOf(b.id);
 					if (ai === -1 && bi === -1) return a.title.localeCompare(b.title);
 					if (ai === -1) return 1;
-					if (bi === -1) return 1;
+					if (bi === -1) return -1;
 					return ai - bi;
 				});
 			}
@@ -63,11 +81,15 @@ function createFeedsStore() {
 	}
 
 	async function loadFeeds() {
+		abortController?.abort();
+		abortController = new AbortController();
+		const signal = abortController.signal;
+
 		loading = true;
 		try {
 			const [feedList, counters] = await Promise.all([
-				apiCall<Feed[]>('feeds'),
-				apiCall<FeedCounters>('feeds/counters')
+				apiCall<Feed[]>('feeds', { signal }),
+				apiCall<FeedCounters>('feeds/counters', { signal })
 			]);
 
 			rawFeeds = feedList;
@@ -119,17 +141,19 @@ function createFeedsStore() {
 
 			applySavedOrder(tree);
 			feedTree = tree;
+			rebuildFeedIndex();
 
 			// Load icons in background
-			loadIcons(feedList);
+			loadIcons(feedList, signal);
 		} catch (e) {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
 			ui.showError(e instanceof Error ? e.message : 'Failed to load feeds');
 		} finally {
-			loading = false;
+			if (!signal.aborted) loading = false;
 		}
 	}
 
-	async function loadIcons(feedList: Feed[]) {
+	async function loadIcons(feedList: Feed[], signal: AbortSignal) {
 		const cache: Record<string, string> = storageGet('favicons', {});
 
 		const feedsWithIcons = feedList.filter(f => f.icon);
@@ -147,8 +171,9 @@ function createFeedsStore() {
 			let cacheUpdated = false;
 			await Promise.allSettled(
 				uncachedFeeds.map(async (feed) => {
+					if (signal.aborted) return;
 					try {
-						const icon = await apiCall<FeedIcon>(`feeds/${feed.id}/icon`);
+						const icon = await apiCall<FeedIcon>(`feeds/${feed.id}/icon`, { signal });
 						const iconData = `data:${icon.data}`;
 						cache[feed.id] = iconData;
 						cacheUpdated = true;
@@ -159,33 +184,26 @@ function createFeedsStore() {
 				})
 			);
 
-			if (cacheUpdated) {
+			if (cacheUpdated && !signal.aborted) {
 				storageSet('favicons', cache);
 			}
 		}
 	}
 
 	function applyIconToTree(feedId: number, iconData: string) {
-		for (const node of feedTree) {
-			if (node.children) {
-				const child = node.children.find((c) => c.id === feedId);
-				if (child) child.iconData = iconData;
-			}
-		}
+		const child = feedIndex.get(feedId);
+		if (child) child.iconData = iconData;
 	}
 
 	function updateCounters(feedId: number, delta: number) {
-		for (const node of feedTree) {
-			if (node.id === -1) {
-				node.unread += delta;
-			}
-			if (node.children) {
-				const child = node.children.find((c) => c.id === feedId);
-				if (child) {
-					child.unread += delta;
-					node.unread += delta;
-				}
-			}
+		const allNode = feedTree[0]; // id: -1
+		if (allNode) allNode.unread += delta;
+
+		const child = feedIndex.get(feedId);
+		if (child) {
+			child.unread += delta;
+			const parent = parentIndex.get(feedId);
+			if (parent) parent.unread += delta;
 		}
 	}
 
@@ -201,6 +219,7 @@ function createFeedsStore() {
 		const adjustedIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
 		cat.children.splice(adjustedIndex, 0, item);
 		feedTree = [...feedTree];
+		rebuildFeedIndex();
 		persistOrder();
 	}
 
@@ -213,6 +232,7 @@ function createFeedsStore() {
 		const adjustedIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
 		feedTree.splice(adjustedIndex, 0, item);
 		feedTree = [...feedTree];
+		rebuildFeedIndex();
 		persistOrder();
 	}
 
@@ -221,15 +241,16 @@ function createFeedsStore() {
 		const targetCat = feedTree.find(n => n.id === targetCatId);
 		if (!sourceCat?.children || !targetCat?.children) return;
 
-		const feedIndex = sourceCat.children.findIndex(f => f.id === feedId);
-		if (feedIndex === -1) return;
+		const feedIdx = sourceCat.children.findIndex(f => f.id === feedId);
+		if (feedIdx === -1) return;
 
 		// Optimistic update
-		const [feed] = sourceCat.children.splice(feedIndex, 1);
+		const [feed] = sourceCat.children.splice(feedIdx, 1);
 		sourceCat.unread -= feed.unread;
 		targetCat.children.splice(insertIndex, 0, feed);
 		targetCat.unread += feed.unread;
 		feedTree = [...feedTree];
+		rebuildFeedIndex();
 		persistOrder();
 
 		try {
@@ -244,9 +265,10 @@ function createFeedsStore() {
 				targetCat.children.splice(revertIndex, 1);
 				targetCat.unread -= feed.unread;
 			}
-			sourceCat.children.splice(feedIndex, 0, feed);
+			sourceCat.children.splice(feedIdx, 0, feed);
 			sourceCat.unread += feed.unread;
 			feedTree = [...feedTree];
+			rebuildFeedIndex();
 			persistOrder();
 			ui.showError(e instanceof Error ? e.message : 'Failed to move feed');
 		}
@@ -257,15 +279,9 @@ function createFeedsStore() {
 	}
 
 	function findFeedNodeById(id: number, isFeed: boolean): FeedNode | null {
-		for (const node of feedTree) {
-			if (node.id === id && node.isFeed === isFeed) return node;
-			if (node.children) {
-				for (const child of node.children) {
-					if (child.id === id && child.isFeed === isFeed) return child;
-				}
-			}
-		}
-		return null;
+		if (isFeed) return feedIndex.get(id) ?? null;
+		// Category or "All" node — small list, linear scan is fine
+		return feedTree.find(n => n.id === id && n.isFeed === isFeed) ?? null;
 	}
 
 	function getRawFeed(feedId: number): Feed | null {
@@ -299,14 +315,9 @@ function createFeedsStore() {
 			});
 
 			// Update tree locally
-			for (const node of feedTree) {
-				if (node.children) {
-					const child = node.children.find((c) => c.id === feedId);
-					if (child) {
-						if (changes.title) child.title = changes.title;
-						break;
-					}
-				}
+			const child = feedIndex.get(feedId);
+			if (child && changes.title) {
+				child.title = changes.title;
 			}
 
 			// Update rawFeeds
