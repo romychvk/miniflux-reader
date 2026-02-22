@@ -109,6 +109,28 @@
 	--surface: #ffffff;
 }
 
+/* Forest: stone neutrals + emerald accent */
+:root[data-theme='forest'] {
+	--n-50: #fafaf9;
+	--n-100: #f5f5f4;
+	--n-200: #e7e5e4;
+	--n-300: #d6d3d1;
+	--n-400: #a8a29e;
+	--n-500: #78716c;
+	--n-600: #57534e;
+	--n-700: #44403c;
+	--n-800: #292524;
+	--n-900: #1c1917;
+
+	--a-50: #ecfdf5;
+	--a-400: #34d399;
+	--a-500: #10b981;
+	--a-600: #059669;
+	--a-700: #047857;
+
+	--surface: #ffffff;
+}
+
 /* Dark: slate-dark neutrals + orange accent */
 :root[data-theme='dark'] {
 	--n-50: #0f1117;

@@ -7,6 +7,7 @@ const themes = [
 	{ id: 'warm', label: 'Warm', accent: '#ea580c', neutral: '#e7e5e4' },
 	{ id: 'cool', label: 'Cool', accent: '#0891b2', neutral: '#f3f4f6' },
 	{ id: 'rose', label: 'Rose', accent: '#e11d48', neutral: '#e4e4e7' },
+	{ id: 'forest', label: 'Forest', accent: '#059669', neutral: '#e7e5e4' },
 	{ id: 'dark', label: 'Dark', accent: '#ea580c', neutral: '#252830' },
 ] as const;
 
