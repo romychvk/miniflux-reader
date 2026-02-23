@@ -22,6 +22,9 @@ const domParser = new DOMParser();
 
 function extractDescription(content: string): string {
 	const doc = domParser.parseFromString(content, 'text/html');
+	for (const br of doc.querySelectorAll('br, p, div, li, tr, h1, h2, h3, h4, h5, h6, blockquote')) {
+		br.before(' ');
+	}
 	const text = (doc.body.textContent ?? '').replace(/\s+/g, ' ').trim();
 	return text.length > 150 ? text.slice(0, 150) + '...' : text;
 }
