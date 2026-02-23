@@ -183,7 +183,7 @@
 	{:else}
 		{#if searchOpen}
 			<div class="flex items-center gap-2 flex-1 min-w-0">
-				<Search size={18} class="text-n-400 shrink-0" />
+				<Search size={18} class="text-n-700 shrink-0" />
 				<input
 					bind:this={searchInputEl}
 					bind:value={searchInput}
@@ -191,11 +191,11 @@
 					onkeydown={onSearchKeydown}
 					type="text"
 					placeholder="Search articles..."
-					class="flex-1 min-w-0 bg-transparent outline-none text-sm text-n-900 placeholder:text-n-400"
+					class="flex-1 min-w-0 outline-none text-sm text-n-900 placeholder:text-n-500 border border-n-300 rounded-full px-4 py-1.5"
 				/>
 				<button
 					onclick={closeSearch}
-					class="text-n-500 hover:text-n-700 p-1 rounded-full hover:bg-n-200 shrink-0"
+					class="text-n-700 p-1 rounded-full hover:bg-n-200 shrink-0"
 					title="Close search"
 				>
 					<X size={16} />
