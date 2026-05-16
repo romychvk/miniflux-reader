@@ -8,14 +8,14 @@
 		"preview": "vite preview"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-node": "^5.5.3",
-		"@sveltejs/kit": "^2.53.0",
+		"@sveltejs/adapter-node": "^5.5.4",
+		"@sveltejs/kit": "^2.60.1",
 		"@sveltejs/vite-plugin-svelte": "^5.1.1",
-		"@tailwindcss/vite": "^4.2.0",
-		"svelte": "^5.53.2",
-		"tailwindcss": "^4.2.0",
+		"@tailwindcss/vite": "^4.3.0",
+		"svelte": "^5.55.7",
+		"tailwindcss": "^4.3.0",
 		"typescript": "^5.9.3",
-		"vite": "^6.4.1",
+		"vite": "^6.4.2",
 		"vite-plugin-devtools-json": "^1.0.0"
 	},
 	"dependencies": {
