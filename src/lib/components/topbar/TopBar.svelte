@@ -36,6 +36,18 @@
 		viewDropdownOpen = false;
 	}
 
+	const layoutModes = [
+		{ id: 'two-column' as const, label: 'No split', img: '/previewpaneoff.png' },
+		{ id: 'three-column' as const, label: 'Right of feeds', img: '/previewpaneright.png' },
+		{ id: 'expanded' as const, label: 'Expanded', img: '/previewpaneexpanded.png' },
+	];
+
+	function selectLayoutMode(mode: 'two-column' | 'three-column' | 'expanded') {
+		if (ui.layoutMode === mode) return;
+		ui.setLayoutMode(mode);
+		if (mode !== 'two-column' && isArticleView) history.back();
+	}
+
 	function handleClickOutside(e: MouseEvent) {
 		const target = e.target as HTMLElement;
 		if (!target.closest('.view-mode-dropdown')) {
@@ -272,43 +284,24 @@
 							{#if !ui.isMobile}
 								<div class="border-t border-n-200 mt-1 pt-4">
 									<div class="px-4 text-sm mb-1 font-medium text-n-500">Reading pane</div>
-									<button
-										onclick={() => { if (ui.layoutMode !== 'two-column') { ui.toggleLayoutMode(); } }}
-										class="w-full px-4 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
-									>
-										<span class="flex items-center gap-2">
-											<span class="size-4 flex items-center justify-center">
-												{#if ui.layoutMode === 'two-column'}
-													<Circle size={12} fill="currentColor" class="text-a-600" />
-												{:else}
-													<Circle size={12} class="text-n-400" />
-												{/if}
+									{#each layoutModes as mode (mode.id)}
+										<button
+											onclick={() => selectLayoutMode(mode.id)}
+											class="w-full px-4 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
+										>
+											<span class="flex items-center text-left gap-2">
+												<span class="size-4 flex items-center justify-center">
+													{#if ui.layoutMode === mode.id}
+														<Circle size={12} fill="currentColor" class="text-a-600" />
+													{:else}
+														<Circle size={12} class="text-n-400" />
+													{/if}
+												</span>
+												{mode.label}
 											</span>
-											No split
-										</span>
-										<img src="/previewpaneoff.png" alt="" class="w-18" />
-									</button>
-									<button
-										onclick={() => {
-											if (ui.layoutMode !== 'three-column') {
-												ui.toggleLayoutMode();
-												if (isArticleView) history.back();
-											}
-										}}
-										class="w-full px-4 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
-									>
-										<span class="flex items-center text-left gap-2">
-											<span class="size-4 flex items-center justify-center">
-												{#if ui.layoutMode === 'three-column'}
-													<Circle size={12} fill="currentColor" class="text-a-600" />
-												{:else}
-													<Circle size={12} class="text-n-400" />
-												{/if}
-											</span>
-											Right of feeds
-										</span>
-										<img src="/previewpaneright.png" alt="" class="w-18" />
-									</button>
+											<img src={mode.img} alt="" class="w-18" />
+										</button>
+									{/each}
 								</div>
 							{/if}
 

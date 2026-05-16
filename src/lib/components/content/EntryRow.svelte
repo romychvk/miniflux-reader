@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import type { Entry } from '$lib/types';
 	import { entries } from '$lib/stores/entries.svelte';
@@ -7,6 +8,7 @@
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
 	import { getScrollDirection, addScrollTracker, removeScrollTracker } from '$lib/scroll';
+	import ArticleView from './ArticleView.svelte';
 
 	let { entry }: { entry: Entry } = $props();
 
@@ -22,14 +24,24 @@
 	const thumbnailUrl = $derived(entry._thumbnailUrl ?? null);
 	const description = $derived(entry._description ?? '');
 
-	function openArticle() {
-		if (!ui.isMobile && ui.layoutMode === 'three-column') {
-			ui.selectEntry(entry);
-			if (entry.status === 'unread') {
-				entries.markRead([entry.id], true);
-			}
-		} else {
+	async function openArticle() {
+		if (ui.isMobile || ui.layoutMode === 'two-column') {
 			goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
+			return;
+		}
+		// three-column or expanded: show inline / in the side panel
+		if (ui.layoutMode === 'expanded' && isSelected) {
+			ui.selectEntry(null); // clicking the open row collapses it
+			return;
+		}
+		ui.selectEntry(entry);
+		if (entry.status === 'unread') {
+			entries.markRead([entry.id], true);
+		}
+		if (ui.layoutMode === 'expanded') {
+			ui.suppressMarkRead();
+			await tick();
+			rowEl?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 		}
 	}
 
@@ -41,7 +53,7 @@
 		const observer = new IntersectionObserver(
 			([e]) => {
 				const inView = e.isIntersecting;
-				if (!inView && prevInView && entry.status === 'unread' && getScrollDirection() === 'down' && ui.autoMarkReadOnScroll) {
+				if (!inView && prevInView && entry.status === 'unread' && getScrollDirection() === 'down' && ui.autoMarkReadOnScroll && !ui.isMarkReadSuppressed) {
 					entries.markRead([entry.id], true);
 				}
 				prevInView = inView;
@@ -169,5 +181,11 @@
 				<p class="text-sm text-n-800 mt-1.5 line-clamp-2">{description}</p>
 			{/if}
 		</div>
+	</div>
+{/if}
+
+{#if ui.layoutMode === 'expanded' && isSelected && !ui.isMobile}
+	<div class="{viewMode === 'cards' ? 'col-span-full' : 'border-b border-n-100'} bg-surface">
+		<ArticleView {entry} onClose={() => ui.selectEntry(null)} />
 	</div>
 {/if}

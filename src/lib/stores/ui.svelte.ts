@@ -15,7 +15,8 @@ const MIN_ARTICLE_PANEL_WIDTH = 300;
 const MIN_ENTRY_LIST_WIDTH = 320;
 const AUTO_MARK_READ_KEY = 'autoMarkReadOnScroll';
 
-type LayoutMode = 'two-column' | 'three-column';
+type LayoutMode = 'two-column' | 'three-column' | 'expanded';
+const LAYOUT_MODES: LayoutMode[] = ['two-column', 'three-column', 'expanded'];
 type ViewMode = 'list' | 'magazine' | 'cards';
 const VIEW_MODES: ViewMode[] = ['list', 'magazine', 'cards'];
 
@@ -34,6 +35,7 @@ function createUI() {
 	let viewModesMap = $state<Record<string, ViewMode>>({});
 	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
 	let autoMarkReadOnScroll = $state(true);
+	let markReadSuppressedUntil = 0;
 
 	function initAutoMarkRead() {
 		const saved = storageGetString(AUTO_MARK_READ_KEY);
@@ -107,12 +109,17 @@ function createUI() {
 
 	function initLayoutMode() {
 		const saved = storageGetString(LAYOUT_MODE_KEY);
-		if (saved === 'two-column' || saved === 'three-column') layoutMode = saved;
+		if (saved && LAYOUT_MODES.includes(saved as LayoutMode)) layoutMode = saved as LayoutMode;
 	}
 
-	function toggleLayoutMode() {
-		layoutMode = layoutMode === 'two-column' ? 'three-column' : 'two-column';
-		storageSet(LAYOUT_MODE_KEY, layoutMode);
+	function setLayoutMode(mode: LayoutMode) {
+		layoutMode = mode;
+		storageSet(LAYOUT_MODE_KEY, mode);
+		if (mode === 'expanded') selectedEntry = null;
+	}
+
+	function suppressMarkRead(ms = 800) {
+		markReadSuppressedUntil = Date.now() + ms;
 	}
 
 	function initViewMode() {
@@ -155,6 +162,7 @@ function createUI() {
 		get successMessage() { return successMessage; },
 		get sidebarWidth() { return sidebarWidth; },
 		get layoutMode() { return layoutMode; },
+		get isMarkReadSuppressed() { return Date.now() < markReadSuppressedUntil; },
 		get viewMode() { return viewMode; },
 		get articlePanelWidth() { return articlePanelWidth; },
 		get autoMarkReadOnScroll() { return autoMarkReadOnScroll; },
@@ -169,7 +177,8 @@ function createUI() {
 		initSidebarWidth,
 		setSidebarWidth,
 		initLayoutMode,
-		toggleLayoutMode,
+		setLayoutMode,
+		suppressMarkRead,
 		initViewMode,
 		setViewMode,
 		initAutoMarkRead,
