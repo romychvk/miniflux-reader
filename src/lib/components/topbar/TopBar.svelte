@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
-	import { Menu, Circle, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X } from 'lucide-svelte';
+	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { theme } from '$lib/stores/theme.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import FeedEditModal from '$lib/components/ui/FeedEditModal.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
@@ -29,7 +30,6 @@
 	];
 
 	const currentViewMode = $derived(viewModes.find(m => m.id === ui.viewMode)!);
-	const otherViewModes = $derived(viewModes.filter(m => m.id !== ui.viewMode));
 
 	function selectViewMode(mode: 'list' | 'magazine' | 'cards') {
 		ui.setViewMode(mode);
@@ -256,16 +256,91 @@
 						<currentViewMode.icon size={24} />
 					</button>
 					{#if viewDropdownOpen}
-						<div class="absolute -right-3 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-md py-1 z-50">
-							{#each otherViewModes as mode}
+						<div class="absolute -right-3 top-full mt-1 bg-surface border border-n-200 rounded-md shadow-lg py-2 z-50 min-w-56">
+							<div class="px-4 text-sm mb-1 font-medium text-n-500">View</div>
+							{#each viewModes as mode (mode.id)}
 								<button
 									onclick={() => selectViewMode(mode.id)}
 									title={mode.label}
-									class="flex items-center px-3 py-1.5 text-n-400 hover:text-n-600 hover:bg-n-50"
+									class="w-full text-left px-4 py-2 text-sm flex items-center gap-2 {ui.viewMode === mode.id ? 'bg-a-50 text-a-700 font-medium' : 'text-n-700 hover:bg-n-100'}"
 								>
-									<mode.icon size={24} />
+									<mode.icon size={18} class="shrink-0" />
+									{mode.label}
 								</button>
 							{/each}
+
+							{#if !ui.isMobile}
+								<div class="border-t border-n-200 mt-1 pt-4">
+									<div class="px-4 text-sm mb-1 font-medium text-n-500">Reading pane</div>
+									<button
+										onclick={() => { if (ui.layoutMode !== 'two-column') { ui.toggleLayoutMode(); } }}
+										class="w-full px-4 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
+									>
+										<span class="flex items-center gap-2">
+											<span class="size-4 flex items-center justify-center">
+												{#if ui.layoutMode === 'two-column'}
+													<Circle size={12} fill="currentColor" class="text-a-600" />
+												{:else}
+													<Circle size={12} class="text-n-400" />
+												{/if}
+											</span>
+											No split
+										</span>
+										<img src="/previewpaneoff.png" alt="" class="w-18" />
+									</button>
+									<button
+										onclick={() => {
+											if (ui.layoutMode !== 'three-column') {
+												ui.toggleLayoutMode();
+												if (isArticleView) history.back();
+											}
+										}}
+										class="w-full px-4 py-1.5 text-sm hover:bg-n-100 text-n-700 flex items-center justify-between gap-3"
+									>
+										<span class="flex items-center text-left gap-2">
+											<span class="size-4 flex items-center justify-center">
+												{#if ui.layoutMode === 'three-column'}
+													<Circle size={12} fill="currentColor" class="text-a-600" />
+												{:else}
+													<Circle size={12} class="text-n-400" />
+												{/if}
+											</span>
+											Right of feeds
+										</span>
+										<img src="/previewpaneright.png" alt="" class="w-18" />
+									</button>
+								</div>
+							{/if}
+
+							<button
+								onclick={() => ui.toggleAutoMarkRead()}
+								class="w-full text-left px-4 py-2.5 text-sm hover:bg-n-100 flex items-center gap-2 border-t border-n-200 mt-1"
+							>
+								{#if ui.autoMarkReadOnScroll}
+									<SquareCheck size={18} class="shrink-0 text-a-600" />
+								{:else}
+									<Square size={18} class="shrink-0 text-n-500" />
+								{/if}
+								Mark read on scroll
+							</button>
+
+							<div class="border-t border-n-200 mt-1 py-4">
+								<div class="px-4 text-sm mb-3 font-medium text-n-500">Theme</div>
+								<div class="px-4 flex flex-wrap gap-3">
+									{#each theme.themes as t (t.id)}
+										<button
+											onclick={() => theme.setTheme(t.id)}
+											class="text-sm text-n-700 flex rounded-full hover:outline-n-400 hover:outline-2 items-center gap-2 {theme.current === t.id ? 'font-bold outline-a-600 outline-2' : ''}"
+											title={t.label}
+										>
+											<span class="flex overflow-hidden rounded-full border border-n-200">
+												<span class="block w-4 h-8" style="background:{t.neutral}"></span>
+												<span class="block w-4 h-8" style="background:{t.accent}"></span>
+											</span>
+										</button>
+									{/each}
+								</div>
+							</div>
 						</div>
 					{/if}
 				</div>
