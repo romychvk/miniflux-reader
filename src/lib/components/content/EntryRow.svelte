@@ -24,6 +24,11 @@
 	const thumbnailUrl = $derived(entry._thumbnailUrl ?? null);
 	const description = $derived(entry._description ?? '');
 
+	function toggleRead(e: MouseEvent) {
+		e.stopPropagation();
+		entries.markRead([entry.id], !isRead);
+	}
+
 	async function openArticle() {
 		if (ui.isMobile || ui.layoutMode === 'two-column') {
 			goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
@@ -85,6 +90,18 @@
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && openArticle()}
 		>
+			<button
+				type="button"
+				onclick={toggleRead}
+				aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
+				title={isRead ? 'Mark as unread' : 'Mark as read'}
+				class="shrink-0 grid place-items-center size-5 rounded-full cursor-pointer group/dot"
+			>
+				<span
+					class="block size-2.5 rounded-full transition-transform duration-150 group-hover/dot:scale-150 {isRead ? 'border border-n-300' : 'bg-a-500'}"
+				></span>
+			</button>
+
 			{#if feedIcon}
 				<img src={feedIcon} alt="" class="size-5 shrink-0" />
 			{/if}
@@ -109,12 +126,24 @@
 		use:autoMarkRead
 	>
 		<div
-			class="flex gap-4 px-4 py-3 cursor-pointer hover:bg-n-50 transition-colors {isSelected ? 'bg-a-50' : ''}"
+			class="flex items-start gap-4 px-4 py-3 cursor-pointer hover:bg-n-50 transition-colors {isSelected ? 'bg-a-50' : ''}"
 			onclick={openArticle}
 			role="button"
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && openArticle()}
 		>
+			<button
+				type="button"
+				onclick={toggleRead}
+				aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
+				title={isRead ? 'Mark as unread' : 'Mark as read'}
+				class="shrink-0 grid place-items-center size-5 mt-1 rounded-full cursor-pointer group/dot"
+			>
+				<span
+					class="block size-2.5 rounded-full transition-transform duration-150 group-hover/dot:scale-150 {isRead ? 'border border-n-300' : 'bg-a-500'}"
+				></span>
+			</button>
+
 			<div class="shrink-0 w-56 h-32 rounded overflow-hidden bg-n-100">
 				{#if thumbnailUrl}
 					<img
@@ -152,12 +181,24 @@
 	<div
 		bind:this={rowEl}
 		use:autoMarkRead
-		class="rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-shadow {isSelected ? 'ring-2 ring-a-400' : ''}"
+		class="relative rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-shadow {isSelected ? 'ring-2 ring-a-400' : ''}"
 		onclick={openArticle}
 		role="button"
 		tabindex="0"
 		onkeydown={(e) => e.key === 'Enter' && openArticle()}
 	>
+		<button
+			type="button"
+			onclick={toggleRead}
+			aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
+			title={isRead ? 'Mark as unread' : 'Mark as read'}
+			class="absolute top-2 left-2 z-10 grid place-items-center size-6 rounded-full cursor-pointer bg-surface/70 backdrop-blur-sm group/dot"
+		>
+			<span
+				class="block size-2.5 rounded-full transition-transform duration-150 group-hover/dot:scale-150 {isRead ? 'border border-n-300' : 'bg-a-500'}"
+			></span>
+		</button>
+
 		{#if thumbnailUrl}
 			<div class="w-full overflow-hidden bg-n-100 rounded-lg">
 				<img
