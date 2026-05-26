@@ -19,11 +19,6 @@
     "vite-plugin-devtools-json": "^1.0.0"
   },
   "packageManager": "pnpm@10.33.2",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
   "dependencies": {
     "lucide-svelte": "^0.474.0"
   },
