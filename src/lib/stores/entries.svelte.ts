@@ -124,6 +124,68 @@ function createEntriesStore() {
 		}
 	}
 
+	// Re-scrape the original page (applying the feed's scraper/rewrite rules) and
+	// persist it. Miniflux's fetch-content endpoint returns the content but does not
+	// save it (as of 2.2.19), so we PUT it back explicitly.
+	async function fetchAndStore(entryId: number): Promise<string> {
+		const data = await apiCall<{ content: string }>(`entries/${entryId}/fetch-content`);
+		const content = decodeContent(data.content || '');
+		await apiCall(`entries/${entryId}`, {
+			method: 'PUT',
+			body: JSON.stringify({ content })
+		});
+		const entry = entries.find((e) => e.id === entryId);
+		if (entry) {
+			entry.content = content;
+			entry._thumbnailUrl = extractThumbnail(content);
+			entry._description = extractDescription(content);
+		}
+		return content;
+	}
+
+	async function refetchContent(entryId: number): Promise<string | null> {
+		try {
+			return await fetchAndStore(entryId);
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to re-fetch content');
+			return null;
+		}
+	}
+
+	// Re-fetch content for the latest N entries of a feed (any status), with bounded
+	// concurrency to avoid hammering the source site. Useful after changing feed rules.
+	async function refetchFeedLatest(
+		feedId: number,
+		limit: number,
+		onProgress?: (done: number, total: number) => void
+	): Promise<{ total: number; ok: number; failed: number }> {
+		const data = await apiCall<{ entries: Entry[] }>(
+			`feeds/${feedId}/entries?order=published_at&direction=desc&limit=${limit}`
+		);
+		const ids = (data.entries || []).map((e) => e.id);
+		const total = ids.length;
+		let ok = 0;
+		let failed = 0;
+		let done = 0;
+		let cursor = 0;
+
+		async function worker() {
+			while (cursor < ids.length) {
+				const id = ids[cursor++];
+				try {
+					await fetchAndStore(id);
+					ok++;
+				} catch {
+					failed++;
+				}
+				onProgress?.(++done, total);
+			}
+		}
+
+		await Promise.all(Array.from({ length: Math.min(4, ids.length) }, () => worker()));
+		return { total, ok, failed };
+	}
+
 	function findEntryById(id: number): Entry | null {
 		return entries.find(e => e.id === id) ?? null;
 	}
@@ -136,6 +198,8 @@ function createEntriesStore() {
 		loadEntries,
 		markRead,
 		fetchOriginalContent,
+		refetchContent,
+		refetchFeedLatest,
 		toggleShowAll,
 		setSearchQuery,
 		clearSearch,

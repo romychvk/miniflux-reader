@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Category, Feed, FeedUpdate } from '$lib/types';
-	import { ExternalLink } from 'lucide-svelte';
+	import { ExternalLink, RotateCw } from 'lucide-svelte';
+	import { entries } from '$lib/stores/entries.svelte';
+	import { ui } from '$lib/stores/ui.svelte';
 
 	let { feed, categories, onclose, onsave }: {
 		feed: Feed;
@@ -28,12 +30,15 @@
 	let scraperRules = $state(initial.scraper_rules);
 	let rewriteRules = $state(initial.rewrite_rules);
 	let saving = $state(false);
+	let refetching = $state(false);
+	let refetchCount = $state(25);
+	let progress = $state({ done: 0, total: 0 });
 
 	function onkeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onclose();
 	}
 
-	async function handleSave() {
+	function computeChanges(): FeedUpdate {
 		const changes: FeedUpdate = {};
 		if (title !== initial.title) changes.title = title;
 		if (siteUrl !== initial.site_url) changes.site_url = siteUrl;
@@ -42,7 +47,26 @@
 		if (crawler !== initial.crawler) changes.crawler = crawler;
 		if (scraperRules !== initial.scraper_rules) changes.scraper_rules = scraperRules;
 		if (rewriteRules !== initial.rewrite_rules) changes.rewrite_rules = rewriteRules;
+		return changes;
+	}
 
+	// Persist current form state without closing, then reset the baseline so a
+	// later Save sees no pending changes.
+	async function persistChanges(changes: FeedUpdate) {
+		await onsave(changes);
+		Object.assign(initial, {
+			title,
+			site_url: siteUrl,
+			feed_url: feedUrl,
+			category_id: categoryId,
+			crawler,
+			scraper_rules: scraperRules,
+			rewrite_rules: rewriteRules
+		});
+	}
+
+	async function handleSave() {
+		const changes = computeChanges();
 		if (Object.keys(changes).length === 0) {
 			onclose();
 			return;
@@ -50,12 +74,32 @@
 
 		saving = true;
 		try {
-			await onsave(changes);
+			await persistChanges(changes);
 			onclose();
 		} catch {
 			// Error shown by store
 		} finally {
 			saving = false;
+		}
+	}
+
+	async function refetchLatest() {
+		refetching = true;
+		try {
+			// Apply any pending changes first so the re-fetch uses the current rules.
+			const changes = computeChanges();
+			if (Object.keys(changes).length > 0) await persistChanges(changes);
+
+			const res = await entries.refetchFeedLatest(feed.id, refetchCount, (done, total) => {
+				progress = { done, total };
+			});
+			const failed = res.failed ? ` (${res.failed} failed)` : '';
+			ui.showSuccess(`Re-fetched ${res.ok}/${res.total} entries${failed}.`);
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to re-fetch content');
+		} finally {
+			refetching = false;
+			progress = { done: 0, total: 0 };
 		}
 	}
 </script>
@@ -173,6 +217,30 @@
 							class="w-full px-3 py-2 border border-n-300 rounded-md text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-n-400"
 						></textarea>
 						<p class="text-xs text-n-500 mt-1">Cleanup functions, e.g. remove("…"), replace("a"|"b").</p>
+					</div>
+
+					<div class="pt-1">
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								onclick={refetchLatest}
+								disabled={refetching}
+								class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-n-300 rounded-md hover:bg-n-100 disabled:opacity-50"
+							>
+								<RotateCw class={`w-3.5 h-3.5 ${refetching ? 'animate-spin' : ''}`} />
+								{refetching ? `Re-fetching ${progress.done}/${progress.total}…` : 'Re-fetch latest'}
+							</button>
+							<input
+								type="number"
+								bind:value={refetchCount}
+								min="1"
+								max="100"
+								disabled={refetching}
+								class="w-16 px-2 py-1.5 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+							/>
+							<span class="text-sm text-n-600">entries</span>
+						</div>
+						<p class="text-xs text-n-500 mt-1">Saves changes, then re-applies the rules to entries already downloaded.</p>
 					</div>
 				</div>
 			</div>

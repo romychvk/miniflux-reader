@@ -1,14 +1,28 @@
 <script lang="ts">
-	import { ArrowLeft, X } from 'lucide-svelte';
+	import { ArrowLeft, X, RotateCw } from 'lucide-svelte';
 	import type { Entry } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { entries } from '$lib/stores/entries.svelte';
+	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import EntryContent from './EntryContent.svelte';
 
 	let { entry, onClose }: { entry: Entry; onClose?: () => void } = $props();
 
 	const feedIcon = $derived(feeds.findFeedNodeById(entry.feed.id, true)?.iconData);
-  
+
+	let refetching = $state(false);
+
+	async function refetch() {
+		refetching = true;
+		const content = await entries.refetchContent(entry.id);
+		if (content !== null) {
+			entry.content = content;
+			ui.showSuccess('Content re-fetched.');
+		}
+		refetching = false;
+	}
+
 	function goBack() {
 		history.back();
 	}
@@ -48,6 +62,14 @@
 			<span>&middot;</span>
 			<span>{entry.author}</span>
 		{/if}
+		<button
+			onclick={refetch}
+			disabled={refetching}
+			title="Re-fetch original content (applies the feed's rules)"
+			class="ml-auto shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors disabled:opacity-50"
+		>
+			<RotateCw size={14} class={refetching ? 'animate-spin' : ''} />
+		</button>
 	</div>
 
 	<EntryContent {entry} />
