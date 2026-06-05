@@ -75,5 +75,6 @@ npm run preview   # Preview production build
 | `feeds/{id}/icon` | GET | Feed favicon |
 | `feeds/{id}/entries?status=unread&order=published_at&direction=desc&limit=100` | GET | Feed entries |
 | `entries?status=unread&order=published_at&direction=desc&limit=100` | GET | All unread entries |
-| `entries/{id}/original-content` | GET | Full article content |
+| `entries/{id}/fetch-content` | GET | Re-scrape original article content |
+| `entries/{id}` | PUT | Save re-scraped content for one entry |
 | `entries` | PUT | Bulk mark read/unread |

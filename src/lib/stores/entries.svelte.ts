@@ -115,15 +115,6 @@ function createEntriesStore() {
 		}
 	}
 
-	async function fetchOriginalContent(entryId: number): Promise<string | null> {
-		try {
-			const data = await apiCall<{ content: string }>(`entries/${entryId}/original-content`);
-			return decodeContent(data.content);
-		} catch {
-			return null;
-		}
-	}
-
 	// Re-scrape the original page (applying the feed's scraper/rewrite rules) and
 	// persist it. Miniflux's fetch-content endpoint returns the content but does not
 	// save it (as of 2.2.19), so we PUT it back explicitly.
@@ -200,7 +191,6 @@ function createEntriesStore() {
 		get searchQuery() { return searchQuery; },
 		loadEntries,
 		markRead,
-		fetchOriginalContent,
 		refetchContent,
 		refetchFeedLatest,
 		toggleShowAll,
