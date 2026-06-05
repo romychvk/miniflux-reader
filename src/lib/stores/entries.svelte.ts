@@ -152,15 +152,18 @@ function createEntriesStore() {
 		}
 	}
 
-	// Re-fetch content for the latest N entries of a feed (any status), with bounded
-	// concurrency to avoid hammering the source site. Useful after changing feed rules.
+	// Re-fetch content for the latest N entries of a feed, with bounded concurrency to
+	// avoid hammering the source site. Useful after changing feed rules. The status
+	// filter should match what the user is viewing so the visible list updates in place.
 	async function refetchFeedLatest(
 		feedId: number,
 		limit: number,
+		status: 'unread' | 'all',
 		onProgress?: (done: number, total: number) => void
 	): Promise<{ total: number; ok: number; failed: number }> {
+		const statusParam = status === 'unread' ? 'status=unread&' : '';
 		const data = await apiCall<{ entries: Entry[] }>(
-			`feeds/${feedId}/entries?order=published_at&direction=desc&limit=${limit}`
+			`feeds/${feedId}/entries?${statusParam}order=published_at&direction=desc&limit=${limit}`
 		);
 		const ids = (data.entries || []).map((e) => e.id);
 		const total = ids.length;

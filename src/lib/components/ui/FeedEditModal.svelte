@@ -32,6 +32,9 @@
 	let saving = $state(false);
 	let refetching = $state(false);
 	let refetchCount = $state(25);
+	// Default the scope to whatever the user is currently viewing so the re-fetch
+	// matches the visible list (and updates it in place).
+	let refetchStatus = $state<'unread' | 'all'>(entries.showAll ? 'all' : 'unread');
 	let progress = $state({ done: 0, total: 0 });
 
 	function onkeydown(e: KeyboardEvent) {
@@ -90,11 +93,12 @@
 			const changes = computeChanges();
 			if (Object.keys(changes).length > 0) await persistChanges(changes);
 
-			const res = await entries.refetchFeedLatest(feed.id, refetchCount, (done, total) => {
+			const res = await entries.refetchFeedLatest(feed.id, refetchCount, refetchStatus, (done, total) => {
 				progress = { done, total };
 			});
+			const scope = refetchStatus === 'unread' ? 'unread ' : '';
 			const failed = res.failed ? ` (${res.failed} failed)` : '';
-			ui.showSuccess(`Re-fetched ${res.ok}/${res.total} entries${failed}.`);
+			ui.showSuccess(`Re-fetched ${res.ok}/${res.total} ${scope}entries${failed}.`);
 		} catch (e) {
 			ui.showError(e instanceof Error ? e.message : 'Failed to re-fetch content');
 		} finally {
@@ -238,9 +242,17 @@
 								disabled={refetching}
 								class="w-16 px-2 py-1.5 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
 							/>
+							<select
+								bind:value={refetchStatus}
+								disabled={refetching}
+								class="px-2 py-1.5 border border-n-300 rounded-md text-sm bg-surface focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+							>
+								<option value="unread">unread</option>
+								<option value="all">all</option>
+							</select>
 							<span class="text-sm text-n-600">entries</span>
 						</div>
-						<p class="text-xs text-n-500 mt-1">Saves changes, then re-applies the rules to entries already downloaded.</p>
+						<p class="text-xs text-n-500 mt-1">Saves changes, then re-applies the rules to the latest entries already downloaded.</p>
 					</div>
 				</div>
 			</div>
