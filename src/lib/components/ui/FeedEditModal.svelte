@@ -174,7 +174,7 @@
 					<label for="feed-crawler" class="text-sm text-n-700">Fetch original content (crawler)</label>
 				</div>
 
-				<div class="pl-3 ml-1 border-l-2 border-n-200 space-y-3">
+				<div class={`pl-3 ml-1 border-l-2 border-n-200 space-y-3 transition-opacity ${crawler ? '' : 'opacity-50 pointer-events-none'}`}>
 					<div>
 						<label for="feed-scraper" class="flex items-center gap-1.5 text-sm font-medium text-n-700 mb-1">
 							Scraper Rules
@@ -193,6 +193,7 @@
 							bind:value={scraperRules}
 							rows="2"
 							spellcheck="false"
+							disabled={!crawler}
 							placeholder='article, div[itemprop="articleBody"]'
 							class="w-full px-3 py-2 border border-n-300 rounded-md text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-n-400"
 						></textarea>
@@ -217,6 +218,7 @@
 							bind:value={rewriteRules}
 							rows="2"
 							spellcheck="false"
+							disabled={!crawler}
 							placeholder='remove(".ads, #promo")'
 							class="w-full px-3 py-2 border border-n-300 rounded-md text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-n-400"
 						></textarea>
@@ -228,7 +230,7 @@
 							<button
 								type="button"
 								onclick={refetchLatest}
-								disabled={refetching}
+								disabled={refetching || !crawler}
 								class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-n-300 rounded-md hover:bg-n-100 disabled:opacity-50"
 							>
 								<RotateCw class={`w-3.5 h-3.5 ${refetching ? 'animate-spin' : ''}`} />
@@ -239,12 +241,12 @@
 								bind:value={refetchCount}
 								min="1"
 								max="100"
-								disabled={refetching}
+								disabled={refetching || !crawler}
 								class="w-16 px-2 py-1.5 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
 							/>
 							<select
 								bind:value={refetchStatus}
-								disabled={refetching}
+								disabled={refetching || !crawler}
 								class="px-2 py-1.5 border border-n-300 rounded-md text-sm bg-surface focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
 							>
 								<option value="unread">unread</option>
