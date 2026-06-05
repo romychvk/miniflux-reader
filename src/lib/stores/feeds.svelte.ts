@@ -327,6 +327,8 @@ function createFeedsStore() {
 				if (changes.site_url) raw.site_url = changes.site_url;
 				if (changes.feed_url) raw.feed_url = changes.feed_url;
 				if (changes.crawler !== undefined) raw.crawler = changes.crawler;
+				if (changes.scraper_rules !== undefined) raw.scraper_rules = changes.scraper_rules;
+				if (changes.rewrite_rules !== undefined) raw.rewrite_rules = changes.rewrite_rules;
 			}
 
 			// Handle category change — needs full reload since tree structure changes

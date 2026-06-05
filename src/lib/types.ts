@@ -10,6 +10,8 @@ export interface Feed {
 	feed_url: string;
 	category: Category;
 	crawler?: boolean;
+	scraper_rules?: string;
+	rewrite_rules?: string;
 	icon?: { feed_id: number; icon_id: number };
 }
 
@@ -25,6 +27,8 @@ export interface FeedUpdate {
 	feed_url?: string;
 	category_id?: number;
 	crawler?: boolean;
+	scraper_rules?: string;
+	rewrite_rules?: string;
 }
 
 export interface Entry {
