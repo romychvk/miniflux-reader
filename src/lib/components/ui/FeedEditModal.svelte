@@ -115,164 +115,167 @@
 <div class="fixed inset-0 z-40 bg-black/30" onclick={onclose}></div>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-	<div class="bg-surface rounded-lg shadow-xl w-full max-w-md mx-4 pointer-events-auto flex max-h-[90vh] flex-col">
+	<div class="bg-surface rounded-lg shadow-xl w-full max-w-lg lg:max-w-4xl mx-4 pointer-events-auto flex max-h-[90vh] flex-col">
 		<div class="px-5 py-4 border-b border-n-200 shrink-0">
 			<h2 class="text-lg font-semibold text-n-800">Edit Feed</h2>
 		</div>
 
-		<form id="feed-edit-form" onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="px-5 py-4 space-y-4 overflow-y-auto">
-			<div>
-				<label for="feed-title" class="block text-sm font-medium text-n-700 mb-1">Title</label>
-				<input
-					id="feed-title"
-					type="text"
-					bind:value={title}
-					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-				/>
-			</div>
+		<form id="feed-edit-form" onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="px-5 py-4 overflow-y-auto flex flex-col lg:flex-row gap-4">
+      <div class="lg:w-1/2 space-y-4">
+  			<div>
+  				<label for="feed-title" class="block text-sm font-medium text-n-700 mb-1">Title</label>
+  				<input
+  					id="feed-title"
+  					type="text"
+  					bind:value={title}
+  					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+  				/>
+  			</div>
 
-			<div>
-				<label for="feed-site-url" class="block text-sm font-medium text-n-700 mb-1">Site URL</label>
-				<input
-					id="feed-site-url"
-					type="url"
-					bind:value={siteUrl}
-					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-				/>
-			</div>
+  			<div>
+  				<label for="feed-site-url" class="block text-sm font-medium text-n-700 mb-1">Site URL</label>
+  				<input
+  					id="feed-site-url"
+  					type="url"
+  					bind:value={siteUrl}
+  					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+  				/>
+  			</div>
 
-			<div>
-				<label for="feed-feed-url" class="block text-sm font-medium text-n-700 mb-1">Feed URL</label>
-				<input
-					id="feed-feed-url"
-					type="url"
-					bind:value={feedUrl}
-					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-				/>
-			</div>
+  			<div>
+  				<label for="feed-feed-url" class="block text-sm font-medium text-n-700 mb-1">Feed URL</label>
+  				<input
+  					id="feed-feed-url"
+  					type="url"
+  					bind:value={feedUrl}
+  					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+  				/>
+  			</div>
 
-			<div>
-				<label for="feed-category" class="block text-sm font-medium text-n-700 mb-1">Category</label>
-				<select
-					id="feed-category"
-					bind:value={categoryId}
-					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 bg-surface"
-				>
-					{#each categories as cat (cat.id)}
-						<option value={cat.id}>{cat.title}</option>
-					{/each}
-				</select>
-			</div>
+  			<div>
+  				<label for="feed-category" class="block text-sm font-medium text-n-700 mb-1">Category</label>
+  				<select
+  					id="feed-category"
+  					bind:value={categoryId}
+  					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 bg-surface"
+  				>
+  					{#each categories as cat (cat.id)}
+  						<option value={cat.id}>{cat.title}</option>
+  					{/each}
+  				</select>
+  			</div>
+      </div>
+      <div class="lg:w-1/2">
+  			<div class="space-y-2">
+  				<button
+  					type="button"
+  					onclick={() => (rulesExpanded = !rulesExpanded)}
+  					aria-expanded={rulesExpanded}
+  					class="flex w-full items-center justify-between rounded-md px-1 py-1 text-sm font-medium text-n-700 hover:bg-n-100"
+  				>
+  					Fetch original content
+  					<ChevronRight class={`w-4 h-4 text-n-400 transition-transform ${rulesExpanded ? 'rotate-90' : ''}`} />
+  				</button>
 
-			<div class="space-y-2">
-				<button
-					type="button"
-					onclick={() => (rulesExpanded = !rulesExpanded)}
-					aria-expanded={rulesExpanded}
-					class="flex w-full items-center justify-between rounded-md px-1 py-1 text-sm font-medium text-n-700 hover:bg-n-100"
-				>
-					Fetch original content
-					<ChevronRight class={`w-4 h-4 text-n-400 transition-transform ${rulesExpanded ? 'rotate-90' : ''}`} />
-				</button>
+  				{#if rulesExpanded}
+  					<div class="border border-n-200 rounded-md p-3 space-y-3">
+  						<div class="flex items-center gap-2">
+  							<input
+  								id="feed-crawler"
+  								type="checkbox"
+  								bind:checked={crawler}
+  								class="rounded border-n-300"
+  							/>
+  							<label for="feed-crawler" class="text-sm text-n-700">Fetch original content (crawler)</label>
+  						</div>
 
-				{#if rulesExpanded}
-					<div class="border border-n-200 rounded-md p-3 space-y-3">
-						<div class="flex items-center gap-2">
-							<input
-								id="feed-crawler"
-								type="checkbox"
-								bind:checked={crawler}
-								class="rounded border-n-300"
-							/>
-							<label for="feed-crawler" class="text-sm text-n-700">Fetch original content (crawler)</label>
-						</div>
+  						<div class={`space-y-3 transition-opacity ${crawler ? '' : 'opacity-50 pointer-events-none'}`}>
+  							<div>
+  								<label for="feed-scraper" class="flex items-center gap-1.5 text-sm font-medium text-n-700 mb-1">
+  									Scraper Rules
+  									<a
+  										href="https://miniflux.app/docs/rules.html#scraper-rules"
+  										target="_blank"
+  										rel="noopener noreferrer"
+  										title="Miniflux documentation"
+  										class="text-a-600 hover:text-a-700"
+  									>
+  										<ExternalLink class="w-3.5 h-3.5" />
+  									</a>
+  								</label>
+  								<textarea
+  									id="feed-scraper"
+  									bind:value={scraperRules}
+  									rows="2"
+  									spellcheck="false"
+  									disabled={!crawler}
+  									placeholder='article, div[itemprop="articleBody"]'
+  									class="w-full px-3 py-2 border border-n-300 rounded-md text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-n-400"
+  								></textarea>
+  								<p class="text-xs text-n-500 mt-1">CSS selector for the main content. Comma-separated for multiple.</p>
+  							</div>
 
-						<div class={`space-y-3 transition-opacity ${crawler ? '' : 'opacity-50 pointer-events-none'}`}>
-							<div>
-								<label for="feed-scraper" class="flex items-center gap-1.5 text-sm font-medium text-n-700 mb-1">
-									Scraper Rules
-									<a
-										href="https://miniflux.app/docs/rules.html#scraper-rules"
-										target="_blank"
-										rel="noopener noreferrer"
-										title="Miniflux documentation"
-										class="text-a-600 hover:text-a-700"
-									>
-										<ExternalLink class="w-3.5 h-3.5" />
-									</a>
-								</label>
-								<textarea
-									id="feed-scraper"
-									bind:value={scraperRules}
-									rows="2"
-									spellcheck="false"
-									disabled={!crawler}
-									placeholder='article, div[itemprop="articleBody"]'
-									class="w-full px-3 py-2 border border-n-300 rounded-md text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-n-400"
-								></textarea>
-								<p class="text-xs text-n-500 mt-1">CSS selector for the main content. Comma-separated for multiple.</p>
-							</div>
+  							<div>
+  								<label for="feed-rewrite" class="flex items-center gap-1.5 text-sm font-medium text-n-700 mb-1">
+  									Content Rewrite Rules
+  									<a
+  										href="https://miniflux.app/docs/rules.html#rewrite-rules"
+  										target="_blank"
+  										rel="noopener noreferrer"
+  										title="Miniflux documentation"
+  										class="text-a-600 hover:text-a-700"
+  									>
+  										<ExternalLink class="w-3.5 h-3.5" />
+  									</a>
+  								</label>
+  								<textarea
+  									id="feed-rewrite"
+  									bind:value={rewriteRules}
+  									rows="2"
+  									spellcheck="false"
+  									disabled={!crawler}
+  									placeholder='remove(".ads, #promo")'
+  									class="w-full px-3 py-2 border border-n-300 rounded-md text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-n-400"
+  								></textarea>
+  								<p class="text-xs text-n-500 mt-1">Cleanup functions, e.g. remove("…"), replace("a"|"b").</p>
+  							</div>
 
-							<div>
-								<label for="feed-rewrite" class="flex items-center gap-1.5 text-sm font-medium text-n-700 mb-1">
-									Content Rewrite Rules
-									<a
-										href="https://miniflux.app/docs/rules.html#rewrite-rules"
-										target="_blank"
-										rel="noopener noreferrer"
-										title="Miniflux documentation"
-										class="text-a-600 hover:text-a-700"
-									>
-										<ExternalLink class="w-3.5 h-3.5" />
-									</a>
-								</label>
-								<textarea
-									id="feed-rewrite"
-									bind:value={rewriteRules}
-									rows="2"
-									spellcheck="false"
-									disabled={!crawler}
-									placeholder='remove(".ads, #promo")'
-									class="w-full px-3 py-2 border border-n-300 rounded-md text-sm font-mono resize-y focus:outline-none focus:ring-2 focus:ring-n-400"
-								></textarea>
-								<p class="text-xs text-n-500 mt-1">Cleanup functions, e.g. remove("…"), replace("a"|"b").</p>
-							</div>
-
-							<div class="pt-1">
-								<div class="flex items-center gap-2">
-									<button
-										type="button"
-										onclick={refetchLatest}
-										disabled={refetching || !crawler}
-										class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-n-300 rounded-md hover:bg-n-100 disabled:opacity-50"
-									>
-										<RotateCw class={`w-3.5 h-3.5 ${refetching ? 'animate-spin' : ''}`} />
-										{refetching ? `Re-fetching ${progress.done}/${progress.total}…` : 'Re-fetch latest'}
-									</button>
-									<input
-										type="number"
-										bind:value={refetchCount}
-										min="1"
-										max="100"
-										disabled={refetching || !crawler}
-										class="w-16 px-2 py-1.5 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-									/>
-									<select
-										bind:value={refetchStatus}
-										disabled={refetching || !crawler}
-										class="px-2 py-1.5 border border-n-300 rounded-md text-sm bg-surface focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-									>
-										<option value="unread">unread</option>
-										<option value="all">all</option>
-									</select>
-									<span class="text-sm text-n-600">entries</span>
-								</div>
-								<p class="text-xs text-n-500 mt-1">Saves changes, then re-applies the rules to the latest entries already downloaded.</p>
-							</div>
-						</div>
-					</div>
-				{/if}
-			</div>
+  							<div class="pt-1">
+  								<div class="flex items-center gap-2">
+  									<button
+  										type="button"
+  										onclick={refetchLatest}
+  										disabled={refetching || !crawler}
+  										class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-n-300 rounded-md hover:bg-n-100 disabled:opacity-50"
+  									>
+  										<RotateCw class={`w-3.5 h-3.5 ${refetching ? 'animate-spin' : ''}`} />
+  										{refetching ? `Re-fetching ${progress.done}/${progress.total}…` : 'Re-fetch latest'}
+  									</button>
+  									<input
+  										type="number"
+  										bind:value={refetchCount}
+  										min="1"
+  										max="100"
+  										disabled={refetching || !crawler}
+  										class="w-16 px-2 py-1.5 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+  									/>
+  									<select
+  										bind:value={refetchStatus}
+  										disabled={refetching || !crawler}
+  										class="px-2 py-1.5 border border-n-300 rounded-md text-sm bg-surface focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+  									>
+  										<option value="unread">unread</option>
+  										<option value="all">all</option>
+  									</select>
+  									<span class="text-sm text-n-600">entries</span>
+  								</div>
+  								<p class="text-xs text-n-500 mt-1">Saves changes, then re-applies the rules to the latest entries already downloaded.</p>
+  							</div>
+  						</div>
+  					</div>
+  				{/if}
+  			</div>
+      </div>
 		</form>
 
 		<div class="flex justify-end gap-2 px-5 py-4 border-t border-n-200 shrink-0">
