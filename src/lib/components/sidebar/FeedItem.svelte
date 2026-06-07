@@ -7,7 +7,6 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { makeFeedSlug } from '$lib/slug';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
-	import FeedEditModal from '$lib/components/ui/FeedEditModal.svelte';
 	import { Pencil, RefreshCw } from 'lucide-svelte';
 
 	let { feed, parentCatId }: { feed: FeedNode; parentCatId?: number } = $props();
@@ -17,7 +16,6 @@
 	const isDraggable = $derived(feed.id !== -1 && feed.isFeed);
 
 	let contextMenu = $state<{ x: number; y: number } | null>(null);
-	let showEditModal = $state(false);
 
 	function oncontextmenu(e: MouseEvent) {
 		if (!feed.isFeed || feed.id === -1) return;
@@ -115,21 +113,9 @@
 		x={contextMenu.x}
 		y={contextMenu.y}
 		items={[
-			{ label: 'Edit Feed', icon: Pencil, action: () => { showEditModal = true; } },
+			{ label: 'Edit Feed', icon: Pencil, action: () => { goto(`/feed/${makeFeedSlug(feed.id, feed.title)}/settings`); } },
 			{ label: 'Refresh Feed', icon: RefreshCw, action: refreshFeed }
 		]}
 		onclose={() => { contextMenu = null; }}
 	/>
-{/if}
-
-{#if showEditModal}
-	{@const rawFeed = feeds.getRawFeed(feed.id)}
-	{#if rawFeed}
-		<FeedEditModal
-			feed={rawFeed}
-			categories={feeds.getCategories()}
-			onclose={() => { showEditModal = false; }}
-			onsave={(changes) => feeds.updateFeed(feed.id, changes)}
-		/>
-	{/if}
 {/if}

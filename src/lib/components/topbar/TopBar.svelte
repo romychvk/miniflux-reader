@@ -1,21 +1,28 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
+	import { makeFeedSlug } from '$lib/slug';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
-	import FeedEditModal from '$lib/components/ui/FeedEditModal.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
 
 	const isArticleView = $derived(page.route.id?.includes('/article/') ?? false);
+	const isSettingsView = $derived(page.route.id?.includes('/settings') ?? false);
+	const isFullView = $derived(isArticleView || isSettingsView);
 	const articleFeedNode = $derived(
 		ui.selectedEntry?.feed ? feeds.findFeedNodeById(ui.selectedEntry.feed.id, true) : null
 	);
 	const selectedFeedNode = $derived(
 		ui.selectedFeed?.isFeed ? ui.selectedFeed : null
+	);
+	const backIcon = $derived(isArticleView ? articleFeedNode?.iconData : selectedFeedNode?.iconData);
+	const backTitle = $derived(
+		isArticleView ? (ui.selectedEntry?.feed?.title || 'Article') : (ui.selectedFeed?.title || 'Feed')
 	);
 
 	let viewDropdownOpen = $state(false);
@@ -99,7 +106,6 @@
 	}
 
 	let dotMenu = $state<{ x: number; y: number } | null>(null);
-	let showFeedEdit = $state(false);
 	let showCatEdit = $state(false);
 
 	const showDotMenu = $derived(
@@ -117,7 +123,7 @@
 		if (!feed) return [];
 		if (feed.isFeed) {
 			return [
-				{ label: 'Edit Feed', icon: Pencil, action: () => { showFeedEdit = true; } },
+				{ label: 'Edit Feed', icon: Pencil, action: () => { goto(`/feed/${makeFeedSlug(feed.id, feed.title)}/settings`); } },
 			];
 		}
 		return [
@@ -185,12 +191,12 @@
 		</button>
 	{/if}
 
-	{#if isArticleView}
+	{#if isFullView}
 		<button onclick={() => history.back()} class="max-w-fit hover:underline flex gap-3 items-center text-2xl font-bold truncate flex-1 min-w-0">
-			{#if articleFeedNode?.iconData}
-				<img src={articleFeedNode.iconData} alt="" class="size-5 shrink-0" />
+			{#if backIcon}
+				<img src={backIcon} alt="" class="size-5 shrink-0" />
 			{/if}
-			{ui.selectedEntry?.feed?.title || 'Article'}
+			{backTitle}
 		</button>
 	{:else}
 		{#if searchOpen}
@@ -361,18 +367,6 @@
 		items={dotMenuItems()}
 		onclose={() => { dotMenu = null; }}
 	/>
-{/if}
-
-{#if showFeedEdit && ui.selectedFeed?.isFeed}
-	{@const rawFeed = feeds.getRawFeed(ui.selectedFeed.id)}
-	{#if rawFeed}
-		<FeedEditModal
-			feed={rawFeed}
-			categories={feeds.getCategories()}
-			onclose={() => { showFeedEdit = false; }}
-			onsave={(changes) => feeds.updateFeed(ui.selectedFeed!.id, changes)}
-		/>
-	{/if}
 {/if}
 
 {#if showCatEdit && ui.selectedFeed && !ui.selectedFeed.isFeed}

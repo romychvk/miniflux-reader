@@ -14,9 +14,11 @@
 	let { children } = $props();
 	let ready = $state(false);
 
-	const isArticleRoute = $derived(page.route.id?.includes('/article/') ?? false);
+	const isFullView = $derived(
+		(page.route.id?.includes('/article/') || page.route.id?.includes('/settings')) ?? false
+	);
 	const showArticlePanel = $derived(
-		ui.layoutMode === 'three-column' && !ui.isMobile && !isArticleRoute
+		ui.layoutMode === 'three-column' && !ui.isMobile && !isFullView
 	);
 
 	onMount(async () => {
@@ -51,7 +53,7 @@
 		<Sidebar />
 		<div class="flex flex-col flex-1 min-w-0">
 			<TopBar />
-			<main class="flex-1 overflow-y-auto py-2">
+			<main class="flex-1 overflow-y-auto">
 				{@render children()}
 			</main>
 		</div>

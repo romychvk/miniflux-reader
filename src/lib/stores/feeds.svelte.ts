@@ -329,6 +329,10 @@ function createFeedsStore() {
 				if (changes.crawler !== undefined) raw.crawler = changes.crawler;
 				if (changes.scraper_rules !== undefined) raw.scraper_rules = changes.scraper_rules;
 				if (changes.rewrite_rules !== undefined) raw.rewrite_rules = changes.rewrite_rules;
+					if (changes.blocklist_rules !== undefined) raw.blocklist_rules = changes.blocklist_rules;
+					if (changes.keeplist_rules !== undefined) raw.keeplist_rules = changes.keeplist_rules;
+					if (changes.disabled !== undefined) raw.disabled = changes.disabled;
+					if (changes.ignore_http_cache !== undefined) raw.ignore_http_cache = changes.ignore_http_cache;
 			}
 
 			// Handle category change — needs full reload since tree structure changes
@@ -343,6 +347,16 @@ function createFeedsStore() {
 			}
 		} catch (e) {
 			ui.showError(e instanceof Error ? e.message : 'Failed to update feed');
+			throw e;
+		}
+	}
+
+	async function deleteFeed(feedId: number) {
+		try {
+			await apiCall(`feeds/${feedId}`, { method: 'DELETE' });
+			await loadFeeds();
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to unsubscribe from feed');
 			throw e;
 		}
 	}
@@ -446,6 +460,7 @@ function createFeedsStore() {
 		getCategories,
 		createFeed,
 		updateFeed,
+		deleteFeed,
 		updateCategory,
 		refreshFeed,
 		refreshAllFeeds,

@@ -12,6 +12,13 @@ export interface Feed {
 	crawler?: boolean;
 	scraper_rules?: string;
 	rewrite_rules?: string;
+	blocklist_rules?: string;
+	keeplist_rules?: string;
+	disabled?: boolean;
+	ignore_http_cache?: boolean;
+	checked_at?: string;
+	parsing_error_count?: number;
+	parsing_error_message?: string;
 	icon?: { feed_id: number; icon_id: number };
 }
 
@@ -29,6 +36,10 @@ export interface FeedUpdate {
 	crawler?: boolean;
 	scraper_rules?: string;
 	rewrite_rules?: string;
+	blocklist_rules?: string;
+	keeplist_rules?: string;
+	disabled?: boolean;
+	ignore_http_cache?: boolean;
 }
 
 export interface Entry {
