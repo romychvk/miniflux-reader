@@ -242,28 +242,53 @@
 	<div class="min-w-0 flex-1 max-w-170 space-y-6 max-md:px-2">
 		<!-- General -->
 		<section id="general" class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
-		<!--  style="box-shadow: color-mix(in srgb, rgb(0,0,0) 30%,transparent) 0 1px 2px 0, color-mix(in srgb, rgb(0,0,0) 15%,transparent) 0 2px 6px 2px
-;" -->
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">General</h3>
-			<div class="space-y-4">
-				<div>
-					<label for="feed-title" class="mb-1 block text-sm font-medium text-n-700">Title</label>
-					<input
-						id="feed-title"
-						type="text"
-						bind:value={title}
-						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					/>
+
+			<!-- Stats -->
+			<div class="flex gap-5 mb-4">
+			  <div><span class="font-semibold text-n-500 uppercase text-xs">Last refresh:</span> <span class="" title={feed.checked_at ?? ''}>{feed.checked_at ? `${relaTimestamp(feed.checked_at)} ago` : '—'}</span></div>
+			  <div><span class="font-semibold text-n-500 uppercase text-xs">Total entries:</span> <span class="text-n-800">{entryCount ?? '—'}</span></div>
+			</div>
+			{#if feed.parsing_error_count && feed.parsing_error_count > 0}
+				<div class="flex items-start justify-between gap-4">
+					<dt class="flex items-center gap-1.5 text-red-600">
+						<AlertTriangle class="h-4 w-4 shrink-0" />
+						Parsing errors
+					</dt>
+					<dd class="text-right text-red-600">
+						{feed.parsing_error_count}×
+						{#if feed.parsing_error_message}
+							<span class="block text-xs text-red-500">{feed.parsing_error_message}</span>
+						{/if}
+					</dd>
 				</div>
-				<div>
-					<label for="feed-site-url" class="mb-1 block text-sm font-medium text-n-700">Site URL</label>
-					<input
-						id="feed-site-url"
-						type="url"
-						bind:value={siteUrl}
-						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					/>
+			{/if}
+
+			<div class="space-y-4 pb-2">
+	      <div class="flex gap-4 flex-wrap">
+					<div class="w-full lg:w-2/3">
+						<label for="feed-title" class="mb-1 block text-sm font-medium text-n-700">Title</label>
+						<input
+							id="feed-title"
+							type="text"
+							bind:value={title}
+							class="w-full rounded-md border border-n-300 px-3 py-2 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-n-400"
+						/>
+					</div>
+					<div class="grow">
+						<label for="feed-category" class="mb-1 block text-sm font-medium text-n-700">Category</label>
+						<select
+							id="feed-category"
+							bind:value={categoryId}
+							class="w-full text-base rounded-md border border-n-300 bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-400"
+						>
+							{#each categories as cat (cat.id)}
+  						<option value={cat.id}>{cat.title}</option>
+  					{/each}
+  				</select>
+  			</div>
 				</div>
+
 				<div>
 					<label for="feed-feed-url" class="mb-1 block text-sm font-medium text-n-700">Feed URL</label>
 					<input
@@ -274,46 +299,20 @@
 					/>
 				</div>
 				<div>
-					<label for="feed-category" class="mb-1 block text-sm font-medium text-n-700">Category</label>
-					<select
-						id="feed-category"
-						bind:value={categoryId}
-						class="w-full rounded-md border border-n-300 bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					>
-						{#each categories as cat (cat.id)}
-							<option value={cat.id}>{cat.title}</option>
-						{/each}
-					</select>
+ 					<label for="feed-site-url" class="mb-1 block text-sm font-medium text-n-700">Site URL</label>
+ 					<input
+						id="feed-site-url"
+						type="url"
+						bind:value={siteUrl}
+						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+ 					/>
 				</div>
+
+
+
 			</div>
 
-			<!-- Stats -->
-			<dl class="mt-5 space-y-2 border-t border-n-200 pt-4 text-sm">
-				<div class="flex justify-between gap-4">
-					<dt class="text-n-500">Last refresh</dt>
-					<dd class="text-n-800" title={feed.checked_at ?? ''}>
-						{feed.checked_at ? `${relaTimestamp(feed.checked_at)} ago` : '—'}
-					</dd>
-				</div>
-				<div class="flex justify-between gap-4">
-					<dt class="text-n-500">Total entries</dt>
-					<dd class="text-n-800">{entryCount ?? '—'}</dd>
-				</div>
-				{#if feed.parsing_error_count && feed.parsing_error_count > 0}
-					<div class="flex items-start justify-between gap-4">
-						<dt class="flex items-center gap-1.5 text-red-600">
-							<AlertTriangle class="h-4 w-4 shrink-0" />
-							Parsing errors
-						</dt>
-						<dd class="text-right text-red-600">
-							{feed.parsing_error_count}×
-							{#if feed.parsing_error_message}
-								<span class="block text-xs text-red-500">{feed.parsing_error_message}</span>
-							{/if}
-						</dd>
-					</div>
-				{/if}
-			</dl>
+
 		</section>
 
 		<!-- Original content -->
