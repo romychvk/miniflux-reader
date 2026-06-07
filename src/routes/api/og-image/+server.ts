@@ -1,0 +1,68 @@
+import type { RequestHandler } from './$types';
+
+// Last-resort thumbnail source: fetch an article page server-side and read its
+// Open Graph / Twitter image meta tag. Used only for entries whose content has no
+// usable <img> and no image enclosure. Results are cached client-side, so this runs
+// at most once per article. Same SSRF stance as /api/fetch-page (scheme-only check).
+
+function metaContent(html: string, key: string): string | null {
+	// Match a <meta> tag whose property/name equals `key`, in any attribute order.
+	const re = new RegExp(`<meta[^>]+(?:property|name)=["']${key}["'][^>]*>`, 'i');
+	const tag = html.match(re)?.[0];
+	if (!tag) return null;
+	return tag.match(/content=["']([^"']+)["']/i)?.[1] ?? null;
+}
+
+export const GET: RequestHandler = async ({ url }) => {
+	const target = url.searchParams.get('url');
+	const fail = (status: number, error: string) =>
+		new Response(JSON.stringify({ error }), {
+			status,
+			headers: { 'Content-Type': 'application/json' }
+		});
+
+	if (!target) return fail(400, 'Missing url');
+
+	let parsed: URL;
+	try {
+		parsed = new URL(target);
+	} catch {
+		return fail(400, 'Invalid url');
+	}
+	if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+		return fail(400, 'Only http(s) urls are allowed');
+	}
+
+	try {
+		const res = await fetch(parsed.toString(), {
+			headers: {
+				'User-Agent': 'Mozilla/5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)',
+				Accept: 'text/html,application/xhtml+xml'
+			}
+		});
+		if (!res.ok) return fail(502, `Source returned ${res.status}`);
+
+		const html = (await res.text()).slice(0, 120_000); // meta tags live in <head>
+		const raw =
+			metaContent(html, 'og:image') ||
+			metaContent(html, 'og:image:url') ||
+			metaContent(html, 'twitter:image') ||
+			metaContent(html, 'twitter:image:src');
+
+		// Resolve relative URLs against the page, and return null (not error) when absent.
+		let image: string | null = null;
+		if (raw) {
+			try {
+				image = new URL(raw, parsed).toString();
+			} catch {
+				image = null;
+			}
+		}
+
+		return new Response(JSON.stringify({ url: image }), {
+			headers: { 'Content-Type': 'application/json' }
+		});
+	} catch {
+		return fail(502, 'Failed to fetch page');
+	}
+};

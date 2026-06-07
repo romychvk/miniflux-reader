@@ -1,5 +1,6 @@
 import { apiCall } from '$lib/api';
 import type { Entry } from '$lib/types';
+import { storageGet, storageSet } from '$lib/storage';
 import { feeds } from './feeds.svelte';
 import { ui } from './ui.svelte';
 
@@ -13,12 +14,39 @@ function decodeContent(html: string): string {
 	return html;
 }
 
-function extractThumbnail(content: string): string | null {
-	const match = content.match(/<img[^>]+src=["']([^"']+)["']/);
-	return match?.[1] ?? null;
+const domParser = new DOMParser();
+
+function isPlaceholderUrl(url: string): boolean {
+	if (!url) return true;
+	if (url.startsWith('data:')) return true; // inline svg/gif placeholders
+	return /(?:^|[/_-])(?:1x1|pixel|spacer|blank|placeholder|loader|loading|tracking)(?:[._-]|$)/i.test(url);
 }
 
-const domParser = new DOMParser();
+// The card thumbnail is the first "real" image in the content. Modern sites lazy-load
+// images (real URL in data-src/srcset, a placeholder in src), so check those too and
+// skip tracking pixels / tiny spacers — otherwise the card looks image-less.
+function extractThumbnail(content: string): string | null {
+	const doc = domParser.parseFromString(content, 'text/html');
+	for (const img of doc.querySelectorAll('img')) {
+		const w = parseInt(img.getAttribute('width') || '', 10);
+		const h = parseInt(img.getAttribute('height') || '', 10);
+		if ((w && w <= 2) || (h && h <= 2)) continue; // tracking pixel
+
+		const srcset = img.getAttribute('srcset') || img.getAttribute('data-srcset') || '';
+		const firstFromSrcset = srcset.split(',')[0]?.trim().split(/\s+/)[0] || '';
+
+		for (const candidate of [
+			img.getAttribute('src') || '',
+			img.getAttribute('data-src') || '',
+			img.getAttribute('data-original') || '',
+			img.getAttribute('data-lazy-src') || '',
+			firstFromSrcset
+		]) {
+			if (candidate && !isPlaceholderUrl(candidate)) return candidate;
+		}
+	}
+	return null;
+}
 
 function extractDescription(content: string): string {
 	const doc = domParser.parseFromString(content, 'text/html');
@@ -29,18 +57,48 @@ function extractDescription(content: string): string {
 	return text.length > 150 ? text.slice(0, 150) + '...' : text;
 }
 
+// An image attached to the RSS item itself (enclosure / media:content / media:thumbnail —
+// Miniflux maps all of these to `enclosures`). A free thumbnail source when the content
+// has no usable <img>.
+function imageEnclosure(entry: Entry): string | null {
+	const enc = entry.enclosures?.find((e) => e.url && e.mime_type?.startsWith('image/'));
+	return enc?.url ?? null;
+}
+
+// Best thumbnail without any extra network request: first real content image, else the
+// RSS image enclosure. The og:image fallback (a network call) is handled lazily by
+// ensureThumbnail() only when both of these come up empty.
+function pickThumbnail(entry: Entry): string | null {
+	return (entry.content ? extractThumbnail(entry.content) : null) ?? imageEnclosure(entry);
+}
+
 function enrichEntries(entries: Entry[]): Entry[] {
 	for (const entry of entries) {
-		if (entry.content) {
-			entry.content = decodeContent(entry.content);
-			entry._thumbnailUrl = extractThumbnail(entry.content);
-			entry._description = extractDescription(entry.content);
-		} else {
-			entry._thumbnailUrl = null;
-			entry._description = '';
-		}
+		if (entry.content) entry.content = decodeContent(entry.content);
+		entry._thumbnailUrl = pickThumbnail(entry);
+		entry._description = entry.content ? extractDescription(entry.content) : '';
 	}
 	return entries;
+}
+
+// --- og:image fallback (lazy, cached, bounded concurrency) ---------------------------
+const OG_CACHE_KEY = 'ogImages';
+const OG_MAX_CONCURRENT = 4;
+let ogCache: Record<string, string> | null = null; // url -> image url ('' = checked, none)
+const ogInFlight = new Set<string>();
+let ogActive = 0;
+const ogQueue: (() => void)[] = [];
+
+function ogSchedule(task: () => Promise<void>): void {
+	const run = () => {
+		ogActive++;
+		task().finally(() => {
+			ogActive--;
+			ogQueue.shift()?.();
+		});
+	};
+	if (ogActive < OG_MAX_CONCURRENT) run();
+	else ogQueue.push(run);
 }
 
 function createEntriesStore() {
@@ -128,10 +186,44 @@ function createEntriesStore() {
 		const entry = entries.find((e) => e.id === entryId);
 		if (entry) {
 			entry.content = content;
-			entry._thumbnailUrl = extractThumbnail(content);
+			entry._thumbnailUrl = extractThumbnail(content) ?? imageEnclosure(entry);
 			entry._description = extractDescription(content);
 		}
 		return content;
+	}
+
+	// Fill in a missing thumbnail from the article's og:image. Lazy and cached: invoked
+	// per row from the UI only for image views, runs at most once per article URL, and
+	// negative results are cached too (so we don't re-hit pages that have no og:image).
+	function ensureThumbnail(entry: Entry): void {
+		if (entry._thumbnailUrl || !entry.url) return;
+		if (ogCache === null) ogCache = storageGet<Record<string, string>>(OG_CACHE_KEY, {});
+
+		const cached = ogCache[entry.url];
+		if (cached !== undefined) {
+			if (cached) entry._thumbnailUrl = cached;
+			return;
+		}
+		if (ogInFlight.has(entry.url)) return;
+		ogInFlight.add(entry.url);
+
+		ogSchedule(async () => {
+			let image = '';
+			try {
+				const res = await fetch(`/api/og-image?url=${encodeURIComponent(entry.url)}`);
+				if (res.ok) image = (await res.json())?.url || '';
+			} catch {
+				/* leave uncached so a later view can retry */
+			} finally {
+				ogInFlight.delete(entry.url);
+			}
+			ogCache![entry.url] = image;
+			storageSet(OG_CACHE_KEY, ogCache);
+			if (image) {
+				const target = entries.find((e) => e.id === entry.id) ?? entry;
+				if (!target._thumbnailUrl) target._thumbnailUrl = image;
+			}
+		});
 	}
 
 	async function refetchContent(entryId: number): Promise<string | null> {
@@ -196,7 +288,8 @@ function createEntriesStore() {
 		toggleShowAll,
 		setSearchQuery,
 		clearSearch,
-		findEntryById
+		findEntryById,
+		ensureThumbnail
 	};
 }
 

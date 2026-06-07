@@ -42,6 +42,12 @@ export interface FeedUpdate {
 	ignore_http_cache?: boolean;
 }
 
+export interface Enclosure {
+	id?: number;
+	url: string;
+	mime_type?: string;
+}
+
 export interface Entry {
 	id: number;
 	title: string;
@@ -51,8 +57,24 @@ export interface Entry {
 	status: 'unread' | 'read';
 	published_at: string;
 	feed: Feed;
+	enclosures?: Enclosure[];
 	_thumbnailUrl?: string | null;
 	_description?: string;
+}
+
+export type AiProvider = 'anthropic' | 'openai';
+
+export interface AiMessage {
+	role: 'user' | 'assistant';
+	content: string;
+}
+
+// One structured proposal from the rule assistant. Both rule strings may be
+// empty (e.g. trim-only suggestions leave scraper_rules untouched).
+export interface RuleSuggestion {
+	scraper_rules: string;
+	rewrite_rules: string;
+	explanation: string;
 }
 
 export interface FeedNode {

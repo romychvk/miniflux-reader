@@ -8,6 +8,7 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
+	import AiRuleAssistant from './AiRuleAssistant.svelte';
 
 	let { feed }: { feed: Feed } = $props();
 
@@ -153,6 +154,17 @@
 			disabled,
 			ignore_http_cache: ignoreHttpCache
 		});
+	}
+
+	// The assistant persists its rules to the feed itself (so it can preview them),
+	// so applying just mirrors them into the form and resets the baseline.
+	function applyAiRules(rules: { scraper_rules: string; rewrite_rules: string; crawler: boolean }) {
+		scraperRules = rules.scraper_rules;
+		rewriteRules = rules.rewrite_rules;
+		crawler = rules.crawler;
+		initial.scraper_rules = scraperRules;
+		initial.rewrite_rules = rewriteRules;
+		initial.crawler = crawler;
 	}
 
 	async function handleSave() {
@@ -318,11 +330,48 @@
 		<!-- Original content -->
 		<section id="original-content" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Original Content</h3>
-			<div class="space-y-3">
-				<div class="flex items-center gap-2">
+			<div class="flex flex-col xl:flex-row gap-4 items-start">
+				<div class="flex items-center gap-2 xl:w-1/2">
 					<input id="feed-crawler" type="checkbox" bind:checked={crawler} class="rounded border-n-300" />
 					<label for="feed-crawler" class="text-sm text-n-700">Fetch original content (crawler)</label>
 				</div>
+				<div class="grow mb-4 xl:mb-2 xl:min-w-96">
+					<div class="flex flex-wrap items-center gap-2">
+						<button
+							type="button"
+							onclick={refetchLatest}
+							disabled={refetching || !crawler}
+							class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-3 py-1.5 text-sm hover:bg-n-700 bg-n-600 disabled:opacity-50 text-white"
+						>
+							<RotateCw class={`h-3.5 w-3.5 ${refetching ? 'animate-spin' : ''}`} />
+							{refetching ? `Re-fetching ${progress.done}/${progress.total}…` : 'Re-fetch latest'}
+						</button>
+						<input
+							type="number"
+							bind:value={refetchCount}
+							min="1"
+							max="100"
+							disabled={refetching || !crawler}
+							class="w-14 rounded-md border border-n-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+						/>
+						<div>
+  						<select
+  							bind:value={refetchStatus}
+  							disabled={refetching || !crawler}
+  							class="rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+  						>
+  							<option value="unread">unread</option>
+  							<option value="all">all</option>
+  						</select>
+  						<span class="text-sm text-n-600">entries</span>
+						</div>
+					</div>
+					<p class="mt-1 text-xs text-n-500">Saves changes, then re-applies the rules to the latest entries already downloaded.</p>
+				</div>
+
+			</div>
+			<div class="space-y-3">
+
 
 				<div class={`space-y-3 transition-opacity ${crawler ? '' : 'pointer-events-none opacity-50'}`}>
 					<div>
@@ -375,38 +424,16 @@
 						<p class="mt-1 text-xs text-n-500">Cleanup functions, e.g. remove("…"), replace("a"|"b").</p>
 					</div>
 
-					<div class="pt-1">
-						<div class="flex flex-wrap items-center gap-2">
-							<button
-								type="button"
-								onclick={refetchLatest}
-								disabled={refetching || !crawler}
-								class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-3 py-1.5 text-sm hover:bg-n-100 disabled:opacity-50"
-							>
-								<RotateCw class={`h-3.5 w-3.5 ${refetching ? 'animate-spin' : ''}`} />
-								{refetching ? `Re-fetching ${progress.done}/${progress.total}…` : 'Re-fetch latest'}
-							</button>
-							<input
-								type="number"
-								bind:value={refetchCount}
-								min="1"
-								max="100"
-								disabled={refetching || !crawler}
-								class="w-16 rounded-md border border-n-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-							/>
-							<select
-								bind:value={refetchStatus}
-								disabled={refetching || !crawler}
-								class="rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-							>
-								<option value="unread">unread</option>
-								<option value="all">all</option>
-							</select>
-							<span class="text-sm text-n-600">entries</span>
-						</div>
-						<p class="mt-1 text-xs text-n-500">Saves changes, then re-applies the rules to the latest entries already downloaded.</p>
-					</div>
+
 				</div>
+
+				<AiRuleAssistant
+					{feed}
+					{crawler}
+					currentScraper={scraperRules}
+					currentRewrite={rewriteRules}
+					onapply={applyAiRules}
+				/>
 			</div>
 		</section>
 

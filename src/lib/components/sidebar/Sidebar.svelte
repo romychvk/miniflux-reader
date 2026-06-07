@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { LogOut, Plus } from 'lucide-svelte';
+	import { LogOut, Plus, Settings } from 'lucide-svelte';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
@@ -17,7 +17,14 @@
 </script>
 
 {#snippet logoutButton()}
-	<div class="border-t border-n-200 p-3 mt-auto">
+	<div class="border-t border-n-200 p-3 mt-auto flex flex-col gap-2.5">
+		<a
+			href="/settings"
+			class="flex items-center gap-2 text-sm text-n-500 hover:text-n-700 transition-colors w-full cursor-pointer"
+		>
+			<Settings size={16} />
+			Settings
+		</a>
 		<button
 			onclick={handleLogout}
 			class="flex items-center gap-2 text-sm text-n-500 hover:text-n-700 transition-colors w-full cursor-pointer"

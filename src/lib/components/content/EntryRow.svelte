@@ -24,6 +24,14 @@
 	const thumbnailUrl = $derived(entry._thumbnailUrl ?? null);
 	const description = $derived(entry._description ?? '');
 
+	// In image-bearing views, fall back to the article's og:image when content + enclosure
+	// gave us nothing. Lazy + cached in the store, so this is a no-op once resolved.
+	$effect(() => {
+		if ((viewMode === 'magazine' || viewMode === 'cards') && !thumbnailUrl) {
+			entries.ensureThumbnail(entry);
+		}
+	});
+
 	function toggleRead(e: MouseEvent) {
 		e.stopPropagation();
 		entries.markRead([entry.id], !isRead);

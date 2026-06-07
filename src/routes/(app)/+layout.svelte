@@ -6,6 +6,7 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
+	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
 	import TopBar from '$lib/components/topbar/TopBar.svelte';
 	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
@@ -38,6 +39,7 @@
 		ui.initArticlePanelWidth();
 		ui.initAutoMarkRead();
 		theme.init();
+		aiConfig.init();
 
 		await feeds.loadFeeds();
 		ready = true;
