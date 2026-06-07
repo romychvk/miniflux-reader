@@ -208,12 +208,12 @@
 	onclick={goBack}
 	title="Close"
 	aria-label="Close"
-	class="fixed right-4 top-13 z-30 rounded-full p-2 text-n-700 hover:text-n-900"
+	class="fixed right-4 md:right-6 top-14 z-30 rounded-full p-1.5 text-n-700 bg-surface hover:text-n-900"
 >
 	<X class="size-7.5" />
 </button>
 
-<div bind:this={container} class="flex w-full max-w-5xl gap-6 py-4 sm:px-6">
+<div bind:this={container} class="flex w-full max-w-5xl gap-6 py-6 sm:px-6">
 	<!-- Section navigation -->
 	<nav class="hidden w-44 shrink-0 md:block">
 		<div class="sticky top-4">
@@ -239,9 +239,11 @@
 	</nav>
 
 	<!-- Sections -->
-	<div class="min-w-0 flex-1 space-y-4">
+	<div class="min-w-0 flex-1 max-w-170 space-y-6 max-md:px-2">
 		<!-- General -->
-		<section id="general" class="scroll-mt-4 rounded-lg border border-n-200 bg-surface p-5">
+		<section id="general" class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
+		<!--  style="box-shadow: color-mix(in srgb, rgb(0,0,0) 30%,transparent) 0 1px 2px 0, color-mix(in srgb, rgb(0,0,0) 15%,transparent) 0 2px 6px 2px
+;" -->
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">General</h3>
 			<div class="space-y-4">
 				<div>
@@ -315,7 +317,7 @@
 		</section>
 
 		<!-- Original content -->
-		<section id="original-content" class="scroll-mt-4 rounded-lg border border-n-200 bg-surface p-5">
+		<section id="original-content" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Original Content</h3>
 			<div class="space-y-3">
 				<div class="flex items-center gap-2">
@@ -410,7 +412,7 @@
 		</section>
 
 		<!-- Update behaviour -->
-		<section id="update-behaviour" class="scroll-mt-4 rounded-lg border border-n-200 bg-surface p-5">
+		<section id="update-behaviour" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Update Behaviour</h3>
 			<div class="space-y-3">
 				<div class="flex items-center gap-2">
@@ -473,7 +475,7 @@
 		</section>
 
 		<!-- Danger zone -->
-		<section id="danger-zone" class="scroll-mt-4 rounded-lg border border-red-200 bg-surface p-5">
+		<section id="danger-zone" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-red-600">Danger Zone</h3>
 			{#if confirmDelete}
 				<div class="flex flex-wrap items-center gap-3">
@@ -512,7 +514,7 @@
 
 <!-- Sticky save bar -->
 <div class="sticky bottom-0 border-t border-n-200 bg-surface/95 backdrop-blur">
-	<div class="ml-50 flex w-full max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
+	<div class="max-md:mx-auto md:ml-50 flex max-w-fit items-center gap-3 px-4 py-3 sm:px-6">
 		{#if savedAt && !dirty}
 			<span class="text-sm text-n-500">Saved</span>
 		{/if}
