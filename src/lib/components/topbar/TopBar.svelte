@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X } from 'lucide-svelte';
+	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X, ExternalLink } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -20,9 +20,17 @@
 	const selectedFeedNode = $derived(
 		ui.selectedFeed?.isFeed ? ui.selectedFeed : null
 	);
+	const selectedFeedSiteUrl = $derived(
+		selectedFeedNode ? (feeds.getRawFeed(selectedFeedNode.id)?.site_url || '') : ''
+	);
 	const backIcon = $derived(isArticleView ? articleFeedNode?.iconData : selectedFeedNode?.iconData);
 	const backTitle = $derived(
 		isArticleView ? (ui.selectedEntry?.feed?.title || 'Article') : (ui.selectedFeed?.title || 'Feed')
+	);
+	const backSiteUrl = $derived(
+		isArticleView
+			? (ui.selectedEntry?.feed ? feeds.getRawFeed(ui.selectedEntry.feed.id)?.site_url || '' : '')
+			: selectedFeedSiteUrl
 	);
 
 	let viewDropdownOpen = $state(false);
@@ -192,12 +200,25 @@
 	{/if}
 
 	{#if isFullView}
-		<button onclick={() => history.back()} class="max-w-fit hover:underline flex gap-3 items-center text-2xl font-bold truncate flex-1 min-w-0">
-			{#if backIcon}
-				<img src={backIcon} alt="" class="size-5 shrink-0" />
+		<div class="group flex items-center gap-3 flex-1 min-w-0">
+			<button onclick={() => history.back()} class="max-w-fit hover:underline flex gap-3 items-center text-2xl font-bold truncate min-w-0">
+				{#if backIcon}
+					<img src={backIcon} alt="" class="size-5.5 mt-1 shrink-0" />
+				{/if}
+				<span class="truncate">{backTitle}</span>
+			</button>
+			{#if backSiteUrl}
+				<a
+					href={backSiteUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					title="Open site"
+					class="shrink-0 mt-1 text-n-500 hover:text-n-800 opacity-0 group-hover:opacity-100 transition-opacity"
+				>
+					<ExternalLink size={18} />
+				</a>
 			{/if}
-			{backTitle}
-		</button>
+		</div>
 	{:else}
 		{#if searchOpen}
 			<div class="flex items-center gap-2 flex-1 min-w-0">
@@ -220,11 +241,22 @@
 				</button>
 			</div>
 		{:else}
-			<div class="text-2xl font-bold truncate flex-1 flex gap-3 items-center">
+			<div class="group text-2xl font-bold flex-1 min-w-0 flex gap-3 items-center">
 				{#if selectedFeedNode?.iconData}
-					<img src={selectedFeedNode.iconData} alt="" class="size-5 shrink-0" />
+					<img src={selectedFeedNode.iconData} alt="" class="size-5.5 shrink-0 mt-1" />
 				{/if}
-				{ui.selectedFeed?.title || 'Miniflux Reader'}
+				<span class="truncate">{ui.selectedFeed?.title || 'Miniflux Reader'}</span>
+				{#if selectedFeedSiteUrl}
+					<a
+						href={selectedFeedSiteUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						title="Open site"
+						class="shrink-0 mt-1 text-n-500 hover:text-n-800 opacity-0 group-hover:opacity-100 transition-opacity"
+					>
+						<ExternalLink size={18} />
+					</a>
+				{/if}
 			</div>
 		{/if}
 
