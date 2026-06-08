@@ -78,3 +78,38 @@ npm run preview   # Preview production build
 | `entries/{id}/fetch-content` | GET | Re-scrape original article content |
 | `entries/{id}` | PUT | Save re-scraped content for one entry |
 | `entries` | PUT | Bulk mark read/unread |
+
+## Deployment
+
+**Production deploys automatically on push to `main`. No SSH or manual `docker compose` needed.**
+
+The app is managed by **Dokploy** (a self-hosted PaaS) on the production host, deployed from
+this GitHub repo via Dokploy's GitHub App integration with **auto-deploy enabled**:
+
+```
+git push origin main
+   └─> GitHub webhook → Dokploy
+        └─> Dokploy runs git pull + docker compose up -d --build
+             └─> container is rebuilt and restarted automatically
+```
+
+- **Source**: GitHub `romychvk/miniflux-reader`, branch `main`
+- **Build**: Dokploy builds from the `Dockerfile` (`build: .`, SvelteKit `adapter-node`)
+- **Runtime**: container listens on port `3000` (internal `expose`, not published)
+- **Routing**: Traefik reverse proxy → `https://miniflux-reader.romych.pp.ua`
+  (Let's Encrypt TLS, http→https redirect)
+
+**To deploy a change: just `git push origin main`** — that's the whole workflow.
+
+### Do NOT edit infra files for deployment
+
+- `docker-compose.yml` in this repo is the source compose, **but on the prod host Dokploy
+  injects its own Traefik labels and network config and overwrites the deployed copy** on every
+  build. Don't try to hand-tune routing/labels for prod here — those are managed in the Dokploy UI.
+- There is intentionally **no CI workflow** (no GitHub Actions) — Dokploy's webhook is the CI/CD.
+- The dev machine is dev-only (`npm run dev` on `localhost:5173`); Docker is not required locally.
+
+### Verifying a deploy
+
+After pushing, confirm the new version is live at `https://miniflux-reader.romych.pp.ua`
+(or check the deployment status/logs in the Dokploy UI).
