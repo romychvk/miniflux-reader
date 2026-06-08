@@ -262,17 +262,15 @@
 			  <div><span class="font-semibold text-n-500 uppercase text-xs">Total entries:</span> <span class="text-n-800">{entryCount ?? '—'}</span></div>
 			</div>
 			{#if feed.parsing_error_count && feed.parsing_error_count > 0}
-				<div class="flex items-start justify-between gap-4">
-					<dt class="flex items-center gap-1.5 text-red-600">
+				<div class="text-red-600 mb-4 bg-red-50 border border-red-600 rounded px-4 py-2">
+					<p class="flex items-center gap-1.5 ">
 						<AlertTriangle class="h-4 w-4 shrink-0" />
-						Parsing errors
-					</dt>
-					<dd class="text-right text-red-600">
-						{feed.parsing_error_count}×
+						<span class="">Parsing errors</span>
+  				  <span class="">{feed.parsing_error_count}×</span>
+					</p>
 						{#if feed.parsing_error_message}
-							<span class="block text-xs text-red-500">{feed.parsing_error_message}</span>
+							<p class="text-sm mt-1">{feed.parsing_error_message}</p>
 						{/if}
-					</dd>
 				</div>
 			{/if}
 
@@ -373,7 +371,7 @@
 			<div class="space-y-3">
 
 
-				<div class={`space-y-3 transition-opacity ${crawler ? '' : 'pointer-events-none opacity-50'}`}>
+				<div class={`transition-opacity ${crawler ? '' : 'pointer-events-none opacity-50'}`}>
 					<div>
 						<label for="feed-scraper" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
 							Scraper Rules
@@ -396,35 +394,32 @@
 							placeholder='article, div[itemprop="articleBody"]'
 							class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 						></textarea>
-						<p class="mt-1 text-xs text-n-500">CSS selector for the main content. Comma-separated for multiple.</p>
+						<p class="mt-1 text-xs text-n-500">CSS selector for the main content. Comma-separated for multiple. Only used when the crawler is on.</p>
 					</div>
+				</div>
 
-					<div>
-						<label for="feed-rewrite" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
-							Content Rewrite Rules
-							<a
-								href="https://miniflux.app/docs/rules.html#rewrite-rules"
-								target="_blank"
-								rel="noopener noreferrer"
-								title="Miniflux documentation"
-								class="text-a-600 hover:text-a-700"
-							>
-								<ExternalLink class="h-3.5 w-3.5" />
-							</a>
-						</label>
-						<textarea
-							id="feed-rewrite"
-							bind:value={rewriteRules}
-							rows="2"
-							spellcheck="false"
-							disabled={!crawler}
-							placeholder='remove(".ads, #promo")'
-							class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-						></textarea>
-						<p class="mt-1 text-xs text-n-500">Cleanup functions, e.g. remove("…"), replace("a"|"b").</p>
-					</div>
-
-
+				<div>
+					<label for="feed-rewrite" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
+						Content Rewrite Rules
+						<a
+							href="https://miniflux.app/docs/rules.html#rewrite-rules"
+							target="_blank"
+							rel="noopener noreferrer"
+							title="Miniflux documentation"
+							class="text-a-600 hover:text-a-700"
+						>
+							<ExternalLink class="h-3.5 w-3.5" />
+						</a>
+					</label>
+					<textarea
+						id="feed-rewrite"
+						bind:value={rewriteRules}
+						rows="2"
+						spellcheck="false"
+						placeholder='remove(".ads, #promo")'
+						class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+					></textarea>
+					<p class="mt-1 text-xs text-n-500">Cleanup functions, e.g. remove("…"), replace("a"|"b"). Applied to both fetched and default feed content.</p>
 				</div>
 
 				<AiRuleAssistant

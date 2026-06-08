@@ -8,6 +8,7 @@
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { requestRules } from '$lib/ai/client';
 	import { buildInitialUserMessage, buildRefineUserMessage } from '$lib/ai/prompt';
+	import { applyRewriteRules, unsupportedFunctions } from '$lib/ai/rewrite';
 
 	let {
 		feed,
@@ -42,27 +43,41 @@
 	// Saved feed rules captured the first time we mutate the feed, so Discard can restore them.
 	let baseline: { scraper_rules: string; rewrite_rules: string; crawler: boolean } | null = null;
 
-	// Apply the proposed rules to the feed and re-fetch the samples to show the "after".
-	// Miniflux only applies *saved* rules during fetch-content, so an accurate preview
-	// has to persist them — same mechanism as the existing "Re-fetch latest".
+	// Functions in the proposed rewrite rules that the local (crawler-off) preview can't
+	// simulate, so we can warn the preview is partial.
+	const unsupported = $derived(
+		!crawler && result ? unsupportedFunctions(result.rewrite_rules) : []
+	);
+
+	// Preview the "after". With the crawler ON we must persist the rules and re-scrape,
+	// because Miniflux only applies *saved* rules during fetch-content (same mechanism as
+	// "Re-fetch latest"). With the crawler OFF, Miniflux would just apply rewrite_rules to
+	// the existing feed content; there is no API to compute that without re-scraping, so we
+	// simulate it locally — instant, and it never mutates the feed.
 	async function preview() {
 		if (!result) return;
-		if (!baseline) {
-			baseline = {
-				scraper_rules: feed.scraper_rules ?? '',
-				rewrite_rules: feed.rewrite_rules ?? '',
-				crawler: feed.crawler ?? false
-			};
-		}
-		await feeds.updateFeed(feed.id, {
-			scraper_rules: result.scraper_rules,
-			rewrite_rules: result.rewrite_rules,
-			crawler: true
-		});
-		previewed = true;
-		for (const s of samples) {
-			const content = await entries.refetchContent(s.id);
-			s.after = content ?? '(failed to fetch)';
+		if (crawler) {
+			if (!baseline) {
+				baseline = {
+					scraper_rules: feed.scraper_rules ?? '',
+					rewrite_rules: feed.rewrite_rules ?? '',
+					crawler: feed.crawler ?? false
+				};
+			}
+			await feeds.updateFeed(feed.id, {
+				scraper_rules: result.scraper_rules,
+				rewrite_rules: result.rewrite_rules,
+				crawler: true
+			});
+			previewed = true;
+			for (const s of samples) {
+				const content = await entries.refetchContent(s.id);
+				s.after = content ?? '(failed to fetch)';
+			}
+		} else {
+			for (const s of samples) {
+				s.after = applyRewriteRules(s.before, result.rewrite_rules);
+			}
 		}
 	}
 
@@ -89,13 +104,15 @@
 					after: ''
 				}));
 
-				// Raw original page (for the "expand" case) — best effort.
+				// Raw original page (for the "expand" case) — only needed when scraping.
 				let rawPageHtml: string | undefined;
-				try {
-					const r = await fetch(`/api/fetch-page?url=${encodeURIComponent(list[0].url)}`);
-					if (r.ok) rawPageHtml = (await r.json())?.html;
-				} catch {
-					/* the assistant can still propose rewrite rules from the scraped content */
+				if (crawler) {
+					try {
+						const r = await fetch(`/api/fetch-page?url=${encodeURIComponent(list[0].url)}`);
+						if (r.ok) rawPageHtml = (await r.json())?.html;
+					} catch {
+						/* the assistant can still propose rewrite rules from the content */
+					}
 				}
 
 				messages = [
@@ -105,7 +122,8 @@
 							sampleContents: samples.map((s) => s.before),
 							rawPageHtml,
 							currentScraper,
-							currentRewrite
+							currentRewrite,
+							mode: crawler ? 'original' : 'feed'
 						})
 					}
 				];
@@ -118,10 +136,16 @@
 
 			// An empty field means "leave this kind of rule unchanged", so carry forward
 			// the rules currently in effect (the prior proposal, or the form's values).
+			// With the crawler off, scraper_rules have no effect, so always keep the form's
+			// current scraper value regardless of what the model returned.
 			const prevScraper = result ? result.scraper_rules : currentScraper;
 			const prevRewrite = result ? result.rewrite_rules : currentRewrite;
 			result = {
-				scraper_rules: raw.scraper_rules.trim() ? raw.scraper_rules : prevScraper,
+				scraper_rules: crawler
+					? raw.scraper_rules.trim()
+						? raw.scraper_rules
+						: prevScraper
+					: currentScraper,
 				rewrite_rules: raw.rewrite_rules.trim() ? raw.rewrite_rules : prevRewrite,
 				explanation: raw.explanation
 			};
@@ -141,9 +165,16 @@
 		runPass(fb);
 	}
 
-	function apply() {
+	async function apply() {
 		if (!result) return;
-		onapply({ scraper_rules: result.scraper_rules, rewrite_rules: result.rewrite_rules, crawler: true });
+		if (crawler) {
+			// preview() already saved these rules to the feed.
+			onapply({ scraper_rules: result.scraper_rules, rewrite_rules: result.rewrite_rules, crawler: true });
+		} else {
+			// The local preview never touched the feed, so persist the rewrite rules now.
+			await feeds.updateFeed(feed.id, { rewrite_rules: result.rewrite_rules });
+			onapply({ scraper_rules: currentScraper, rewrite_rules: result.rewrite_rules, crawler: false });
+		}
 		ui.showSuccess('Rules applied. They are saved to the feed.');
 	}
 
@@ -188,15 +219,20 @@
 		</p>
 	{:else}
 		<p class="mb-3 text-xs text-n-500">
-			Samples the latest entries, proposes rules, and previews the result. Preview applies the
-			rules to the feed and re-fetches the samples.
+			{#if crawler}
+				Samples the latest entries, proposes scraper &amp; rewrite rules, and previews the
+				result by saving them to the feed and re-fetching the samples.
+			{:else}
+				Samples the latest entries and proposes rewrite rules to clean up the existing feed
+				content. The before/after is previewed locally — nothing is saved until you apply.
+			{/if}
 		</p>
 
 		<div class="flex flex-wrap items-center gap-2">
 			<button
 				type="button"
 				onclick={() => runPass()}
-				disabled={loading || !crawler}
+				disabled={loading}
 				class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-3 py-1.5 text-sm text-white hover:bg-a-700 disabled:opacity-50"
 			>
 				<Sparkles class={`h-3.5 w-3.5 ${loading ? 'animate-pulse' : ''}`} />
@@ -209,29 +245,25 @@
 					bind:value={sampleCount}
 					min="1"
 					max="3"
-					disabled={loading || !crawler}
+					disabled={loading}
 					class="w-12 rounded-md border border-n-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
 				/>
 				sample(s)
 			</label>
 		</div>
 
-		{#if !crawler}
-			<p class="mt-2 text-xs text-n-500">
-				Enable “Fetch original content (crawler)” above to use the assistant.
-			</p>
-		{/if}
-
 		{#if result}
 			<div class="mt-4 space-y-3">
 				<!-- Proposed rules -->
-				<div class="grid gap-3 sm:grid-cols-2">
-					<div>
-						<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-n-500">
-							scraper_rules
+				<div class={`grid gap-3 ${crawler ? 'sm:grid-cols-2' : ''}`}>
+					{#if crawler}
+						<div>
+							<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-n-500">
+								scraper_rules
+							</div>
+							<pre class="overflow-x-auto rounded border border-n-200 bg-surface px-2 py-1.5 font-mono text-xs text-n-800">{result.scraper_rules || '(none)'}</pre>
 						</div>
-						<pre class="overflow-x-auto rounded border border-n-200 bg-surface px-2 py-1.5 font-mono text-xs text-n-800">{result.scraper_rules || '(none)'}</pre>
-					</div>
+					{/if}
 					<div>
 						<div class="mb-1 text-xs font-semibold uppercase tracking-wide text-n-500">
 							rewrite_rules
@@ -274,6 +306,15 @@
 						</div>
 					</div>
 				{/each}
+
+				{#if !crawler}
+					<p class="text-xs text-n-500">
+						Preview is simulated in your browser, so the live result may differ slightly
+						from Miniflux's stricter CSS engine. Saved rules apply to entries fetched from
+							here on.{#if unsupported.length}
+							Not shown in preview: {unsupported.join(', ')}.{/if}
+					</p>
+				{/if}
 
 				<!-- Refine -->
 				<div>

@@ -19,6 +19,13 @@ scrapes for each article is clean and complete. You propose two Miniflux rule st
    Other available functions: add_dynamic_image, add_image_title, nl2br,
    convert_text_link. Combine with commas, e.g. remove(".ads"),remove(".read-also")
 
+Selector compatibility (Miniflux uses Go's cascadia engine — stricter than a browser):
+- In attribute selectors use SINGLE quotes, never double quotes. A remove() argument is a
+  double-quoted string, so a nested double quote ends it early and the whole rule is
+  silently ignored. Write remove("p:has(a[href*='example.com'] b)").
+- :has() does NOT support a leading combinator. Use the descendant form :has(a … b), not
+  :has(> a > b) — the latter matches nothing in Miniflux.
+
 How to choose:
 - To TRIM advertising/garbage that Miniflux already pulled in, prefer rewrite_rules
   remove("…") targeting the junk's class/id, derived from the scraped HTML you are shown.
@@ -54,6 +61,9 @@ interface InitialContext {
 	rawPageHtml?: string;
 	currentScraper: string;
 	currentRewrite: string;
+	// 'original' = crawler on (may propose scraper_rules + rewrite_rules, raw page given);
+	// 'feed' = crawler off, cleaning the existing feed content with rewrite_rules only.
+	mode: 'original' | 'feed';
 }
 
 function truncate(s: string, max: number): string {
@@ -67,19 +77,28 @@ export function buildInitialUserMessage(ctx: InitialContext): string {
 
 	ctx.sampleContents.forEach((c, i) => {
 		parts.push(
-			`\n--- Sample article ${i + 1}: currently scraped content (HTML) ---\n${truncate(c, 12_000)}`
+			`\n--- Sample article ${i + 1}: current content (HTML) ---\n${truncate(c, 12_000)}`
 		);
 	});
 
-	if (ctx.rawPageHtml) {
+	if (ctx.mode === 'original' && ctx.rawPageHtml) {
 		parts.push(
 			`\n--- Raw original page HTML of sample article 1 (cleaned) ---\n${truncate(ctx.rawPageHtml, 40_000)}`
 		);
 	}
 
-	parts.push(
-		'\nPropose scraper_rules and/or rewrite_rules to make the scraped content clean and complete. Respond with the strict JSON object only.'
-	);
+	if (ctx.mode === 'feed') {
+		parts.push(
+			'\nThis feed does NOT fetch original content (the crawler is off), so scraper_rules have' +
+				' no effect — leave scraper_rules as an empty string. Propose rewrite_rules ONLY, to' +
+				' clean up the existing feed content shown above (e.g. drop trailing "related"/promo' +
+				' blocks, ad boxes, share bars). Respond with the strict JSON object only.'
+		);
+	} else {
+		parts.push(
+			'\nPropose scraper_rules and/or rewrite_rules to make the scraped content clean and complete. Respond with the strict JSON object only.'
+		);
+	}
 	return parts.join('\n');
 }
 
