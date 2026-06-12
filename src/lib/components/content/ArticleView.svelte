@@ -47,13 +47,13 @@
 		</button>
 	{/if}
 
-	<h1 class="text-3xl font-bold mb-3">
+	<h1 class="text-2xl leading-tight font-bold mb-3">
 		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
 	</h1>
 
 	<div class="flex items-center gap-2 text-sm text-n-500 mb-4">
 		{#if feedIcon}
-			<img src={feedIcon} alt="" class="size-5 shrink-0" />
+			<img src={feedIcon} alt="" class="size-3 mt-1 shrink-0" />
 		{/if}
 		<span>{entry.feed.title}</span>
     <span>&middot;</span>

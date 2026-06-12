@@ -152,35 +152,48 @@
 				></span>
 			</button>
 
-			<div class="shrink-0 w-56 h-32 rounded overflow-hidden bg-n-100">
-				{#if thumbnailUrl}
-					<img
-						src={thumbnailUrl}
-						alt=""
-						class="w-full h-full object-cover"
-						loading="lazy"
-					/>
-				{:else}
-					<div class="w-full h-full flex items-center justify-center text-n-300">
-						<svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-						</svg>
-					</div>
-				{/if}
+			<div class="">
+
+  	    <!-- <div class="flex-1 min-w-0 flex flex-col"> -->
+  				<h3 class="text-lg leading-snug mb-2 font-semibold {isRead ? 'text-n-500' : ''}">{entry.title}</h3>
+
+          <div class="flex gap-4">
+            <div>
+      				<p class="text-xs text-n-600 mb-2 flex items-center gap-2">
+       					{#if feedIcon}
+      						<img src={feedIcon} alt="" class="size-3 mt-px shrink-0 {isRead ? 'opacity-80' : ''}" />
+       					{/if}
+       					{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
+      				</p>
+      				{#if description}
+       					<p class="text-sm leading-normal text-n-800 line-clamp-6">{description}</p>
+      				{/if}
+            </div>
+            {#if thumbnailUrl}
+      		    <div class="shrink-0 w-56 h-32 mt-1 rounded overflow-hidden bg-n-100">
+       					<img
+        						src={thumbnailUrl}
+        						alt=""
+        						class="w-full h-full object-cover"
+        						loading="lazy"
+       					/>
+        				<!-- {:else} -->
+       					<!-- <div class="w-full h-full flex items-center justify-center text-n-300">
+        						<svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+       							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        						</svg>
+       					</div> -->
+      				</div>
+       			{/if}
+
+          </div>
+  			<!-- </div> -->
+
 			</div>
 
-			<div class="flex-1 min-w-0 flex flex-col">
-				<h3 class="text-lg line-clamp-2 mb-1.5 {isRead ? 'font-normal' : 'font-bold'}">{entry.title}</h3>
-				<p class="text-sm text-n-600 mb-3 flex items-center gap-3">
-					{#if feedIcon}
-						<img src={feedIcon} alt="" class="size-5 shrink-0 {isRead ? 'opacity-80' : ''}" />
-					{/if}
-					{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
-				</p>
-				{#if description}
-					<p class="text-sm text-n-800 line-clamp-4">{description}</p>
-				{/if}
-			</div>
+
+
+
 		</div>
 	</div>
 
