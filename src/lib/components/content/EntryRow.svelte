@@ -155,7 +155,7 @@
 			<div class="">
 
   	    <!-- <div class="flex-1 min-w-0 flex flex-col"> -->
-  				<h3 class="text-lg leading-snug mb-2 font-semibold {isRead ? 'text-n-500' : ''}">{entry.title}</h3>
+  				<h3 class="leading-snug mb-2 font-bold {isRead ? 'text-n-500' : ''}">{entry.title}</h3>
 
           <div class="flex gap-4">
             <div>

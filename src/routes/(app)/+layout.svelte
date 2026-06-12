@@ -7,6 +7,7 @@
 	import { ui } from '$lib/stores/ui.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
+	import { entries } from '$lib/stores/entries.svelte';
 	import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
 	import TopBar from '$lib/components/topbar/TopBar.svelte';
 	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
@@ -38,6 +39,7 @@
 		ui.initViewMode();
 		ui.initArticlePanelWidth();
 		ui.initAutoMarkRead();
+		entries.initShowAll();
 		theme.init();
 		aiConfig.init();
 

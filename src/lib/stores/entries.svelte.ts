@@ -1,6 +1,6 @@
 import { apiCall } from '$lib/api';
 import type { Entry } from '$lib/types';
-import { storageGet, storageSet } from '$lib/storage';
+import { storageGet, storageGetString, storageSet } from '$lib/storage';
 import { feeds } from './feeds.svelte';
 import { ui } from './ui.svelte';
 
@@ -83,6 +83,7 @@ function enrichEntries(entries: Entry[]): Entry[] {
 
 // --- og:image fallback (lazy, cached, bounded concurrency) ---------------------------
 const OG_CACHE_KEY = 'ogImages';
+const SHOW_ALL_KEY = 'showAll';
 const OG_MAX_CONCURRENT = 4;
 let ogCache: Record<string, string> | null = null; // url -> image url ('' = checked, none)
 const ogInFlight = new Set<string>();
@@ -136,8 +137,13 @@ function createEntriesStore() {
 		}
 	}
 
+	function initShowAll() {
+		showAll = storageGetString(SHOW_ALL_KEY) === 'true';
+	}
+
 	function toggleShowAll() {
 		showAll = !showAll;
+		storageSet(SHOW_ALL_KEY, String(showAll));
 	}
 
 	function setSearchQuery(query: string) {
@@ -285,6 +291,7 @@ function createEntriesStore() {
 		markRead,
 		refetchContent,
 		refetchFeedLatest,
+		initShowAll,
 		toggleShowAll,
 		setSearchQuery,
 		clearSearch,
