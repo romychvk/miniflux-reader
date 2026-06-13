@@ -1,12 +1,15 @@
 <script lang="ts">
 	import type { Entry } from '$lib/types';
+	import { upgradeGalleryImages } from '$lib/content';
 
 	let { entry }: { entry: Entry } = $props();
+
+	const content = $derived(entry.content ? upgradeGalleryImages(entry.content) : '');
 </script>
 
 <div class="py-3 px-1">
 	<article class="prose prose-sm max-w-none break-words">
-		{@html entry.content}
+		{@html content}
 	</article>
 </div>
 
