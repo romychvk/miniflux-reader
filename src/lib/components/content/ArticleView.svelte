@@ -32,10 +32,10 @@
 	{#if onClose}
 		<button
 			onclick={onClose}
-			class="absolute top-4 right-4 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors z-10"
+			class="fixed right-0 md:right-6 top-2 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
 			title="Close article"
 		>
-			<X size={18} />
+			<X class="size-6.5" />
 		</button>
 	{:else}
 		<button
@@ -47,7 +47,7 @@
 		</button>
 	{/if}
 
-	<h1 class="text-2xl leading-tight font-bold mb-3">
+	<h1 class="text-2xl leading-tight font-bold mb-3 pr-6">
 		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
 	</h1>
 

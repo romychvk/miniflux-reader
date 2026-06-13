@@ -220,9 +220,9 @@
 	onclick={goBack}
 	title="Close"
 	aria-label="Close"
-	class="fixed right-4 md:right-6 top-14 z-30 rounded-full p-1.5 text-n-700 bg-surface hover:text-n-900"
+	class="fixed right-4 md:right-6 top-14 z-30 rounded-full p-1.75 text-n-700 bg-surface hover:bg-n-100 shadow-md hover:text-n-900"
 >
-	<X class="size-7.5" />
+	<X class="size-6.5" />
 </button>
 
 <div bind:this={container} class="flex w-full max-w-5xl gap-6 py-6 sm:px-6">
