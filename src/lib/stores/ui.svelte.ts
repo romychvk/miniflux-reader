@@ -36,6 +36,8 @@ function createUI() {
 	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
 	let autoMarkReadOnScroll = $state(true);
 	let markReadSuppressedUntil = 0;
+	let lightboxImages = $state<string[]>([]);
+	let lightboxIndex = $state(0);
 
 	function initAutoMarkRead() {
 		const saved = storageGetString(AUTO_MARK_READ_KEY);
@@ -107,6 +109,25 @@ function createUI() {
 		selectedEntry = entry;
 	}
 
+	function openLightbox(images: string[], index = 0) {
+		lightboxImages = images;
+		lightboxIndex = index;
+	}
+
+	function closeLightbox() {
+		lightboxImages = [];
+		lightboxIndex = 0;
+	}
+
+	function lightboxNext() {
+		if (lightboxImages.length) lightboxIndex = (lightboxIndex + 1) % lightboxImages.length;
+	}
+
+	function lightboxPrev() {
+		if (lightboxImages.length)
+			lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
+	}
+
 	function initLayoutMode() {
 		const saved = storageGetString(LAYOUT_MODE_KEY);
 		if (saved && LAYOUT_MODES.includes(saved as LayoutMode)) layoutMode = saved as LayoutMode;
@@ -166,8 +187,15 @@ function createUI() {
 		get viewMode() { return viewMode; },
 		get articlePanelWidth() { return articlePanelWidth; },
 		get autoMarkReadOnScroll() { return autoMarkReadOnScroll; },
+		get lightboxImage() { return lightboxImages[lightboxIndex] ?? null; },
+		get lightboxIndex() { return lightboxIndex; },
+		get lightboxCount() { return lightboxImages.length; },
 		selectFeed,
 		selectEntry,
+		openLightbox,
+		closeLightbox,
+		lightboxNext,
+		lightboxPrev,
 		toggleSidebar,
 		setMobile,
 		showError,

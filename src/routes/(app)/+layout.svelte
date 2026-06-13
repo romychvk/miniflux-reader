@@ -12,6 +12,7 @@
 	import TopBar from '$lib/components/topbar/TopBar.svelte';
 	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
+	import Lightbox from '$lib/components/ui/Lightbox.svelte';
 
 	let { children } = $props();
 	let ready = $state(false);
@@ -66,4 +67,5 @@
 		{/if}
 	</div>
 	<Toast />
+	<Lightbox />
 {/if}
