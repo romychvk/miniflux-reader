@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ArrowLeft, X, RotateCw } from 'lucide-svelte';
+	import { X, RotateCw } from 'lucide-svelte';
 	import type { Entry } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
@@ -40,10 +40,10 @@
 	{:else}
 		<button
 			onclick={goBack}
-			class="flex items-center gap-1 text-sm text-n-500 hover:text-n-700 mb-4"
+			class="fixed right-2 md:right-5 top-14 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+			title="Close article"
 		>
-			<ArrowLeft size={16} />
-			Back
+			<X class="size-6.5" />
 		</button>
 	{/if}
 
