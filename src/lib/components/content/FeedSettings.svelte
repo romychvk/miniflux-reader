@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Feed, FeedUpdate } from '$lib/types';
-	import { ExternalLink, RotateCw, Trash2, AlertTriangle, X } from 'lucide-svelte';
+	import { ExternalLink, RotateCw, Trash2, AlertTriangle, X, Plus } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { apiCall } from '$lib/api';
@@ -8,6 +8,22 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
+	import { storageGet, storageGetString, storageSet } from '$lib/storage';
+	import {
+		isRssBridgeUrl,
+		parseRssBridgeUrl,
+		buildRssBridgeUrl,
+		RSS_BRIDGE_STORAGE_PREFIX,
+		type RssBridgeConfig,
+		type RssBridgeParam
+	} from '$lib/rssbridge';
+	import {
+		DEDUP_STORAGE_PREFIX,
+		DEDUP_OPTIONS,
+		asDedupMode,
+		type DedupMode
+	} from '$lib/dedup';
+	import { COVER_STORAGE_PREFIX, asCoverRule } from '$lib/cover';
 	import AiRuleAssistant from './AiRuleAssistant.svelte';
 
 	let { feed }: { feed: Feed } = $props();
@@ -16,7 +32,9 @@
 
 	const navItems = [
 		{ id: 'general', label: 'General' },
+		{ id: 'rss-bridge', label: 'RSS-Bridge' },
 		{ id: 'original-content', label: 'Original Content' },
+		{ id: 'cover-image', label: 'Cover Image' },
 		{ id: 'update-behaviour', label: 'Update Behaviour' },
 		{ id: 'danger-zone', label: 'Danger Zone' }
 	];
@@ -48,7 +66,6 @@
 	};
 	let title = $state(initial.title);
 	let siteUrl = $state(initial.site_url);
-	let feedUrl = $state(initial.feed_url);
 	let categoryId = $state(initial.category_id);
 	let crawler = $state(initial.crawler);
 	let scraperRules = $state(initial.scraper_rules);
@@ -57,6 +74,88 @@
 	let keeplistRules = $state(initial.keeplist_rules);
 	let disabled = $state(initial.disabled);
 	let ignoreHttpCache = $state(initial.ignore_http_cache);
+
+	// --- RSS-Bridge block -------------------------------------------------------------
+	// The feed's URL may be an RSS-Bridge wrapper. We decompose it into editable parts and
+	// let the user toggle the bridge off (→ feed_url becomes the bare Source URL). While off,
+	// the bridge params have nowhere to live in feed_url, so we keep them in localStorage.
+	// svelte-ignore state_referenced_locally
+	const rssKey = RSS_BRIDGE_STORAGE_PREFIX + feed.id;
+
+	// svelte-ignore state_referenced_locally
+	const rss0 = ((): { enabled: boolean } & RssBridgeConfig => {
+		if (isRssBridgeUrl(feed.feed_url)) {
+			const cfg = parseRssBridgeUrl(feed.feed_url)!;
+			storageSet(rssKey, cfg); // keep the saved copy fresh
+			return { enabled: true, ...cfg };
+		}
+		const saved = storageGet<RssBridgeConfig | null>(rssKey, null);
+		return {
+			enabled: false,
+			instance: saved?.instance || 'https://rssbridge.de/',
+			bridge: saved?.bridge || '',
+			sourceUrl: feed.feed_url,
+			params: saved?.params ?? []
+		};
+	})();
+
+	let rssEnabled = $state(rss0.enabled);
+	let rssInstance = $state(rss0.instance);
+	let rssBridge = $state(rss0.bridge);
+	let rssSourceUrl = $state(rss0.sourceUrl);
+	let rssParams = $state<RssBridgeParam[]>(rss0.params);
+
+	// The feed_url actually sent to Miniflux: the assembled bridge URL when on, else direct.
+	const effectiveFeedUrl = $derived(
+		rssEnabled
+			? buildRssBridgeUrl({
+					instance: rssInstance,
+					bridge: rssBridge,
+					sourceUrl: rssSourceUrl,
+					params: rssParams
+				})
+			: rssSourceUrl
+	);
+
+	// Disabled-state edits to params/instance/bridge don't change effectiveFeedUrl, so track a
+	// serialized signature to still flag them dirty and persist them to localStorage.
+	const rssSignature = $derived(
+		JSON.stringify({ rssEnabled, rssInstance, rssBridge, rssSourceUrl, rssParams })
+	);
+	let initialRssSignature = $state(
+		JSON.stringify({
+			rssEnabled: rss0.enabled,
+			rssInstance: rss0.instance,
+			rssBridge: rss0.bridge,
+			rssSourceUrl: rss0.sourceUrl,
+			rssParams: rss0.params
+		})
+	);
+
+	function addRssParam() {
+		rssParams = [...rssParams, { key: '', value: '' }];
+	}
+	function removeRssParam(i: number) {
+		rssParams = rssParams.filter((_, idx) => idx !== i);
+	}
+
+	// --- Duplicate handling (client-side, per feed, localStorage) ---------------------
+	// svelte-ignore state_referenced_locally
+	const dedupKey = DEDUP_STORAGE_PREFIX + feed.id;
+	const dedup0 = asDedupMode(storageGetString(dedupKey, 'off'));
+	let dedupMode = $state<DedupMode>(dedup0);
+	let initialDedupMode = $state<DedupMode>(dedup0);
+
+	// --- Cover image rule (client-side, per feed, localStorage) ------------------------
+	// CSS selector (+ optional attribute) to extract the cover from the source page when the
+	// generic og:image heuristic misses it (e.g. rutracker: selector "var.postImg", attr "title").
+	// svelte-ignore state_referenced_locally
+	const coverKey = COVER_STORAGE_PREFIX + feed.id;
+	const cover0 = asCoverRule(storageGet<unknown>(coverKey, null));
+	let coverSelector = $state(cover0.selector);
+	let coverAttr = $state(cover0.attr);
+	let initialCoverSelector = $state(cover0.selector);
+	let initialCoverAttr = $state(cover0.attr);
 
 	let saving = $state(false);
 	let savedAt = $state(0);
@@ -111,7 +210,11 @@
 	const dirty = $derived(
 		title !== initial.title ||
 		siteUrl !== initial.site_url ||
-		feedUrl !== initial.feed_url ||
+		effectiveFeedUrl !== initial.feed_url ||
+		rssSignature !== initialRssSignature ||
+		dedupMode !== initialDedupMode ||
+		coverSelector !== initialCoverSelector ||
+		coverAttr !== initialCoverAttr ||
 		categoryId !== initial.category_id ||
 		crawler !== initial.crawler ||
 		scraperRules !== initial.scraper_rules ||
@@ -126,7 +229,7 @@
 		const changes: FeedUpdate = {};
 		if (title !== initial.title) changes.title = title;
 		if (siteUrl !== initial.site_url) changes.site_url = siteUrl;
-		if (feedUrl !== initial.feed_url) changes.feed_url = feedUrl;
+		if (effectiveFeedUrl !== initial.feed_url) changes.feed_url = effectiveFeedUrl;
 		if (categoryId !== initial.category_id) changes.category_id = categoryId;
 		if (crawler !== initial.crawler) changes.crawler = crawler;
 		if (scraperRules !== initial.scraper_rules) changes.scraper_rules = scraperRules;
@@ -140,11 +243,24 @@
 
 	// Persist current form state and reset the baseline so dirty/Re-fetch see no pending changes.
 	async function persistChanges(changes: FeedUpdate) {
-		await feeds.updateFeed(feed.id, changes);
+		if (Object.keys(changes).length > 0) await feeds.updateFeed(feed.id, changes);
+		// Always save the RSS-Bridge config — disabled-state param edits don't touch feed_url.
+		const rssConfig: RssBridgeConfig = {
+			instance: rssInstance,
+			bridge: rssBridge,
+			sourceUrl: rssSourceUrl,
+			params: rssParams
+		};
+		storageSet(rssKey, rssConfig);
+		storageSet(dedupKey, dedupMode);
+		initialDedupMode = dedupMode;
+		storageSet(coverKey, { selector: coverSelector, attr: coverAttr });
+		initialCoverSelector = coverSelector;
+		initialCoverAttr = coverAttr;
 		Object.assign(initial, {
 			title,
 			site_url: siteUrl,
-			feed_url: feedUrl,
+			feed_url: effectiveFeedUrl,
 			category_id: categoryId,
 			crawler,
 			scraper_rules: scraperRules,
@@ -154,6 +270,7 @@
 			disabled,
 			ignore_http_cache: ignoreHttpCache
 		});
+		initialRssSignature = rssSignature;
 	}
 
 	// The assistant persists its rules to the feed itself (so it can preview them),
@@ -169,7 +286,14 @@
 
 	async function handleSave() {
 		const changes = computeChanges();
-		if (Object.keys(changes).length === 0) return;
+		if (
+			Object.keys(changes).length === 0 &&
+			rssSignature === initialRssSignature &&
+			dedupMode === initialDedupMode &&
+			coverSelector === initialCoverSelector &&
+			coverAttr === initialCoverAttr
+		)
+			return;
 		saving = true;
 		try {
 			await persistChanges(changes);
@@ -193,8 +317,16 @@
 				progress = { done, total };
 			});
 			const scope = refetchStatus === 'unread' ? 'unread ' : '';
-			const failed = res.failed ? ` (${res.failed} failed)` : '';
-			ui.showSuccess(`Re-fetched ${res.ok}/${res.total} ${scope}entries${failed}.`);
+			if (res.failed) {
+				// Show the real reason (shared by most failures), not just a count. Full
+				// per-entry detail is logged to the console by refetchFeedLatest.
+				const reason = res.errors[0]?.message ?? 'unknown error';
+				ui.showError(
+					`Re-fetched ${res.ok}/${res.total} ${scope}entries — ${res.failed} failed: ${reason}`
+				);
+			} else {
+				ui.showSuccess(`Re-fetched ${res.ok}/${res.total} ${scope}entries.`);
+			}
 		} catch (e) {
 			ui.showError(e instanceof Error ? e.message : 'Failed to re-fetch content');
 		} finally {
@@ -301,12 +433,25 @@
 
 				<div>
 					<label for="feed-feed-url" class="mb-1 block text-sm font-medium text-n-700">Feed URL</label>
-					<input
-						id="feed-feed-url"
-						type="url"
-						bind:value={feedUrl}
-						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					/>
+					{#if rssEnabled}
+						<input
+							id="feed-feed-url"
+							type="url"
+							value={effectiveFeedUrl}
+							readonly
+							class="w-full rounded-md border border-n-200 bg-n-50 px-3 py-2 text-sm text-n-500 focus:outline-none"
+						/>
+						<p class="mt-1 text-xs text-n-500">
+							Managed by RSS-Bridge — edit the parameters below, or disable it to set a direct URL.
+						</p>
+					{:else}
+						<input
+							id="feed-feed-url"
+							type="url"
+							bind:value={rssSourceUrl}
+							class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+						/>
+					{/if}
 				</div>
 				<div>
  					<label for="feed-site-url" class="mb-1 block text-sm font-medium text-n-700">Site URL</label>
@@ -323,6 +468,109 @@
 			</div>
 
 
+		</section>
+
+		<!-- RSS-Bridge -->
+		<section id="rss-bridge" class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
+			<div class="mb-4 flex items-center justify-between">
+				<h3 class="text-sm font-semibold uppercase tracking-wide text-n-500">RSS-Bridge</h3>
+				<label class="flex items-center gap-2 text-sm text-n-700">
+					<input type="checkbox" bind:checked={rssEnabled} class="rounded border-n-300" />
+					Enabled
+				</label>
+			</div>
+
+			<p class="mb-4 text-xs text-n-500">
+				Route this feed through an RSS-Bridge instance. When disabled, the parameters are kept but
+				the feed uses the direct Source URL (shown in General). Save, then refresh the feed to
+				re-pull entries from the new URL.
+			</p>
+
+			<div class={`space-y-4 transition-opacity ${rssEnabled ? '' : 'pointer-events-none opacity-50'}`}>
+				<div class="flex flex-wrap gap-4">
+					<div class="grow">
+						<label for="rss-instance" class="mb-1 block text-sm font-medium text-n-700">Instance</label>
+						<input
+							id="rss-instance"
+							type="url"
+							bind:value={rssInstance}
+							disabled={!rssEnabled}
+							placeholder="https://rssbridge.de/"
+							class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+						/>
+					</div>
+					<div class="grow">
+						<label for="rss-bridge-name" class="mb-1 block text-sm font-medium text-n-700">Bridge</label>
+						<input
+							id="rss-bridge-name"
+							type="text"
+							bind:value={rssBridge}
+							disabled={!rssEnabled}
+							placeholder="FilterBridge"
+							class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+						/>
+					</div>
+				</div>
+
+				<div>
+					<label for="rss-source" class="mb-1 block text-sm font-medium text-n-700">Source URL</label>
+					<input
+						id="rss-source"
+						type="url"
+						bind:value={rssSourceUrl}
+						disabled={!rssEnabled}
+						placeholder="https://example.com/feed.atom"
+						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+					/>
+					<p class="mt-1 text-xs text-n-500">The underlying feed the bridge wraps (the <code>url</code> parameter).</p>
+				</div>
+
+				<div>
+					<div class="mb-1 flex items-center justify-between">
+						<span class="text-sm font-medium text-n-700">Parameters</span>
+						<button
+							type="button"
+							onclick={addRssParam}
+							disabled={!rssEnabled}
+							class="inline-flex items-center gap-1 rounded-md border border-n-300 px-2 py-1 text-xs text-n-700 hover:bg-n-100 disabled:opacity-50"
+						>
+							<Plus class="h-3.5 w-3.5" /> Add parameter
+						</button>
+					</div>
+					<div class="space-y-2">
+						{#each rssParams as param, i (i)}
+							<div class="flex items-center gap-2">
+								<input
+									type="text"
+									bind:value={param.key}
+									disabled={!rssEnabled}
+									placeholder="filter_type"
+									class="w-40 rounded-md border border-n-300 px-2 py-1.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+								/>
+								<input
+									type="text"
+									bind:value={param.value}
+									disabled={!rssEnabled}
+									placeholder="block"
+									class="min-w-0 flex-1 rounded-md border border-n-300 px-2 py-1.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+								/>
+								<button
+									type="button"
+									onclick={() => removeRssParam(i)}
+									disabled={!rssEnabled}
+									title="Remove parameter"
+									class="shrink-0 rounded-md p-1.5 text-n-400 hover:bg-n-100 hover:text-n-700 disabled:opacity-50"
+								>
+									<X class="h-4 w-4" />
+								</button>
+							</div>
+						{/each}
+						{#if rssParams.length === 0}
+							<p class="text-xs text-n-400">No parameters.</p>
+						{/if}
+					</div>
+				</div>
+			</div>
 		</section>
 
 		<!-- Original content -->
@@ -432,10 +680,67 @@
 			</div>
 		</section>
 
+		<!-- Cover image -->
+		<section id="cover-image" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
+			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Cover Image</h3>
+			<p class="mb-4 text-xs text-n-500">
+				Where to find the card/article cover when the source has no <code>og:image</code>. Leave empty
+				to use the default (the page's Open Graph image). Set a CSS selector to pull it from specific
+				markup — e.g. rutracker keeps the cover in <code>&lt;var class="postImg" title="…"&gt;</code>,
+				so use selector <code>var.postImg</code> with attribute <code>title</code>.
+			</p>
+			<div class="flex flex-wrap gap-4">
+				<div class="grow">
+					<label for="feed-cover-selector" class="mb-1 block text-sm font-medium text-n-700">CSS selector</label>
+					<input
+						id="feed-cover-selector"
+						type="text"
+						bind:value={coverSelector}
+						spellcheck="false"
+						placeholder="var.postImg"
+						class="w-full rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+					/>
+				</div>
+				<div class="w-full sm:w-48">
+					<label for="feed-cover-attr" class="mb-1 block text-sm font-medium text-n-700">Attribute</label>
+					<input
+						id="feed-cover-attr"
+						type="text"
+						bind:value={coverAttr}
+						spellcheck="false"
+						placeholder="title (auto if empty)"
+						class="w-full rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+					/>
+				</div>
+			</div>
+			<p class="mt-1 text-xs text-n-500">
+				Attribute holding the URL. If empty, the app auto-detects (src, data-src, href, content, title).
+				Applies when the feed is next loaded.
+			</p>
+		</section>
+
 		<!-- Update behaviour -->
 		<section id="update-behaviour" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Update Behaviour</h3>
 			<div class="space-y-3">
+				<div>
+					<label for="feed-dedup" class="mb-1 block text-sm font-medium text-n-700">Duplicate entries</label>
+					<select
+						id="feed-dedup"
+						bind:value={dedupMode}
+						class="rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+					>
+						{#each DEDUP_OPTIONS as opt (opt.value)}
+							<option value={opt.value}>{opt.label}</option>
+						{/each}
+					</select>
+					<p class="mt-1 text-xs text-n-500">
+						Hide repeated entries in this feed (the source sometimes posts the same release twice).
+						"By URL" is exact; "By URL + title" also collapses reposts with identical titles. Applies
+						when the feed is next loaded.
+					</p>
+				</div>
+
 				<div class="flex items-center gap-2">
 					<input id="feed-disabled" type="checkbox" bind:checked={disabled} class="rounded border-n-300" />
 					<label for="feed-disabled" class="text-sm text-n-700">Pause updates (don't refresh this feed)</label>

@@ -1,8 +1,23 @@
 import { apiCall } from '$lib/api';
 import type { Entry } from '$lib/types';
 import { storageGet, storageGetString, storageSet } from '$lib/storage';
+import { dedupeEntries, asDedupMode, DEDUP_STORAGE_PREFIX, type DedupMode } from '$lib/dedup';
+import {
+	asCoverRule,
+	hasCoverRule,
+	extractCover,
+	COVER_STORAGE_PREFIX,
+	type CoverRule
+} from '$lib/cover';
 import { feeds } from './feeds.svelte';
 import { ui } from './ui.svelte';
+
+export interface RefetchError {
+	id: number;
+	title: string;
+	url: string;
+	message: string;
+}
 
 function decodeContent(html: string): string {
 	const trimmed = html.trim();
@@ -66,23 +81,38 @@ function imageEnclosure(entry: Entry): string | null {
 }
 
 // Best thumbnail without any extra network request: first real content image, else the
-// RSS image enclosure. The og:image fallback (a network call) is handled lazily by
-// ensureThumbnail() only when both of these come up empty.
-function pickThumbnail(entry: Entry): string | null {
+// RSS image enclosure. When the feed has a custom cover rule we skip this entirely and let
+// ensureThumbnail() resolve the cover from the source page (the rule is authoritative for
+// such feeds, e.g. rutracker, whose scraped content holds only UI chrome). The og:image
+// fallback (a network call) is handled lazily by ensureThumbnail() when this returns null.
+function pickThumbnail(entry: Entry, hasCustomRule: boolean): string | null {
+	if (hasCustomRule) return null;
 	return (entry.content ? extractThumbnail(entry.content) : null) ?? imageEnclosure(entry);
 }
 
-function enrichEntries(entries: Entry[]): Entry[] {
+function enrichEntries(entries: Entry[], coverRuleFor: (feedId: number) => CoverRule): Entry[] {
 	for (const entry of entries) {
 		if (entry.content) entry.content = decodeContent(entry.content);
-		entry._thumbnailUrl = pickThumbnail(entry);
+		entry._thumbnailUrl = pickThumbnail(entry, hasCoverRule(coverRuleFor(entry.feed.id)));
 		entry._description = entry.content ? extractDescription(entry.content) : '';
 	}
 	return entries;
 }
 
-// --- og:image fallback (lazy, cached, bounded concurrency) ---------------------------
-const OG_CACHE_KEY = 'ogImages';
+// A feed's cover-extraction rule (CSS selector + attr), or an empty rule when unset.
+function loadCoverRule(feedId: number): CoverRule {
+	return asCoverRule(storageGet<unknown>(COVER_STORAGE_PREFIX + feedId, null));
+}
+
+// --- Lazy cover resolution (og:image by default, per-feed rule when set) --------------
+// Lazy, cached, bounded-concurrency. Bump the cache key on any extraction change so stale
+// results re-check once.
+// v2: added forum (rutracker) post-cover extraction (was negative-cached before).
+// v3: skip rutracker's own UI assets (e.g. the "ответить" reply placeholder).
+// v4: transient failures are no longer cached as '' — drop entries poisoned by that bug.
+// v5: rutracker handling moved to a per-feed cover rule; covers now come from og:image
+//     (default) or the feed's CSS rule. Drop values produced by the old hardcoded path.
+const OG_CACHE_KEY = 'ogImages_v5';
 const SHOW_ALL_KEY = 'showAll';
 const OG_MAX_CONCURRENT = 4;
 let ogCache: Record<string, string> | null = null; // url -> image url ('' = checked, none)
@@ -127,7 +157,24 @@ function createEntriesStore() {
 				`${apiPath}${sep}${params}order=published_at&direction=desc&limit=100`,
 				{ signal }
 			);
-			entries = enrichEntries(data.entries || []);
+			// Collapse source-level duplicates per each entry's feed setting (read fresh, memoized).
+			const modeCache = new Map<number, DedupMode>();
+			const modeFor = (id: number): DedupMode => {
+				let m = modeCache.get(id);
+				if (m === undefined) {
+					m = asDedupMode(storageGetString(DEDUP_STORAGE_PREFIX + id, 'off'));
+					modeCache.set(id, m);
+				}
+				return m;
+			};
+			entries = dedupeEntries(enrichEntries(data.entries || [], loadCoverRule), modeFor);
+
+			// Eagerly resolve covers for the newest rule-based entries so setting/changing a
+			// feed's cover rule backfills the latest ~25 without needing to scroll each into view.
+			// (Bounded concurrency + cache make repeat loads cheap; non-rule feeds stay lazy.)
+			for (const e of entries.slice(0, 25)) {
+				if (!e._thumbnailUrl && hasCoverRule(loadCoverRule(e.feed.id))) ensureThumbnail(e);
+			}
 		} catch (e) {
 			if (e instanceof DOMException && e.name === 'AbortError') return;
 			ui.showError(e instanceof Error ? e.message : 'Failed to load entries');
@@ -198,32 +245,49 @@ function createEntriesStore() {
 		return content;
 	}
 
-	// Fill in a missing thumbnail from the article's og:image. Lazy and cached: invoked
-	// per row from the UI only for image views, runs at most once per article URL, and
-	// negative results are cached too (so we don't re-hit pages that have no og:image).
+	// Fill in a missing thumbnail. Lazy and cached: invoked per row from the UI only for image
+	// views, runs at most once per article URL. By default reads the page's og:image; if the
+	// feed has a custom cover rule, fetches the page HTML and extracts via the CSS selector.
+	// A definitive "no image" is cached too (so we don't re-hit pages that have none), but
+	// transient failures are not — see the schedule body.
 	function ensureThumbnail(entry: Entry): void {
 		if (entry._thumbnailUrl || !entry.url) return;
 		if (ogCache === null) ogCache = storageGet<Record<string, string>>(OG_CACHE_KEY, {});
 
-		const cached = ogCache[entry.url];
+		const rule = loadCoverRule(entry.feed.id);
+		// Key the cache by URL *and* the extraction method, so changing/setting a feed's cover
+		// rule re-resolves instead of reusing a '' cached by the previous (e.g. og:image) path.
+		const ruleSig = hasCoverRule(rule) ? `${rule.selector}|${rule.attr}` : '';
+		const cacheKey = ruleSig ? `${entry.url} ${ruleSig}` : entry.url;
+
+		const cached = ogCache[cacheKey];
 		if (cached !== undefined) {
 			if (cached) entry._thumbnailUrl = cached;
 			return;
 		}
-		if (ogInFlight.has(entry.url)) return;
-		ogInFlight.add(entry.url);
+		if (ogInFlight.has(cacheKey)) return;
+		ogInFlight.add(cacheKey);
 
 		ogSchedule(async () => {
-			let image = '';
+			// null = couldn't determine (network error / source 5xx); only a definitive answer
+			// ('' = checked, no image | url = found) is cached. Caching a transient failure as ''
+			// would permanently hide a cover that's actually there.
+			let image: string | null = null;
 			try {
-				const res = await fetch(`/api/og-image?url=${encodeURIComponent(entry.url)}`);
-				if (res.ok) image = (await res.json())?.url || '';
+				if (hasCoverRule(rule)) {
+					const res = await fetch(`/api/fetch-page?url=${encodeURIComponent(entry.url)}`);
+					if (res.ok) image = extractCover((await res.json())?.html || '', rule, entry.url) || '';
+				} else {
+					const res = await fetch(`/api/og-image?url=${encodeURIComponent(entry.url)}`);
+					if (res.ok) image = (await res.json())?.url || '';
+				}
 			} catch {
-				/* leave uncached so a later view can retry */
+				/* leave undetermined so a later view can retry */
 			} finally {
-				ogInFlight.delete(entry.url);
+				ogInFlight.delete(cacheKey);
 			}
-			ogCache![entry.url] = image;
+			if (image === null) return; // transient failure — don't poison the cache
+			ogCache![cacheKey] = image;
 			storageSet(OG_CACHE_KEY, ogCache);
 			if (image) {
 				const target = entries.find((e) => e.id === entry.id) ?? entry;
@@ -249,33 +313,36 @@ function createEntriesStore() {
 		limit: number,
 		status: 'unread' | 'all',
 		onProgress?: (done: number, total: number) => void
-	): Promise<{ total: number; ok: number; failed: number }> {
+	): Promise<{ total: number; ok: number; failed: number; errors: RefetchError[] }> {
 		const statusParam = status === 'unread' ? 'status=unread&' : '';
 		const data = await apiCall<{ entries: Entry[] }>(
 			`feeds/${feedId}/entries?${statusParam}order=published_at&direction=desc&limit=${limit}`
 		);
-		const ids = (data.entries || []).map((e) => e.id);
-		const total = ids.length;
+		const list = data.entries || [];
+		const total = list.length;
 		let ok = 0;
-		let failed = 0;
 		let done = 0;
 		let cursor = 0;
+		const errors: RefetchError[] = [];
 
 		async function worker() {
-			while (cursor < ids.length) {
-				const id = ids[cursor++];
+			while (cursor < list.length) {
+				const entry = list[cursor++];
 				try {
-					await fetchAndStore(id);
+					await fetchAndStore(entry.id);
 					ok++;
-				} catch {
-					failed++;
+				} catch (e) {
+					const message = e instanceof Error ? e.message : String(e);
+					errors.push({ id: entry.id, title: entry.title, url: entry.url, message });
+					// Surface the real per-entry reason — the bulk toast only shows a count.
+					console.warn(`Re-fetch failed for "${entry.title}" (${entry.url}): ${message}`);
 				}
 				onProgress?.(++done, total);
 			}
 		}
 
-		await Promise.all(Array.from({ length: Math.min(4, ids.length) }, () => worker()));
-		return { total, ok, failed };
+		await Promise.all(Array.from({ length: Math.min(4, list.length) }, () => worker()));
+		return { total, ok, failed: errors.length, errors };
 	}
 
 	function findEntryById(id: number): Entry | null {

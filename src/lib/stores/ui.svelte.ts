@@ -26,7 +26,6 @@ function createUI() {
 	let sidebarOpen = $state(false);
 	let isMobile = $state(false);
 	let errorMessage = $state('');
-	let errorTimeout: ReturnType<typeof setTimeout> | null = null;
 	let successMessage = $state('');
 	let successTimeout: ReturnType<typeof setTimeout> | null = null;
 	let sidebarWidth = $state(DEFAULT_SIDEBAR_WIDTH);
@@ -83,15 +82,14 @@ function createUI() {
 		if (!mobile) sidebarOpen = false;
 	}
 
+	// Errors persist until dismissed (X) or a page reload — they often carry a reason
+	// the user needs time to read (e.g. a failed re-fetch), unlike transient successes.
 	function showError(msg: string) {
 		errorMessage = msg;
-		if (errorTimeout) clearTimeout(errorTimeout);
-		errorTimeout = setTimeout(() => { errorMessage = ''; }, 5000);
 	}
 
 	function clearError() {
 		errorMessage = '';
-		if (errorTimeout) clearTimeout(errorTimeout);
 	}
 
 	function showSuccess(msg: string) {

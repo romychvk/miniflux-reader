@@ -1,9 +1,10 @@
 import type { RequestHandler } from './$types';
 
-// Last-resort thumbnail source: fetch an article page server-side and read its
-// Open Graph / Twitter image meta tag. Used only for entries whose content has no
-// usable <img> and no image enclosure. Results are cached client-side, so this runs
-// at most once per article. Same SSRF stance as /api/fetch-page (scheme-only check).
+// Default thumbnail source: fetch an article page server-side and read its Open Graph /
+// Twitter image meta tag. Used for entries whose content has no usable <img> and no image
+// enclosure, when the feed has no custom cover rule (those go through /api/fetch-page +
+// the client-side CSS extractor instead). Results are cached client-side, so this runs at
+// most once per article. Same SSRF stance as /api/fetch-page (scheme-only check).
 
 function metaContent(html: string, key: string): string | null {
 	// Match a <meta> tag whose property/name equals `key`, in any attribute order.

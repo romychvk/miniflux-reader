@@ -11,6 +11,20 @@
 
 	const feedIcon = $derived(feeds.findFeedNodeById(entry.feed.id, true)?.iconData);
 
+	// Show the resolved cover (rutracker's postImg / a feed's og:image) at the top when the
+	// article body doesn't already contain that image — some sources keep the cover out of the
+	// post HTML, so the article would otherwise be imageless even though the card has a thumb.
+	const coverUrl = $derived(entry._thumbnailUrl ?? null);
+	const showCover = $derived(!!coverUrl && !(entry.content ?? '').includes(coverUrl));
+
+	$effect(() => {
+		if (!entry._thumbnailUrl && entry.url) entries.ensureThumbnail(entry);
+	});
+
+	function openCover() {
+		if (coverUrl) ui.openLightbox([coverUrl], 0);
+	}
+
 	let refetching = $state(false);
 
 	async function refetch() {
@@ -71,6 +85,12 @@
 			<RotateCw size={14} class={refetching ? 'animate-spin' : ''} />
 		</button>
 	</div>
+
+	{#if showCover}
+		<button type="button" onclick={openCover} class="mb-5 block" title="Open image">
+			<img src={coverUrl} alt={entry.title} class="w-full max-w-sm rounded-lg cursor-zoom-in" />
+		</button>
+	{/if}
 
 	<EntryContent {entry} />
 </div>
