@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { X } from 'lucide-svelte';
+	import { X, Download, Upload } from 'lucide-svelte';
 	import type { AiProvider } from '$lib/types';
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
+	import { exportSettings, importSettings } from '$lib/settingsBackup';
 
 	const ANTHROPIC_MODELS = ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'];
 
@@ -79,6 +80,35 @@
 		model = aiConfig.model;
 		apiKey = '';
 		ui.showSuccess('AI settings cleared.');
+	}
+
+	// --- Backup & restore --------------------------------------------------------------
+	let includeSecrets = $state(true);
+	let fileInput = $state<HTMLInputElement | null>(null);
+
+	function doExport() {
+		exportSettings(includeSecrets);
+		ui.showSuccess('Settings exported.');
+	}
+
+	async function onImportFile(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = ''; // allow re-selecting the same file later
+		if (!file) return;
+		if (
+			!confirm(
+				'Import settings from this file? Matching settings in this browser will be overwritten and the page will reload.'
+			)
+		)
+			return;
+		try {
+			const n = importSettings(await file.text());
+			ui.showSuccess(`Imported ${n} settings. Reloading…`);
+			setTimeout(() => location.reload(), 700);
+		} catch (err) {
+			ui.showError(err instanceof Error ? err.message : 'Import failed');
+		}
 	}
 </script>
 
@@ -205,6 +235,58 @@
 					{status.text}
 				</div>
 			{/if}
+		</div>
+	</section>
+
+	<section class="mt-6 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
+		<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">Backup &amp; Restore</h3>
+		<p class="mb-4 text-sm text-n-500">
+			Your settings (feed RSS-Bridge / duplicate / cover rules, layout &amp; view preferences,
+			feed order, theme, AI config) are stored only in this browser. Export them to a file to move
+			them to another browser or device.
+		</p>
+
+		<div class="space-y-4">
+			<div class="flex flex-wrap items-center gap-3">
+				<button
+					type="button"
+					onclick={doExport}
+					class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-4 py-2 text-sm text-white hover:bg-a-700"
+				>
+					<Download class="h-4 w-4" />
+					Export settings
+				</button>
+				<label class="flex items-center gap-2 text-sm text-n-700">
+					<input type="checkbox" bind:checked={includeSecrets} class="rounded border-n-300" />
+					Include API tokens
+				</label>
+			</div>
+			{#if includeSecrets}
+				<p class="-mt-1 text-xs text-amber-600">
+					The exported file will contain your Miniflux token and AI key — keep it private.
+				</p>
+			{/if}
+
+			<div>
+				<button
+					type="button"
+					onclick={() => fileInput?.click()}
+					class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100"
+				>
+					<Upload class="h-4 w-4" />
+					Import settings…
+				</button>
+				<input
+					bind:this={fileInput}
+					type="file"
+					accept="application/json,.json"
+					class="hidden"
+					onchange={onImportFile}
+				/>
+				<p class="mt-1 text-xs text-n-500">
+					Overwrites matching settings in this browser, then reloads. Other data (caches) is kept.
+				</p>
+			</div>
 		</div>
 	</section>
 </div>
