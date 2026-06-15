@@ -202,7 +202,7 @@
 	<div
 		bind:this={rowEl}
 		use:autoMarkRead
-		class="relative rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-shadow {isSelected ? 'ring-2 ring-a-400' : ''}"
+		class="relative rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''}"
 		onclick={openArticle}
 		role="button"
 		tabindex="0"
