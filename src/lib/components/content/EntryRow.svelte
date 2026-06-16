@@ -105,9 +105,14 @@
 				title={isRead ? 'Mark as unread' : 'Mark as read'}
 				class="shrink-0 grid place-items-center size-5 rounded-full cursor-pointer group/dot"
 			>
-				<span
-					class="block size-2.5 rounded-full transition-transform duration-150 group-hover/dot:scale-150 {isRead ? 'border border-n-300' : 'bg-a-500'}"
-				></span>
+				{#if isRead}
+					<span class="block size-4 group-hover/dot:size-[18px] rounded-full border-2 border-n-300 transition-[width,height] duration-150 ease-out"></span>
+				{:else}
+					<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4 group-hover/dot:size-[18px] text-n-700 transition-[width,height] duration-150 ease-out">
+						<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+						<circle cx="8" cy="8" r="3" fill="currentColor" />
+					</svg>
+				{/if}
 			</button>
 
 			{#if feedIcon}
@@ -147,9 +152,14 @@
 				title={isRead ? 'Mark as unread' : 'Mark as read'}
 				class="shrink-0 grid place-items-center size-5 mt-1 rounded-full cursor-pointer group/dot"
 			>
-				<span
-					class="block size-2.5 rounded-full transition-transform duration-150 group-hover/dot:scale-150 {isRead ? 'border border-n-300' : 'bg-a-500'}"
-				></span>
+				{#if isRead}
+					<span class="block size-4 group-hover/dot:size-[18px] rounded-full border-2 border-n-300 transition-[width,height] duration-150 ease-out"></span>
+				{:else}
+					<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4 group-hover/dot:size-[18px] text-n-700 transition-[width,height] duration-150 ease-out">
+						<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+						<circle cx="8" cy="8" r="3" fill="currentColor" />
+					</svg>
+				{/if}
 			</button>
 
 			<div class="">
@@ -202,26 +212,16 @@
 	<div
 		bind:this={rowEl}
 		use:autoMarkRead
-		class="relative rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''}"
+		class="rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 bg-n-100 hover:bg-surface hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''}"
 		onclick={openArticle}
 		role="button"
 		tabindex="0"
 		onkeydown={(e) => e.key === 'Enter' && openArticle()}
 	>
-		<button
-			type="button"
-			onclick={toggleRead}
-			aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
-			title={isRead ? 'Mark as unread' : 'Mark as read'}
-			class="absolute top-2 left-2 z-10 grid place-items-center size-6 rounded-full cursor-pointer bg-surface/70 backdrop-blur-sm group/dot"
-		>
-			<span
-				class="block size-2.5 rounded-full transition-transform duration-150 group-hover/dot:scale-150 {isRead ? 'border border-n-300' : 'bg-a-500'}"
-			></span>
-		</button>
+
 
 		{#if thumbnailUrl}
-			<div class="w-full overflow-hidden bg-n-100 rounded-lg">
+			<div class="w-full overflow-hidden bg-n-100 rounded-t-lg">
 				<img
 					src={thumbnailUrl}
 					alt=""
@@ -232,16 +232,34 @@
 		{/if}
 
 		<div class="px-4 py-3">
-			<h3 class="leading-snug line-clamp-3 mb-2 {isRead ? 'font-normal' : 'font-bold'}">{entry.title}</h3>
-			<p class="text-xs text-n-500 mb-3 flex items-center gap-2">
-				{#if feedIcon}
-					<img src={feedIcon} alt="" class="size-4 shrink-0 {isRead ? 'opacity-80' : ''} " />
-				{/if}
-				{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
-			</p>
+  			<h3 class="leading-snug line-clamp-3 mb-2 {isRead ? 'font-normal' : 'font-bold'}">{entry.title}</h3>
 			{#if description}
-				<p class="text-sm text-n-800 mt-1.5 line-clamp-2">{description}</p>
+				<p class="text-sm text-n-800 leading-snug line-clamp-3 mb-3">{description}</p>
 			{/if}
+			<div class="flex justify-between gap-1">
+   			<p class="text-xs text-n-500 flex items-center gap-2">
+  				{#if feedIcon}
+   					<img src={feedIcon} alt="" class="size-4 shrink-0 {isRead ? 'opacity-80' : ''} " />
+  				{/if}
+  				{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
+   			</p>
+        <button
+     			type="button"
+     			onclick={toggleRead}
+     			aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
+     			title={isRead ? 'Mark as unread' : 'Mark as read'}
+     			class="shrink-0 grid place-items-center size-6 rounded-full cursor-pointer bg-surface/70 backdrop-blur-sm group/dot"
+    		>
+     			{#if isRead}
+    				<span class="block size-4 group-hover/dot:size-[18px] rounded-full border-2 border-n-400 transition-[width,height] duration-150 ease-out"></span>
+     			{:else}
+    				<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4 group-hover/dot:size-[18px] text-n-700 transition-[width,height] duration-150 ease-out">
+     					<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+     					<circle cx="8" cy="8" r="3" fill="currentColor" />
+     				</svg>
+     			{/if}
+    		</button>
+			</div>
 		</div>
 	</div>
 {/if}
