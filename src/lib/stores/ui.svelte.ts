@@ -183,6 +183,7 @@ function createUI() {
 		get layoutMode() { return layoutMode; },
 		get isMarkReadSuppressed() { return Date.now() < markReadSuppressedUntil; },
 		get viewMode() { return viewMode; },
+		get viewKey() { return selectedFeed ? feedStorageKey(selectedFeed) : 'all'; },
 		get articlePanelWidth() { return articlePanelWidth; },
 		get autoMarkReadOnScroll() { return autoMarkReadOnScroll; },
 		get lightboxImage() { return lightboxImages[lightboxIndex] ?? null; },

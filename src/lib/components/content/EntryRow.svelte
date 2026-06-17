@@ -5,6 +5,7 @@
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
+	import { cardAspect } from '$lib/stores/cardAspect.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
 	import { getScrollDirection, addScrollTracker, removeScrollTracker } from '$lib/scroll';
@@ -23,6 +24,17 @@
 
 	const thumbnailUrl = $derived(entry._thumbnailUrl ?? null);
 	const description = $derived(entry._description ?? '');
+
+	// Cards: size the image box to the current view's median thumbnail ratio, so a feed of
+	// uniform images fills the box without bars or crop. Each loaded image feeds the median.
+	const boxAspect = $derived(cardAspect.aspectFor(ui.viewKey));
+
+	function recordAspect(e: Event) {
+		const img = e.currentTarget as HTMLImageElement;
+		if (img.naturalWidth && img.naturalHeight) {
+			cardAspect.record(ui.viewKey, img.naturalWidth / img.naturalHeight);
+		}
+	}
 
 	// In image-bearing views, fall back to the article's og:image when content + enclosure
 	// gave us nothing. Lazy + cached in the store, so this is a no-op once resolved.
@@ -221,7 +233,10 @@
 
 
 		{#if thumbnailUrl}
-			<div class="relative w-full aspect-[4/3] overflow-hidden bg-n-100 rounded-t-lg">
+			<div
+				class="relative w-full overflow-hidden bg-n-100 rounded-t-lg"
+				style="aspect-ratio: {boxAspect}"
+			>
 				<!-- blurred backdrop: same image, enlarged + blurred to fill letterbox bars -->
 				<img
 					src={thumbnailUrl}
@@ -230,12 +245,13 @@
 					class="absolute inset-0 w-full h-full object-cover scale-110 blur brightness-70"
 					loading="lazy"
 				/>
-				<!-- full image, never cropped -->
+				<!-- full image, never cropped; its real ratio tunes the box for this view -->
 				<img
 					src={thumbnailUrl}
 					alt=""
 					class="relative w-full h-full object-contain"
 					loading="lazy"
+					onload={recordAspect}
 				/>
 			</div>
 		{/if}
