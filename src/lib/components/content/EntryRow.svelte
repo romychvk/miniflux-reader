@@ -221,11 +221,20 @@
 
 
 		{#if thumbnailUrl}
-			<div class="w-full overflow-hidden bg-n-100 rounded-t-lg">
+			<div class="relative w-full aspect-[4/3] overflow-hidden bg-n-100 rounded-t-lg">
+				<!-- blurred backdrop: same image, enlarged + blurred to fill letterbox bars -->
 				<img
 					src={thumbnailUrl}
 					alt=""
-					class="w-full h-full object-cover"
+					aria-hidden="true"
+					class="absolute inset-0 w-full h-full object-cover scale-110 blur brightness-70"
+					loading="lazy"
+				/>
+				<!-- full image, never cropped -->
+				<img
+					src={thumbnailUrl}
+					alt=""
+					class="relative w-full h-full object-contain"
 					loading="lazy"
 				/>
 			</div>
