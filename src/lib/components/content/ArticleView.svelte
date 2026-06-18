@@ -150,25 +150,27 @@
 		</div>
 	{/if}
 
-	<div class="max-w-3xl mx-auto px-8 py-6 relative" class:article-vt={!onClose}>
-		{#if onClose}
-			<button
-				onclick={onClose}
-				class="fixed right-0 md:right-6 top-2 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
-				title="Close article"
-			>
-				<X class="size-6.5" />
-			</button>
-		{:else}
-			<button
-				onclick={goBack}
-				class="fixed right-2 md:right-5 top-14 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
-				title="Close article"
-			>
-				<X class="size-6.5" />
-			</button>
-		{/if}
+	<!-- Close/back lives in the outer wrapper (the UI layer), NOT inside .article-vt — otherwise
+	     it gets captured by the article view-transition snapshot and slides with the page. -->
+	{#if onClose}
+		<button
+			onclick={onClose}
+			class="fixed right-0 md:right-6 top-2 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+			title="Close article"
+		>
+			<X class="size-6.5" />
+		</button>
+	{:else}
+		<button
+			onclick={goBack}
+			class="fixed right-2 md:right-5 top-14 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+			title="Close article"
+		>
+			<X class="size-6.5" />
+		</button>
+	{/if}
 
+	<div class="max-w-3xl mx-auto px-8 py-6 relative" class:article-vt={!onClose}>
 	<h1 class="text-2xl leading-tight font-bold mb-3 pr-6">
 		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
 	</h1>
