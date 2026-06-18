@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { X, RotateCw, ChevronLeft, ChevronRight } from 'lucide-svelte';
-	import { goto } from '$app/navigation';
+	import { goto, onNavigate } from '$app/navigation';
 	import type { Entry } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
@@ -24,10 +24,37 @@
 
 	// Replace (don't push) so the back stack stays [list, article]: the Close button's
 	// history.back() always returns to the originating list, not the previously-flipped article,
-	// and paging through many articles doesn't bloat history.
-	function navigate(e: Entry | null) {
-		if (e) goto(`/article/${makeEntrySlug(e.id, e.title)}`, { replaceState: true });
+	// and paging through many articles doesn't bloat history. `dir` drives the page slide below.
+	let navDir: 'prev' | 'next' | null = null;
+	function navigate(e: Entry | null, dir: 'prev' | 'next') {
+		if (!e) return;
+		navDir = dir;
+		goto(`/article/${makeEntrySlug(e.id, e.title)}`, { replaceState: true });
 	}
+
+	// "Page-turn" slide between articles via the View Transitions API. Only prev/next navigation
+	// (navDir set) animates; other navigations and unsupported browsers fall through to an instant
+	// swap. The direction class on <html> selects the slide direction (CSS lives in app.css), and
+	// only the article content carries view-transition-name, so the sidebar/topbar don't move.
+	onNavigate((navigation) => {
+		const dir = navDir;
+		navDir = null;
+		const startViewTransition = (
+			document as Document & { startViewTransition?: (cb: () => unknown) => { finished: Promise<unknown> } }
+		).startViewTransition;
+		if (!dir || !startViewTransition) return;
+
+		document.documentElement.classList.add(dir === 'next' ? 'va-next' : 'va-prev');
+		return new Promise<void>((resolve) => {
+			const transition = startViewTransition.call(document, async () => {
+				resolve();
+				await navigation.complete;
+			});
+			transition.finished.finally(() =>
+				document.documentElement.classList.remove('va-next', 'va-prev')
+			);
+		});
+	});
 
 	// Briefly press the matching arrow so a keyboard ←/→ gives the same visual feedback a click does.
 	let pressed = $state<'prev' | 'next' | null>(null);
@@ -49,11 +76,11 @@
 			if (ev.key === 'ArrowLeft' && prevEntry) {
 				ev.preventDefault();
 				flash('prev');
-				navigate(prevEntry);
+				navigate(prevEntry, 'prev');
 			} else if (ev.key === 'ArrowRight' && nextEntry) {
 				ev.preventDefault();
 				flash('next');
-				navigate(nextEntry);
+				navigate(nextEntry, 'next');
 			}
 		}
 		window.addEventListener('keydown', onKeydown);
@@ -102,7 +129,7 @@
 		<div class="sticky top-0 h-0 z-30 pointer-events-none">
 			{#if prevEntry}
 				<button
-					onclick={() => navigate(prevEntry)}
+					onclick={() => navigate(prevEntry, 'prev')}
 					class="nav-arrow pointer-events-auto absolute left-2 md:left-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
 					class:pressed={pressed === 'prev'}
 					title="Previous article"
@@ -112,7 +139,7 @@
 			{/if}
 			{#if nextEntry}
 				<button
-					onclick={() => navigate(nextEntry)}
+					onclick={() => navigate(nextEntry, 'next')}
 					class="nav-arrow pointer-events-auto absolute right-2 md:right-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
 					class:pressed={pressed === 'next'}
 					title="Next article"
@@ -123,7 +150,7 @@
 		</div>
 	{/if}
 
-	<div class="max-w-3xl mx-auto px-8 py-6 relative">
+	<div class="max-w-3xl mx-auto px-8 py-6 relative" class:article-vt={!onClose}>
 		{#if onClose}
 			<button
 				onclick={onClose}

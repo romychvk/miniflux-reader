@@ -183,6 +183,74 @@
   https://tailwindcss.com/docs/adding-custom-styles#adding-custom-utilities
 */
 
+/*
+  Article paging transition (prev/next navigation) — driven by onNavigate() in ArticleView.
+  Only the article content carries `view-transition-name: article`, so the sidebar/topbar stay
+  put; the root snapshot is frozen so the rest of the page doesn't cross-fade. The <html> class
+  (va-next / va-prev) picks the slide direction.
+*/
+.article-vt {
+	view-transition-name: article;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+}
+
+::view-transition-group(article) {
+	animation-duration: 260ms;
+	animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* next (older article): old slides out left & fades, new enters from the right */
+:root.va-next::view-transition-old(article) {
+	animation: 260ms cubic-bezier(0.4, 0, 0.2, 1) both va-slide-out-left;
+}
+:root.va-next::view-transition-new(article) {
+	animation: 260ms cubic-bezier(0.4, 0, 0.2, 1) both va-slide-in-right;
+}
+/* prev (newer article): mirror */
+:root.va-prev::view-transition-old(article) {
+	animation: 260ms cubic-bezier(0.4, 0, 0.2, 1) both va-slide-out-right;
+}
+:root.va-prev::view-transition-new(article) {
+	animation: 260ms cubic-bezier(0.4, 0, 0.2, 1) both va-slide-in-left;
+}
+
+@keyframes va-slide-out-left {
+	to {
+		transform: translateX(-6%);
+		opacity: 0;
+	}
+}
+@keyframes va-slide-in-right {
+	from {
+		transform: translateX(6%);
+		opacity: 0;
+	}
+}
+@keyframes va-slide-out-right {
+	to {
+		transform: translateX(6%);
+		opacity: 0;
+	}
+}
+@keyframes va-slide-in-left {
+	from {
+		transform: translateX(-6%);
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(article),
+	::view-transition-old(article),
+	::view-transition-new(article) {
+		animation-duration: 1ms;
+	}
+}
+
 @utility brdr {
 	@apply border border-red-500;
 }
