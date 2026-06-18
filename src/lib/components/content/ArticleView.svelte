@@ -29,6 +29,15 @@
 		if (e) goto(`/article/${makeEntrySlug(e.id, e.title)}`, { replaceState: true });
 	}
 
+	// Briefly press the matching arrow so a keyboard ←/→ gives the same visual feedback a click does.
+	let pressed = $state<'prev' | 'next' | null>(null);
+	let pressTimer: ReturnType<typeof setTimeout> | undefined;
+	function flash(side: 'prev' | 'next') {
+		pressed = side;
+		clearTimeout(pressTimer);
+		pressTimer = setTimeout(() => (pressed = null), 160);
+	}
+
 	$effect(() => {
 		if (onClose) return; // panel mode — no keyboard nav
 		function onKeydown(ev: KeyboardEvent) {
@@ -39,14 +48,19 @@
 				return;
 			if (ev.key === 'ArrowLeft' && prevEntry) {
 				ev.preventDefault();
+				flash('prev');
 				navigate(prevEntry);
 			} else if (ev.key === 'ArrowRight' && nextEntry) {
 				ev.preventDefault();
+				flash('next');
 				navigate(nextEntry);
 			}
 		}
 		window.addEventListener('keydown', onKeydown);
-		return () => window.removeEventListener('keydown', onKeydown);
+		return () => {
+			window.removeEventListener('keydown', onKeydown);
+			clearTimeout(pressTimer);
+		};
 	});
 
 	// Show the resolved cover (rutracker's postImg / a feed's og:image) at the top when the
@@ -89,7 +103,8 @@
 			{#if prevEntry}
 				<button
 					onclick={() => navigate(prevEntry)}
-					class="pointer-events-auto absolute left-2 md:left-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+					class="nav-arrow pointer-events-auto absolute left-2 md:left-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+					class:pressed={pressed === 'prev'}
 					title="Previous article"
 				>
 					<ChevronLeft class="size-6.5" />
@@ -98,7 +113,8 @@
 			{#if nextEntry}
 				<button
 					onclick={() => navigate(nextEntry)}
-					class="pointer-events-auto absolute right-2 md:right-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+					class="nav-arrow pointer-events-auto absolute right-2 md:right-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+					class:pressed={pressed === 'next'}
 					title="Next article"
 				>
 					<ChevronRight class="size-6.5" />
@@ -160,3 +176,16 @@
 	<EntryContent {entry} />
 	</div>
 </div>
+
+<style>
+	/* Gentle press reaction for the prev/next arrows — fires on click (:active) and on a
+	   keyboard ←/→ (.pressed). Uses the standalone `scale` property so it composes with the
+	   button's Tailwind translate-based vertical centring instead of overriding it. */
+	.nav-arrow {
+		transition: scale 150ms ease;
+	}
+	.nav-arrow:active,
+	.nav-arrow.pressed {
+		scale: 0.85;
+	}
+</style>
