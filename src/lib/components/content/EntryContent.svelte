@@ -70,7 +70,7 @@
     img {
       @apply mb-6 cursor-zoom-in;
     }
-    ul {
+    ol, ul {
       @apply ml-5 mb-5 space-y-1.5;
     }
     li {
