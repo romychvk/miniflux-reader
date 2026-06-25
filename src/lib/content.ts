@@ -11,6 +11,36 @@ export function isImageUrl(url: string): boolean {
 	}
 }
 
+// A stable identity for an image URL, used to spot duplicates. When the path itself
+// names an image file, the same picture is often re-requested at different sizes or
+// formats via query params (`?w=900&q=90` vs `…&f=webp`) — so the path alone is the
+// identity and the query is dropped. When the path is NOT an image file (a proxy/CDN
+// that carries the real image in the query, e.g. `/resize?url=…`), the query is what
+// distinguishes images, so the full URL is kept.
+function imageKey(url: string): string {
+	if (!url || url.startsWith('data:')) return url;
+	try {
+		const u = new URL(url, location.href);
+		return IMAGE_URL_RE.test(u.pathname) ? u.origin + u.pathname : u.href;
+	} catch {
+		return url.split(/[?#]/)[0];
+	}
+}
+
+// Whether article HTML already contains the given image (e.g. a cover/thumbnail), comparing
+// by normalized key so the same picture counts as present even when the body requests it at a
+// different size/format (`?w=900&q=90` vs `…&f=webp`). Used to avoid showing a separate cover
+// above an article that already embeds it.
+export function contentContainsImage(html: string, url: string): boolean {
+	if (!html || !url) return false;
+	const target = imageKey(url);
+	const doc = domParser.parseFromString(html, 'text/html');
+	for (const img of doc.querySelectorAll('img')) {
+		if (imageKey(effectiveImageSrc(img)) === target) return true;
+	}
+	return false;
+}
+
 // The image an <img> effectively shows — its real src, falling back to the lazy-load
 // attributes when src is a placeholder. Used to spot duplicates that render identically.
 function effectiveImageSrc(img: Element): string {
@@ -57,7 +87,7 @@ function dedupeImages(doc: Document): boolean {
 	const seen = new Set<string>();
 	let changed = false;
 	for (const img of doc.querySelectorAll('img')) {
-		const key = effectiveImageSrc(img);
+		const key = imageKey(effectiveImageSrc(img));
 		if (!key) continue;
 		if (!seen.has(key)) {
 			seen.add(key);

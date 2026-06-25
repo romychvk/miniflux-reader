@@ -7,6 +7,7 @@
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
+	import { contentContainsImage } from '$lib/content';
 	import EntryContent from './EntryContent.svelte';
 
 	let { entry, onClose }: { entry: Entry; onClose?: () => void } = $props();
@@ -94,7 +95,7 @@
 	// article body doesn't already contain that image — some sources keep the cover out of the
 	// post HTML, so the article would otherwise be imageless even though the card has a thumb.
 	const coverUrl = $derived(entry._thumbnailUrl ?? null);
-	const showCover = $derived(!!coverUrl && !(entry.content ?? '').includes(coverUrl));
+	const showCover = $derived(!!coverUrl && !contentContainsImage(entry.content ?? '', coverUrl));
 
 	$effect(() => {
 		if (!entry._thumbnailUrl && entry.url) entries.ensureThumbnail(entry);
@@ -198,7 +199,7 @@
 
 	{#if showCover}
 		<button type="button" onclick={openCover} class="mb-5 block" title="Open image">
-			<img src={coverUrl} alt={entry.title} class="w-full max-w-sm rounded-lg cursor-zoom-in" />
+			<img src={coverUrl} alt={entry.title} class="max-w-full h-auto rounded-lg cursor-zoom-in" />
 		</button>
 	{/if}
 
