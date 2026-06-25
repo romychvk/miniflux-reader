@@ -192,12 +192,16 @@
       				{/if}
             </div>
             {#if thumbnailUrl}
-      		    <div class="shrink-0 w-56 h-32 mt-1 rounded overflow-hidden bg-n-100">
+      		    <div
+      		    	class="shrink-0 w-56 mt-1 rounded overflow-hidden bg-n-100"
+      		    	style="aspect-ratio: {boxAspect}"
+      		    >
        					<img
         						src={thumbnailUrl}
         						alt=""
         						class="w-full h-full object-cover"
         						loading="lazy"
+        						onload={recordAspect}
        					/>
         				<!-- {:else} -->
        					<!-- <div class="w-full h-full flex items-center justify-center text-n-300">
