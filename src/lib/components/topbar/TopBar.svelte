@@ -201,7 +201,7 @@
 
 	{#if isFullView}
 		<div class="group flex items-center gap-3 flex-1 min-w-0">
-			<button onclick={() => history.back()} class="max-w-fit hover:underline flex gap-3 items-center text-2xl font-bold truncate min-w-0">
+			<button onclick={() => history.back()} class="max-w-fit hover:underline flex gap-3.5 items-center text-xl font-bold truncate min-w-0">
 				{#if backIcon}
 					<img src={backIcon} alt="" class="size-5.5 mt-1 shrink-0" />
 				{/if}
@@ -241,7 +241,7 @@
 				</button>
 			</div>
 		{:else}
-			<div class="group text-2xl font-bold flex-1 min-w-0 flex gap-3 items-center">
+			<div class="group text-xl font-bold flex-1 min-w-0 flex gap-3.5 items-center">
 				{#if selectedFeedNode?.iconData}
 					<img src={selectedFeedNode.iconData} alt="" class="size-5.5 shrink-0 mt-1" />
 				{/if}
