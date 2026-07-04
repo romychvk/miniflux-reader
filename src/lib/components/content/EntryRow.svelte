@@ -193,7 +193,7 @@
             </div>
             {#if thumbnailUrl}
       		    <div
-      		    	class="relative shrink-0 w-56 max-h-[150px] mt-1 rounded overflow-hidden bg-n-100 flex items-center justify-center"
+      		    	class="relative self-start shrink-0 w-56 max-h-[150px] mt-1 rounded overflow-hidden bg-n-100 flex items-center justify-center"
       		    >
        					<!-- blurred backdrop: only fills the side gaps of a portrait image; a full-width
        					     landscape image covers it entirely, so no top/bottom bars ever show -->
