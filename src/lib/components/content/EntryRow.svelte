@@ -193,10 +193,10 @@
             </div>
             {#if thumbnailUrl}
       		    <div
-      		    	class="relative shrink-0 w-56 mt-1 rounded overflow-hidden bg-n-100"
-      		    	style="aspect-ratio: {boxAspect}"
+      		    	class="relative shrink-0 w-56 max-h-[150px] mt-1 rounded overflow-hidden bg-n-100 flex items-center justify-center"
       		    >
-       					<!-- blurred backdrop: same image, enlarged + blurred to fill letterbox bars -->
+       					<!-- blurred backdrop: only fills the side gaps of a portrait image; a full-width
+       					     landscape image covers it entirely, so no top/bottom bars ever show -->
        					<img
         						src={thumbnailUrl}
         						alt=""
@@ -204,13 +204,13 @@
         						class="absolute inset-0 w-full h-full object-cover scale-110 blur brightness-70"
         						loading="lazy"
        					/>
-       					<!-- full image, never cropped; its real ratio tunes the box for this view -->
+       					<!-- full image, never cropped; width caps at 224px (w-56), height caps at 150px so
+       					     tall images stay compact and the box hugs the rendered image height -->
        					<img
         						src={thumbnailUrl}
         						alt=""
-        						class="relative w-full h-full object-contain"
+        						class="relative block max-h-[150px] max-w-full w-auto"
         						loading="lazy"
-        						onload={recordAspect}
        					/>
       				</div>
        			{/if}
