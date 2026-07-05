@@ -24,6 +24,7 @@
 		type DedupMode
 	} from '$lib/dedup';
 	import { COVER_STORAGE_PREFIX, asCoverRule } from '$lib/cover';
+	import { USER_AGENT_PRESETS, CUSTOM_UA, matchUserAgentPreset } from '$lib/userAgent';
 	import AiRuleAssistant from './AiRuleAssistant.svelte';
 
 	let { feed }: { feed: Feed } = $props();
@@ -32,6 +33,7 @@
 
 	const navItems = [
 		{ id: 'general', label: 'General' },
+		{ id: 'network', label: 'Network Settings' },
 		{ id: 'rss-bridge', label: 'RSS-Bridge' },
 		{ id: 'original-content', label: 'Original Content' },
 		{ id: 'cover-image', label: 'Cover Image' },
@@ -62,7 +64,8 @@
 		blocklist_rules: feed.blocklist_rules ?? '',
 		keeplist_rules: feed.keeplist_rules ?? '',
 		disabled: feed.disabled ?? false,
-		ignore_http_cache: feed.ignore_http_cache ?? false
+		ignore_http_cache: feed.ignore_http_cache ?? false,
+		user_agent: feed.user_agent ?? ''
 	};
 	let title = $state(initial.title);
 	let siteUrl = $state(initial.site_url);
@@ -74,6 +77,15 @@
 	let keeplistRules = $state(initial.keeplist_rules);
 	let disabled = $state(initial.disabled);
 	let ignoreHttpCache = $state(initial.ignore_http_cache);
+	let userAgent = $state(initial.user_agent);
+
+	// Which preset the current UA string maps to (drives the selector); typing a
+	// value not in the list resolves to CUSTOM_UA, flipping the select to "Custom…".
+	const uaPreset = $derived(matchUserAgentPreset(userAgent));
+	function applyUaPreset(choice: string) {
+		if (choice === CUSTOM_UA) return; // keep whatever's already in the field
+		userAgent = choice; // the preset's value ('' for the Miniflux default)
+	}
 
 	// --- RSS-Bridge block -------------------------------------------------------------
 	// The feed's URL may be an RSS-Bridge wrapper. We decompose it into editable parts and
@@ -222,7 +234,8 @@
 		blocklistRules !== initial.blocklist_rules ||
 		keeplistRules !== initial.keeplist_rules ||
 		disabled !== initial.disabled ||
-		ignoreHttpCache !== initial.ignore_http_cache
+		ignoreHttpCache !== initial.ignore_http_cache ||
+		userAgent !== initial.user_agent
 	);
 
 	function computeChanges(): FeedUpdate {
@@ -238,6 +251,7 @@
 		if (keeplistRules !== initial.keeplist_rules) changes.keeplist_rules = keeplistRules;
 		if (disabled !== initial.disabled) changes.disabled = disabled;
 		if (ignoreHttpCache !== initial.ignore_http_cache) changes.ignore_http_cache = ignoreHttpCache;
+		if (userAgent !== initial.user_agent) changes.user_agent = userAgent;
 		return changes;
 	}
 
@@ -268,7 +282,8 @@
 			blocklist_rules: blocklistRules,
 			keeplist_rules: keeplistRules,
 			disabled,
-			ignore_http_cache: ignoreHttpCache
+			ignore_http_cache: ignoreHttpCache,
+			user_agent: userAgent
 		});
 		initialRssSignature = rssSignature;
 	}
@@ -468,6 +483,41 @@
 			</div>
 
 
+		</section>
+
+		<!-- Network -->
+		<section id="network" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
+			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Network Settings</h3>
+			<div>
+				<label for="feed-user-agent" class="mb-1 block text-sm font-medium text-n-700">User Agent</label>
+				<div class="flex flex-col gap-2">
+					<select
+						aria-label="User Agent preset"
+						value={uaPreset}
+						onchange={(e) => applyUaPreset(e.currentTarget.value)}
+						class="w-full shrink-0 rounded-md border border-n-300 bg-surface px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 max-w-fit"
+					>
+						{#each USER_AGENT_PRESETS as p (p.label)}
+							<option value={p.value}>{p.label}</option>
+						{/each}
+						<option value={CUSTOM_UA}>Custom…</option>
+					</select>
+					<textarea
+						id="feed-user-agent"
+						bind:value={userAgent}
+						rows="2"
+						spellcheck="false"
+						placeholder="Leave empty to use the Miniflux default"
+						class="min-w-0 w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-xs break-all focus:outline-none focus:ring-2 focus:ring-n-400"
+					></textarea>
+				</div>
+				<p class="mt-1 text-xs text-n-500">
+					Overrides the User-Agent Miniflux sends when fetching this feed (its
+					<em>Override Default User Agent</em> setting). Empty uses the server default. Some sites
+					(e.g. <code>reddit.com</code>) rate-limit that default with HTTP 429 — pick a preset or
+					enter your own, then save and refresh the feed.
+				</p>
+			</div>
 		</section>
 
 		<!-- RSS-Bridge -->

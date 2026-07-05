@@ -16,6 +16,7 @@ export interface Feed {
 	keeplist_rules?: string;
 	disabled?: boolean;
 	ignore_http_cache?: boolean;
+	user_agent?: string;
 	checked_at?: string;
 	parsing_error_count?: number;
 	parsing_error_message?: string;
@@ -40,6 +41,7 @@ export interface FeedUpdate {
 	keeplist_rules?: string;
 	disabled?: boolean;
 	ignore_http_cache?: boolean;
+	user_agent?: string;
 }
 
 export interface Enclosure {
