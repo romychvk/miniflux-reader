@@ -1,5 +1,6 @@
 import { apiCall } from "$lib/api";
 import type { Entry } from "$lib/types";
+import type { FilterRule } from "$lib/contentFilter";
 import { storageGet, storageGetString, storageSet } from "$lib/storage";
 import {
   dedupeEntries,
@@ -487,6 +488,51 @@ function createEntriesStore() {
     return matches.length;
   }
 
+  // Apply a "mark read" rule set to a feed's whole existing unread backlog (called on save so the
+  // choice takes effect immediately, not just on the next per-page load). Pages through unread
+  // entries, marks matches read in bulk, updates counters, and drops them from the current view.
+  async function applyHideToExisting(
+    feedId: number,
+    rules: FilterRule[],
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<number> {
+    const matchers = compileMatchers(rules);
+    if (matchers.block.length === 0 && matchers.keep.length === 0) return 0;
+
+    const PAGE = 100;
+    const MAX = 5000; // safety bound against runaway backlogs
+    const toMark: number[] = [];
+    let offset = 0;
+    let total = Infinity;
+    while (offset < total && offset < MAX) {
+      const data = await apiCall<{ total: number; entries: Entry[] }>(
+        `feeds/${feedId}/entries?status=unread&order=published_at&direction=desc&limit=${PAGE}&offset=${offset}`,
+      );
+      total = data.total ?? 0;
+      const page = data.entries || [];
+      for (const e of page) if (isEntryHidden(e, matchers)) toMark.push(e.id);
+      offset += PAGE;
+      onProgress?.(Math.min(offset, total), total);
+      if (page.length < PAGE) break;
+    }
+    if (toMark.length === 0) return 0;
+
+    // Mark read in chunks to keep each request modest.
+    const CHUNK = 500;
+    for (let i = 0; i < toMark.length; i += CHUNK) {
+      await apiCall("entries", {
+        method: "PUT",
+        body: JSON.stringify({ entry_ids: toMark.slice(i, i + CHUNK), status: "read" }),
+      });
+    }
+    feeds.updateCounters(feedId, -toMark.length);
+
+    const idset = new Set(toMark);
+    for (const e of entries) if (idset.has(e.id)) e.status = "read";
+    if (!showAll) entries = entries.filter((e) => !idset.has(e.id));
+    return toMark.length;
+  }
+
   function findEntryById(id: number): Entry | null {
     return entries.find((e) => e.id === id) ?? null;
   }
@@ -509,6 +555,7 @@ function createEntriesStore() {
     refetchContent,
     refetchFeedLatest,
     blockExistingMatches,
+    applyHideToExisting,
     initShowAll,
     toggleShowAll,
     setSearchQuery,

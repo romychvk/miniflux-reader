@@ -453,7 +453,18 @@
 		try {
 			await persistChanges(changes);
 			savedAt = Date.now();
-			ui.showSuccess('Feed settings saved.');
+			// In "mark read" mode, apply the rules to the existing backlog right away, so saving the
+			// filter has immediate effect rather than only on the next per-page load.
+			if (isMarkRead && effHideRules.length > 0) {
+				const n = await entries.applyHideToExisting(feed.id, effHideRules);
+				ui.showSuccess(
+					n > 0
+						? `Feed settings saved — marked ${n} existing ${n === 1 ? 'post' : 'posts'} read.`
+						: 'Feed settings saved.'
+				);
+			} else {
+				ui.showSuccess('Feed settings saved.');
+			}
 		} catch {
 			// Error shown by store
 		} finally {
