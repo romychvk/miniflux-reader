@@ -11,6 +11,7 @@
 		FILTER_FIELDS,
 		type FilterField
 	} from '$lib/contentFilter';
+	import { loadFilterAction, appendHideRule } from '$lib/filterHide';
 	import { Ban } from 'lucide-svelte';
 
 	let { seed }: { seed: FilterSeed } = $props();
@@ -34,9 +35,15 @@
 		if (!term) return;
 		saving = true;
 		try {
-			const feed = feeds.getRawFeed(seed.feedId);
-			const updated = appendFieldRule(feed?.block_filter_entry_rules ?? '', field, term);
-			await feeds.updateFeed(seed.feedId, { block_filter_entry_rules: updated });
+			// Honour the feed's filter action: 'mark-read' keeps the rule client-side (localStorage),
+			// 'block' writes a Miniflux server rule. Either way we can hide already-downloaded matches.
+			if (loadFilterAction(seed.feedId) === 'mark-read') {
+				appendHideRule(seed.feedId, { list: 'block', field, mode: 'contains', value: term });
+			} else {
+				const feed = feeds.getRawFeed(seed.feedId);
+				const updated = appendFieldRule(feed?.block_filter_entry_rules ?? '', field, term);
+				await feeds.updateFeed(seed.feedId, { block_filter_entry_rules: updated });
+			}
 
 			let hidden = 0;
 			if (hideExisting)

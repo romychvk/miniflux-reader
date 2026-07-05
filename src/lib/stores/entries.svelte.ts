@@ -14,6 +14,13 @@ import {
   COVER_STORAGE_PREFIX,
   type CoverRule,
 } from "$lib/cover";
+import {
+  loadFilterAction,
+  loadHideRules,
+  compileMatchers,
+  isEntryHidden,
+  type HideMatchers,
+} from "$lib/filterHide";
 import { feeds } from "./feeds.svelte";
 import { ui } from "./ui.svelte";
 
@@ -191,9 +198,8 @@ function createEntriesStore() {
         }
         return m;
       };
-      entries = dedupeEntries(
-        enrichEntries(data.entries || [], loadCoverRule),
-        modeFor,
+      entries = applyClientHide(
+        dedupeEntries(enrichEntries(data.entries || [], loadCoverRule), modeFor),
       );
 
       // Eagerly resolve covers for the newest rule-based entries so setting/changing a
@@ -209,6 +215,55 @@ function createEntriesStore() {
       entries = [];
     } finally {
       if (!signal.aborted) loading = false;
+    }
+  }
+
+  // For feeds set to "hide (mark read)", mirror Miniflux's block/keep semantics on the client:
+  // mark matching unread entries read (so they leave the unread view and the counters stay in
+  // sync) and drop them from the current list. Only runs in the unread view — "show all" stays a
+  // full, recoverable view. Marking is fired in the background; the list is filtered immediately.
+  function applyClientHide(list: Entry[]): Entry[] {
+    if (showAll) return list;
+    const matchersByFeed = new Map<number, HideMatchers | null>();
+    const matchersFor = (feedId: number): HideMatchers | null => {
+      if (matchersByFeed.has(feedId)) return matchersByFeed.get(feedId)!;
+      const m =
+        loadFilterAction(feedId) === "mark-read"
+          ? compileMatchers(loadHideRules(feedId))
+          : null;
+      matchersByFeed.set(feedId, m);
+      return m;
+    };
+
+    const visible: Entry[] = [];
+    const hiddenIds: number[] = [];
+    for (const e of list) {
+      const m = matchersFor(e.feed.id);
+      if (m && isEntryHidden(e, m)) {
+        if (e.status === "unread") hiddenIds.push(e.id);
+        continue;
+      }
+      visible.push(e);
+    }
+    if (hiddenIds.length) void hideMatchedEntries(hiddenIds, list);
+    return visible;
+  }
+
+  async function hideMatchedEntries(ids: number[], list: Entry[]): Promise<void> {
+    try {
+      await apiCall("entries", {
+        method: "PUT",
+        body: JSON.stringify({ entry_ids: ids, status: "read" }),
+      });
+      for (const id of ids) {
+        const e = list.find((x) => x.id === id);
+        if (e && e.status === "unread") {
+          e.status = "read";
+          feeds.updateCounters(e.feed.id, -1);
+        }
+      }
+    } catch {
+      // Best-effort: on failure the entries simply stay unread and reappear next load.
     }
   }
 
