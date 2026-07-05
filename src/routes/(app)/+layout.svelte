@@ -13,6 +13,7 @@
 	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
 	import Lightbox from '$lib/components/ui/Lightbox.svelte';
+	import FilterCreateModal from '$lib/components/ui/FilterCreateModal.svelte';
 
 	let { children } = $props();
 	let ready = $state(false);
@@ -68,4 +69,9 @@
 	</div>
 	<Toast />
 	<Lightbox />
+	{#if ui.filterSeed}
+		{#key ui.filterSeed}
+			<FilterCreateModal seed={ui.filterSeed} />
+		{/key}
+	{/if}
 {/if}

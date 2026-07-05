@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, RotateCw, ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { X, RotateCw, ChevronLeft, ChevronRight, Ban } from 'lucide-svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import type { Entry } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -188,10 +188,17 @@
 			<span>{entry.author}</span>
 		{/if}
 		<button
+			onclick={() => ui.openFilterModal({ feedId: entry.feed.id, feedTitle: entry.feed.title, seedTitle: entry.title })}
+			title="Ignore posts like this"
+			class="ml-auto shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors"
+		>
+			<Ban size={14} />
+		</button>
+		<button
 			onclick={refetch}
 			disabled={refetching}
 			title="Re-fetch original content (applies the feed's rules)"
-			class="ml-auto shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors disabled:opacity-50"
+			class="shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors disabled:opacity-50"
 		>
 			<RotateCw size={14} class={refetching ? 'animate-spin' : ''} />
 		</button>

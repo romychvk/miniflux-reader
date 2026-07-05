@@ -331,6 +331,8 @@ function createFeedsStore() {
 				if (changes.rewrite_rules !== undefined) raw.rewrite_rules = changes.rewrite_rules;
 					if (changes.blocklist_rules !== undefined) raw.blocklist_rules = changes.blocklist_rules;
 					if (changes.keeplist_rules !== undefined) raw.keeplist_rules = changes.keeplist_rules;
+					if (changes.block_filter_entry_rules !== undefined) raw.block_filter_entry_rules = changes.block_filter_entry_rules;
+					if (changes.keep_filter_entry_rules !== undefined) raw.keep_filter_entry_rules = changes.keep_filter_entry_rules;
 					if (changes.disabled !== undefined) raw.disabled = changes.disabled;
 					if (changes.ignore_http_cache !== undefined) raw.ignore_http_cache = changes.ignore_http_cache;
 			}

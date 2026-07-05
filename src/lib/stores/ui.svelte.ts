@@ -15,6 +15,13 @@ const MIN_ARTICLE_PANEL_WIDTH = 300;
 const MIN_ENTRY_LIST_WIDTH = 320;
 const AUTO_MARK_READ_KEY = 'autoMarkReadOnScroll';
 
+// Seed for the "Ignore posts like this" quick-filter modal, opened from an article/list entry.
+export interface FilterSeed {
+	feedId: number;
+	feedTitle: string;
+	seedTitle: string;
+}
+
 type LayoutMode = 'two-column' | 'three-column' | 'expanded';
 const LAYOUT_MODES: LayoutMode[] = ['two-column', 'three-column', 'expanded'];
 type ViewMode = 'list' | 'magazine' | 'cards';
@@ -37,6 +44,7 @@ function createUI() {
 	let markReadSuppressedUntil = 0;
 	let lightboxImages = $state<string[]>([]);
 	let lightboxIndex = $state(0);
+	let filterSeed = $state<FilterSeed | null>(null);
 
 	function initAutoMarkRead() {
 		const saved = storageGetString(AUTO_MARK_READ_KEY);
@@ -126,6 +134,14 @@ function createUI() {
 			lightboxIndex = (lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length;
 	}
 
+	function openFilterModal(seed: FilterSeed) {
+		filterSeed = seed;
+	}
+
+	function closeFilterModal() {
+		filterSeed = null;
+	}
+
 	function initLayoutMode() {
 		const saved = storageGetString(LAYOUT_MODE_KEY);
 		if (saved && LAYOUT_MODES.includes(saved as LayoutMode)) layoutMode = saved as LayoutMode;
@@ -189,6 +205,9 @@ function createUI() {
 		get lightboxImage() { return lightboxImages[lightboxIndex] ?? null; },
 		get lightboxIndex() { return lightboxIndex; },
 		get lightboxCount() { return lightboxImages.length; },
+		get filterSeed() { return filterSeed; },
+		openFilterModal,
+		closeFilterModal,
 		selectFeed,
 		selectEntry,
 		openLightbox,

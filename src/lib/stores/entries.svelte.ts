@@ -399,6 +399,39 @@ function createEntriesStore() {
     return { total, ok, failed: errors.length, errors };
   }
 
+  // Give a just-added block rule immediate effect: Miniflux's filter only discards *future*
+  // entries, so already-downloaded matches would linger. Fetch the feed's unread entries, match
+  // the (client-side) regex against the same field Miniflux would, mark the hits read, drop them
+  // from the current view, and fix the counters. Returns how many were hidden.
+  async function blockExistingMatches(
+    feedId: number,
+    field: "title" | "content" | "url" | "author",
+    re: RegExp | null,
+  ): Promise<number> {
+    if (!re) return 0;
+    const data = await apiCall<{ entries: Entry[] }>(
+      `feeds/${feedId}/entries?status=unread&limit=100`,
+    );
+    const fieldValue = (e: Entry): string =>
+      field === "title" ? e.title
+      : field === "content" ? e.content
+      : field === "url" ? e.url
+      : e.author;
+    const matches = (data.entries || []).filter((e) => re.test(fieldValue(e) ?? ""));
+    if (matches.length === 0) return 0;
+
+    const ids = matches.map((e) => e.id);
+    await apiCall("entries", {
+      method: "PUT",
+      body: JSON.stringify({ entry_ids: ids, status: "read" }),
+    });
+    feeds.updateCounters(feedId, -matches.length);
+
+    const idset = new Set(ids);
+    entries = entries.filter((e) => !idset.has(e.id));
+    return matches.length;
+  }
+
   function findEntryById(id: number): Entry | null {
     return entries.find((e) => e.id === id) ?? null;
   }
@@ -420,6 +453,7 @@ function createEntriesStore() {
     markRead,
     refetchContent,
     refetchFeedLatest,
+    blockExistingMatches,
     initShowAll,
     toggleShowAll,
     setSearchQuery,

@@ -25,6 +25,7 @@
 	} from '$lib/dedup';
 	import { COVER_STORAGE_PREFIX, asCoverRule } from '$lib/cover';
 	import { USER_AGENT_PRESETS, CUSTOM_UA, matchUserAgentPreset } from '$lib/userAgent';
+	import { parseRules, compileRules, FILTER_FIELDS, type FilterRule, type FilterField } from '$lib/contentFilter';
 	import AiRuleAssistant from './AiRuleAssistant.svelte';
 
 	let { feed }: { feed: Feed } = $props();
@@ -63,6 +64,8 @@
 		rewrite_rules: feed.rewrite_rules ?? '',
 		blocklist_rules: feed.blocklist_rules ?? '',
 		keeplist_rules: feed.keeplist_rules ?? '',
+		block_filter_entry_rules: feed.block_filter_entry_rules ?? '',
+		keep_filter_entry_rules: feed.keep_filter_entry_rules ?? '',
 		disabled: feed.disabled ?? false,
 		ignore_http_cache: feed.ignore_http_cache ?? false,
 		user_agent: feed.user_agent ?? ''
@@ -73,8 +76,6 @@
 	let crawler = $state(initial.crawler);
 	let scraperRules = $state(initial.scraper_rules);
 	let rewriteRules = $state(initial.rewrite_rules);
-	let blocklistRules = $state(initial.blocklist_rules);
-	let keeplistRules = $state(initial.keeplist_rules);
 	let disabled = $state(initial.disabled);
 	let ignoreHttpCache = $state(initial.ignore_http_cache);
 	let userAgent = $state(initial.user_agent);
@@ -85,6 +86,75 @@
 	function applyUaPreset(choice: string) {
 		if (choice === CUSTOM_UA) return; // keep whatever's already in the field
 		userAgent = choice; // the preset's value ('' for the Miniflux default)
+	}
+
+	// --- Content filters (Miniflux field-scoped block/keep rules, friendly builder) ---------
+	// We edit filters as simple rows and compile to block_filter_entry_rules / keep_filter_entry_rules
+	// (one `EntryField=regex` line each). Field rows that can't be shown simply (unknown field like
+	// EntryTag/EntryDate) drop the group into a raw-textarea escape hatch. A legacy single-regex
+	// blocklist/keeplist is migrated into Title rows on load and cleared on save.
+	// svelte-ignore state_referenced_locally
+	const parsedFilters = parseRules(initial);
+	let blockRows = $state<FilterRule[]>(
+		parsedFilters.blockClean ? parsedFilters.rules.filter((r) => r.list === 'block') : []
+	);
+	let keepRows = $state<FilterRule[]>(
+		parsedFilters.keepClean ? parsedFilters.rules.filter((r) => r.list === 'keep') : []
+	);
+	let blockRaw = $state(!parsedFilters.blockClean);
+	let keepRaw = $state(!parsedFilters.keepClean);
+	// Raw-mode textareas hold the field-filter text (source of truth only while in raw mode).
+	let blockFilterText = $state(initial.block_filter_entry_rules);
+	let keepFilterText = $state(initial.keep_filter_entry_rules);
+
+	const compiledFilters = $derived(compileRules([...blockRows, ...keepRows]));
+	const effBlockFilter = $derived(blockRaw ? blockFilterText : compiledFilters.block_filter_entry_rules);
+	const effKeepFilter = $derived(keepRaw ? keepFilterText : compiledFilters.keep_filter_entry_rules);
+	// Legacy single-regex fields: cleared once migrated into rows (simple mode); preserved untouched
+	// while the group stays in raw mode.
+	const effBlocklist = $derived(blockRaw ? initial.blocklist_rules : '');
+	const effKeeplist = $derived(keepRaw ? initial.keeplist_rules : '');
+
+	function addBlockRow() {
+		blockRows = [...blockRows, { list: 'block', field: 'title', mode: 'contains', value: '' }];
+	}
+	function addKeepRow() {
+		keepRows = [...keepRows, { list: 'keep', field: 'title', mode: 'contains', value: '' }];
+	}
+	function removeBlockRow(i: number) {
+		blockRows = blockRows.filter((_, idx) => idx !== i);
+	}
+	function removeKeepRow(i: number) {
+		keepRows = keepRows.filter((_, idx) => idx !== i);
+	}
+
+	function toggleBlockRaw() {
+		if (!blockRaw) {
+			blockFilterText = compiledFilters.block_filter_entry_rules; // seed the textarea from the rows
+			blockRaw = true;
+		} else {
+			const p = parseRules({ block_filter_entry_rules: blockFilterText });
+			if (p.blockClean) {
+				blockRows = p.rules.filter((r) => r.list === 'block');
+				blockRaw = false;
+			} else {
+				ui.showError('These rules use fields the simple editor can’t show (e.g. EntryTag/EntryDate) — keep editing them here.');
+			}
+		}
+	}
+	function toggleKeepRaw() {
+		if (!keepRaw) {
+			keepFilterText = compiledFilters.keep_filter_entry_rules;
+			keepRaw = true;
+		} else {
+			const p = parseRules({ keep_filter_entry_rules: keepFilterText });
+			if (p.keepClean) {
+				keepRows = p.rules.filter((r) => r.list === 'keep');
+				keepRaw = false;
+			} else {
+				ui.showError('These rules use fields the simple editor can’t show (e.g. EntryTag/EntryDate) — keep editing them here.');
+			}
+		}
 	}
 
 	// --- RSS-Bridge block -------------------------------------------------------------
@@ -231,8 +301,10 @@
 		crawler !== initial.crawler ||
 		scraperRules !== initial.scraper_rules ||
 		rewriteRules !== initial.rewrite_rules ||
-		blocklistRules !== initial.blocklist_rules ||
-		keeplistRules !== initial.keeplist_rules ||
+		effBlockFilter !== initial.block_filter_entry_rules ||
+		effKeepFilter !== initial.keep_filter_entry_rules ||
+		effBlocklist !== initial.blocklist_rules ||
+		effKeeplist !== initial.keeplist_rules ||
 		disabled !== initial.disabled ||
 		ignoreHttpCache !== initial.ignore_http_cache ||
 		userAgent !== initial.user_agent
@@ -247,8 +319,10 @@
 		if (crawler !== initial.crawler) changes.crawler = crawler;
 		if (scraperRules !== initial.scraper_rules) changes.scraper_rules = scraperRules;
 		if (rewriteRules !== initial.rewrite_rules) changes.rewrite_rules = rewriteRules;
-		if (blocklistRules !== initial.blocklist_rules) changes.blocklist_rules = blocklistRules;
-		if (keeplistRules !== initial.keeplist_rules) changes.keeplist_rules = keeplistRules;
+		if (effBlockFilter !== initial.block_filter_entry_rules) changes.block_filter_entry_rules = effBlockFilter;
+		if (effKeepFilter !== initial.keep_filter_entry_rules) changes.keep_filter_entry_rules = effKeepFilter;
+		if (effBlocklist !== initial.blocklist_rules) changes.blocklist_rules = effBlocklist;
+		if (effKeeplist !== initial.keeplist_rules) changes.keeplist_rules = effKeeplist;
 		if (disabled !== initial.disabled) changes.disabled = disabled;
 		if (ignoreHttpCache !== initial.ignore_http_cache) changes.ignore_http_cache = ignoreHttpCache;
 		if (userAgent !== initial.user_agent) changes.user_agent = userAgent;
@@ -279,12 +353,17 @@
 			crawler,
 			scraper_rules: scraperRules,
 			rewrite_rules: rewriteRules,
-			blocklist_rules: blocklistRules,
-			keeplist_rules: keeplistRules,
+			block_filter_entry_rules: effBlockFilter,
+			keep_filter_entry_rules: effKeepFilter,
+			blocklist_rules: effBlocklist,
+			keeplist_rules: effKeeplist,
 			disabled,
 			ignore_http_cache: ignoreHttpCache,
 			user_agent: userAgent
 		});
+		// Keep the raw-mode textareas coherent with what was saved.
+		blockFilterText = effBlockFilter;
+		keepFilterText = effKeepFilter;
 		initialRssSignature = rssSignature;
 	}
 
@@ -800,52 +879,167 @@
 					<label for="feed-ignore-cache" class="text-sm text-n-700">Ignore HTTP cache (always re-download)</label>
 				</div>
 
+				<!-- Content filters — friendly builder over Miniflux field-scoped block/keep rules.
+				     Each row targets one field (title, content, link, author). Rules using fields the
+				     simple editor can't show (EntryTag/EntryDate) fall back to a raw textarea. -->
 				<div>
-					<label for="feed-blocklist" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
-						Block Rules
-						<a
-							href="https://miniflux.app/docs/rules.html#blocklist-rules"
-							target="_blank"
-							rel="noopener noreferrer"
-							title="Miniflux documentation"
-							class="text-a-600 hover:text-a-700"
-						>
-							<ExternalLink class="h-3.5 w-3.5" />
-						</a>
-					</label>
-					<textarea
-						id="feed-blocklist"
-						bind:value={blocklistRules}
-						rows="2"
-						spellcheck="false"
-						placeholder="(?i)sponsored|advertisement"
-						class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					></textarea>
-					<p class="mt-1 text-xs text-n-500">Regex on entry title/URL/author. Matching entries are discarded.</p>
+					<div class="mb-1 flex items-center justify-between">
+						<span class="flex items-center gap-1.5 text-sm font-medium text-n-700">
+							Ignore posts
+							<a
+								href="https://miniflux.app/docs/rules.html#filtering-rules"
+								target="_blank"
+								rel="noopener noreferrer"
+								title="Miniflux documentation"
+								class="text-a-600 hover:text-a-700"
+							>
+								<ExternalLink class="h-3.5 w-3.5" />
+							</a>
+						</span>
+						<button type="button" onclick={toggleBlockRaw} class="text-xs text-a-600 hover:text-a-700">
+							{blockRaw ? 'Simple filters' : 'Edit as rules'}
+						</button>
+					</div>
+					{#if blockRaw}
+						<textarea
+							id="feed-blocklist"
+							bind:value={blockFilterText}
+							rows="3"
+							spellcheck="false"
+							placeholder="EntryTitle=(?i)sponsored&#10;EntryContent=(?i)advertisement"
+							class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+						></textarea>
+					{:else}
+						<div class="space-y-2">
+							{#each blockRows as rule, i (i)}
+								<div class="flex items-center gap-2">
+									<select
+										bind:value={rule.field}
+										aria-label="Field"
+										class="shrink-0 rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+									>
+										{#each FILTER_FIELDS as f (f.value)}
+											<option value={f.value}>{f.label}</option>
+										{/each}
+									</select>
+									<select
+										bind:value={rule.mode}
+										aria-label="Match mode"
+										class="shrink-0 rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+									>
+										<option value="contains">contains</option>
+										<option value="regex">regex</option>
+									</select>
+									<input
+										type="text"
+										bind:value={rule.value}
+										spellcheck="false"
+										placeholder="Gamesblender"
+										class="min-w-0 flex-1 rounded-md border border-n-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+									/>
+									<button
+										type="button"
+										onclick={() => removeBlockRow(i)}
+										title="Remove filter"
+										class="shrink-0 rounded-md p-1.5 text-n-400 hover:bg-n-100 hover:text-n-700"
+									>
+										<X class="h-4 w-4" />
+									</button>
+								</div>
+							{/each}
+							<button
+								type="button"
+								onclick={addBlockRow}
+								class="inline-flex items-center gap-1 rounded-md border border-n-300 px-2 py-1 text-xs text-n-700 hover:bg-n-100"
+							>
+								<Plus class="h-3.5 w-3.5" /> Add filter
+							</button>
+						</div>
+					{/if}
+					<p class="mt-1 text-xs text-n-500">
+						Discards new entries matching any rule. Each rule checks a single field;
+						<em>contains</em> is plain, case-insensitive text.
+					</p>
 				</div>
 
 				<div>
-					<label for="feed-keeplist" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
-						Keep Rules
-						<a
-							href="https://miniflux.app/docs/rules.html#keeplist-rules"
-							target="_blank"
-							rel="noopener noreferrer"
-							title="Miniflux documentation"
-							class="text-a-600 hover:text-a-700"
-						>
-							<ExternalLink class="h-3.5 w-3.5" />
-						</a>
-					</label>
-					<textarea
-						id="feed-keeplist"
-						bind:value={keeplistRules}
-						rows="2"
-						spellcheck="false"
-						placeholder="(?i)svelte|typescript"
-						class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					></textarea>
-					<p class="mt-1 text-xs text-n-500">Regex on entry title/URL/author. Only matching entries are kept.</p>
+					<div class="mb-1 flex items-center justify-between">
+						<span class="flex items-center gap-1.5 text-sm font-medium text-n-700">
+							Keep only posts
+							<a
+								href="https://miniflux.app/docs/rules.html#filtering-rules"
+								target="_blank"
+								rel="noopener noreferrer"
+								title="Miniflux documentation"
+								class="text-a-600 hover:text-a-700"
+							>
+								<ExternalLink class="h-3.5 w-3.5" />
+							</a>
+						</span>
+						<button type="button" onclick={toggleKeepRaw} class="text-xs text-a-600 hover:text-a-700">
+							{keepRaw ? 'Simple filters' : 'Edit as rules'}
+						</button>
+					</div>
+					{#if keepRaw}
+						<textarea
+							id="feed-keeplist"
+							bind:value={keepFilterText}
+							rows="3"
+							spellcheck="false"
+							placeholder="EntryTitle=(?i)svelte&#10;EntryContent=(?i)typescript"
+							class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+						></textarea>
+					{:else}
+						<div class="space-y-2">
+							{#each keepRows as rule, i (i)}
+								<div class="flex items-center gap-2">
+									<select
+										bind:value={rule.field}
+										aria-label="Field"
+										class="shrink-0 rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+									>
+										{#each FILTER_FIELDS as f (f.value)}
+											<option value={f.value}>{f.label}</option>
+										{/each}
+									</select>
+									<select
+										bind:value={rule.mode}
+										aria-label="Match mode"
+										class="shrink-0 rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+									>
+										<option value="contains">contains</option>
+										<option value="regex">regex</option>
+									</select>
+									<input
+										type="text"
+										bind:value={rule.value}
+										spellcheck="false"
+										placeholder="svelte"
+										class="min-w-0 flex-1 rounded-md border border-n-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+									/>
+									<button
+										type="button"
+										onclick={() => removeKeepRow(i)}
+										title="Remove filter"
+										class="shrink-0 rounded-md p-1.5 text-n-400 hover:bg-n-100 hover:text-n-700"
+									>
+										<X class="h-4 w-4" />
+									</button>
+								</div>
+							{/each}
+							<button
+								type="button"
+								onclick={addKeepRow}
+								class="inline-flex items-center gap-1 rounded-md border border-n-300 px-2 py-1 text-xs text-n-700 hover:bg-n-100"
+							>
+								<Plus class="h-3.5 w-3.5" /> Add filter
+							</button>
+						</div>
+					{/if}
+					<p class="mt-1 text-xs text-n-500">
+						When set, keeps only new entries that match (all others are discarded). Leave empty to keep
+						everything.
+					</p>
 				</div>
 			</div>
 		</section>

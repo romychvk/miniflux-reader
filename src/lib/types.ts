@@ -14,6 +14,8 @@ export interface Feed {
 	rewrite_rules?: string;
 	blocklist_rules?: string;
 	keeplist_rules?: string;
+	block_filter_entry_rules?: string;
+	keep_filter_entry_rules?: string;
 	disabled?: boolean;
 	ignore_http_cache?: boolean;
 	user_agent?: string;
@@ -39,6 +41,8 @@ export interface FeedUpdate {
 	rewrite_rules?: string;
 	blocklist_rules?: string;
 	keeplist_rules?: string;
+	block_filter_entry_rules?: string;
+	keep_filter_entry_rules?: string;
 	disabled?: boolean;
 	ignore_http_cache?: boolean;
 	user_agent?: string;

@@ -9,7 +9,9 @@
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
 	import { getScrollDirection, addScrollTracker, removeScrollTracker } from '$lib/scroll';
+	import { Ban, Check, Circle } from 'lucide-svelte';
 	import ArticleView from './ArticleView.svelte';
+	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 
 	let { entry }: { entry: Entry } = $props();
 
@@ -19,6 +21,27 @@
 
 	const isRead = $derived(entry.status === 'read');
 	const isSelected = $derived(ui.selectedEntry?.id === entry.id);
+
+	let menu = $state<{ x: number; y: number } | null>(null);
+
+	function openContextMenu(e: MouseEvent) {
+		e.preventDefault();
+		menu = { x: e.clientX, y: e.clientY };
+	}
+
+	const menuItems = $derived([
+		{
+			label: 'Ignore posts like this…',
+			icon: Ban,
+			action: () =>
+				ui.openFilterModal({ feedId: entry.feed.id, feedTitle: entry.feed.title, seedTitle: entry.title })
+		},
+		{
+			label: isRead ? 'Mark as unread' : 'Mark as read',
+			icon: isRead ? Circle : Check,
+			action: () => entries.markRead([entry.id], !isRead)
+		}
+	]);
 
 	const viewMode = $derived(ui.viewMode);
 
@@ -106,6 +129,7 @@
 		<div
 			class="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-n-200 {isSelected ? 'bg-a-50' : ''}"
 			onclick={openArticle}
+			oncontextmenu={openContextMenu}
 			role="button"
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && openArticle()}
@@ -153,6 +177,7 @@
 		<div
 			class="flex items-start gap-4 px-4 py-3 cursor-pointer hover:bg-n-50 transition-colors {isSelected ? 'bg-a-50' : ''}"
 			onclick={openArticle}
+			oncontextmenu={openContextMenu}
 			role="button"
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && openArticle()}
@@ -229,6 +254,7 @@
 		use:autoMarkRead
 		class="rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 bg-n-100 hover:bg-surface hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''}"
 		onclick={openArticle}
+		oncontextmenu={openContextMenu}
 		role="button"
 		tabindex="0"
 		onkeydown={(e) => e.key === 'Enter' && openArticle()}
@@ -296,4 +322,8 @@
 	<div class="{viewMode === 'cards' ? 'col-span-full' : 'border-b border-n-100'} bg-surface">
 		<ArticleView {entry} onClose={() => ui.selectEntry(null)} />
 	</div>
+{/if}
+
+{#if menu}
+	<ContextMenu x={menu.x} y={menu.y} items={menuItems} onclose={() => (menu = null)} />
 {/if}
