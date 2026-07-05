@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X, ExternalLink } from 'lucide-svelte';
+	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X, ExternalLink, ListFilter } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -290,6 +290,15 @@
 				<CheckCheck size={20} />
 			</button>
 			<div class="display-buttons flex items-center gap-1 relative">
+				{#if ui.selectedFeed.isFeed && ui.selectedFeed.id > 0}
+					<button
+						onclick={() => ui.openFiltersPanel(ui.selectedFeed!.id)}
+						title="Filters"
+						class="text-n-700 hover:bg-n-200 p-2 rounded-full"
+					>
+						<ListFilter size={20} />
+					</button>
+				{/if}
 				<button
 					onclick={() => entries.toggleShowAll()}
 					title={entries.showAll ? 'Show unread only' : 'Show all'}

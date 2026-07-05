@@ -45,6 +45,7 @@ function createUI() {
 	let lightboxImages = $state<string[]>([]);
 	let lightboxIndex = $state(0);
 	let filterSeed = $state<FilterSeed | null>(null);
+	let filtersFeedId = $state<number | null>(null);
 
 	function initAutoMarkRead() {
 		const saved = storageGetString(AUTO_MARK_READ_KEY);
@@ -142,6 +143,14 @@ function createUI() {
 		filterSeed = null;
 	}
 
+	function openFiltersPanel(feedId: number) {
+		filtersFeedId = feedId;
+	}
+
+	function closeFiltersPanel() {
+		filtersFeedId = null;
+	}
+
 	function initLayoutMode() {
 		const saved = storageGetString(LAYOUT_MODE_KEY);
 		if (saved && LAYOUT_MODES.includes(saved as LayoutMode)) layoutMode = saved as LayoutMode;
@@ -206,8 +215,11 @@ function createUI() {
 		get lightboxIndex() { return lightboxIndex; },
 		get lightboxCount() { return lightboxImages.length; },
 		get filterSeed() { return filterSeed; },
+		get filtersFeedId() { return filtersFeedId; },
 		openFilterModal,
 		closeFilterModal,
+		openFiltersPanel,
+		closeFiltersPanel,
 		selectFeed,
 		selectEntry,
 		openLightbox,

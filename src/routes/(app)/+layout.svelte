@@ -14,6 +14,7 @@
 	import Toast from '$lib/components/ui/Toast.svelte';
 	import Lightbox from '$lib/components/ui/Lightbox.svelte';
 	import FilterCreateModal from '$lib/components/ui/FilterCreateModal.svelte';
+	import FeedFiltersModal from '$lib/components/ui/FeedFiltersModal.svelte';
 
 	let { children } = $props();
 	let ready = $state(false);
@@ -72,6 +73,11 @@
 	{#if ui.filterSeed}
 		{#key ui.filterSeed}
 			<FilterCreateModal seed={ui.filterSeed} />
+		{/key}
+	{/if}
+	{#if ui.filtersFeedId != null}
+		{#key ui.filtersFeedId}
+			<FeedFiltersModal feedId={ui.filtersFeedId} />
 		{/key}
 	{/if}
 {/if}
