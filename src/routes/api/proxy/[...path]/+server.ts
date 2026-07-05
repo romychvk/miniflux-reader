@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 
-const ALLOWED_METHODS = ['GET', 'PUT', 'POST'];
+const ALLOWED_METHODS = ['GET', 'PUT', 'POST', 'DELETE'];
 
 export const fallback: RequestHandler = async ({ request, params, url }) => {
 	if (!ALLOWED_METHODS.includes(request.method)) {
