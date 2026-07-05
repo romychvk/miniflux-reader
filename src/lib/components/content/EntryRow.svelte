@@ -174,12 +174,11 @@
 				{/if}
 			</button>
 
-			<div class="">
+			<div class="flex-1 min-w-0">
 
-  	    <!-- <div class="flex-1 min-w-0 flex flex-col"> -->
   				<h3 class="leading-snug mb-2 font-bold {isRead ? 'text-n-500' : ''}">{entry.title}</h3>
 
-          <div class="flex gap-4 justify-between">
+          <div class="grow flex gap-4 w-full justify-between">
             <div class="grow">
       				<p class="text-xs text-n-600 mb-2 flex items-center gap-2">
        					{#if feedIcon}
@@ -214,10 +213,7 @@
        					/>
       				</div>
        			{/if}
-
           </div>
-  			<!-- </div> -->
-
 			</div>
 
 
