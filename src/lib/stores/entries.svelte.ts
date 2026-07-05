@@ -47,6 +47,13 @@ function decodeContent(html: string): string {
 
 const domParser = new DOMParser();
 
+// The feed id for a single-feed entries path (`feeds/{id}/entries`), or null for aggregate
+// views ("entries" for All, `categories/{id}/entries` for a category).
+function feedIdFromEntriesPath(apiPath: string): number | null {
+  const m = apiPath.match(/^feeds\/(\d+)\/entries/);
+  return m ? Number(m[1]) : null;
+}
+
 function isPlaceholderUrl(url: string): boolean {
   if (!url) return true;
   if (url.startsWith("data:")) return true; // inline svg/gif placeholders
@@ -199,9 +206,29 @@ function createEntriesStore() {
         }
         return m;
       };
-      entries = applyClientHide(
-        dedupeEntries(enrichEntries(data.entries || [], loadCoverRule), modeFor),
+      const deduped = dedupeEntries(
+        enrichEntries(data.entries || [], loadCoverRule),
+        modeFor,
       );
+
+      // For a single feed set to "hide (mark read)", reconcile the *whole* unread backlog so the
+      // rules apply even when they were imported (Backup & Restore) or the backlog is larger than
+      // one page — this runs on every load of the feed (page refresh, selection, Refresh Feed).
+      // Hide matches from the view instantly; mark them read + fix counters in the background.
+      // (This replaces applyClientHide for that feed so counters aren't decremented twice.)
+      const singleFeedId = feedIdFromEntriesPath(apiPath);
+      if (singleFeedId !== null && loadFilterAction(singleFeedId) === "mark-read") {
+        const rules = loadHideRules(singleFeedId);
+        const matchers = compileMatchers(rules);
+        entries = showAll
+          ? deduped
+          : deduped.filter((e) => !isEntryHidden(e, matchers));
+        void applyHideToExisting(singleFeedId, rules).catch(() => {
+          // Best-effort background reconcile; failures leave the backlog for the next load.
+        });
+      } else {
+        entries = applyClientHide(deduped);
+      }
 
       // Eagerly resolve covers for the newest rule-based entries so setting/changing a
       // feed's cover rule backfills the latest ~25 without needing to scroll each into view.
