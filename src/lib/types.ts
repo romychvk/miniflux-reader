@@ -61,6 +61,7 @@ export interface Entry {
 	author: string;
 	content: string;
 	status: 'unread' | 'read';
+	starred: boolean;
 	published_at: string;
 	feed: Feed;
 	enclosures?: Enclosure[];

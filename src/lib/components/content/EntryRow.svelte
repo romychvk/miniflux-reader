@@ -9,7 +9,7 @@
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
 	import { getScrollDirection, addScrollTracker, removeScrollTracker } from '$lib/scroll';
-	import { Ban, Check, Circle } from 'lucide-svelte';
+	import { Ban, Bookmark, Check, Circle } from 'lucide-svelte';
 	import ArticleView from './ArticleView.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 
@@ -20,6 +20,7 @@
 	let rowEl: HTMLElement | undefined = $state();
 
 	const isRead = $derived(entry.status === 'read');
+	const isStarred = $derived(entry.starred ?? false);
 	const isSelected = $derived(ui.selectedEntry?.id === entry.id);
 
 	let menu = $state<{ x: number; y: number } | null>(null);
@@ -40,6 +41,11 @@
 			label: isRead ? 'Mark as unread' : 'Mark as read',
 			icon: isRead ? Circle : Check,
 			action: () => entries.markRead([entry.id], !isRead)
+		},
+		{
+			label: isStarred ? 'Remove bookmark' : 'Bookmark',
+			icon: Bookmark,
+			action: () => entries.toggleBookmark(entry.id)
 		}
 	]);
 
@@ -70,6 +76,11 @@
 	function toggleRead(e: MouseEvent) {
 		e.stopPropagation();
 		entries.markRead([entry.id], !isRead);
+	}
+
+	function toggleBookmark(e: MouseEvent) {
+		e.stopPropagation();
+		entries.toggleBookmark(entry.id);
 	}
 
 	async function openArticle() {
@@ -164,6 +175,16 @@
 			<span class="text-xs text-n-500 shrink-0">{entry.feed.title}</span>
 			<span class="text-xs text-n-500 shrink-0">&middot;</span>
 			<span class="text-xs text-n-500 shrink-0">{relaTimestamp(entry.published_at)}</span>
+
+			<button
+				type="button"
+				onclick={toggleBookmark}
+				aria-label={isStarred ? 'Remove bookmark' : 'Bookmark'}
+				title={isStarred ? 'Remove bookmark' : 'Bookmark'}
+				class="shrink-0 grid place-items-center size-5 rounded-full cursor-pointer transition-colors {isStarred ? 'text-a-600' : 'text-n-400 hover:text-n-700'}"
+			>
+				<Bookmark size={16} fill={isStarred ? 'currentColor' : 'none'} />
+			</button>
 		</div>
 	</div>
 
@@ -182,22 +203,33 @@
 			tabindex="0"
 			onkeydown={(e) => e.key === 'Enter' && openArticle()}
 		>
-			<button
-				type="button"
-				onclick={toggleRead}
-				aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
-				title={isRead ? 'Mark as unread' : 'Mark as read'}
-				class="shrink-0 grid place-items-center size-5 mt-1 rounded-full cursor-pointer group/dot"
-			>
-				{#if isRead}
-					<span class="block size-4 group-hover/dot:size-[18px] rounded-full border-2 border-n-300 transition-[width,height] duration-150 ease-out"></span>
-				{:else}
-					<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4 group-hover/dot:size-[18px] text-n-700 transition-[width,height] duration-150 ease-out">
-						<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
-						<circle cx="8" cy="8" r="3" fill="currentColor" />
-					</svg>
-				{/if}
-			</button>
+			<div class="shrink-0 flex flex-col items-center gap-2 mt-1">
+				<button
+					type="button"
+					onclick={toggleRead}
+					aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
+					title={isRead ? 'Mark as unread' : 'Mark as read'}
+					class="grid place-items-center size-5 rounded-full cursor-pointer group/dot"
+				>
+					{#if isRead}
+						<span class="block size-4 group-hover/dot:size-[18px] rounded-full border-2 border-n-300 transition-[width,height] duration-150 ease-out"></span>
+					{:else}
+						<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4 group-hover/dot:size-[18px] text-n-700 transition-[width,height] duration-150 ease-out">
+							<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+							<circle cx="8" cy="8" r="3" fill="currentColor" />
+						</svg>
+					{/if}
+				</button>
+				<button
+					type="button"
+					onclick={toggleBookmark}
+					aria-label={isStarred ? 'Remove bookmark' : 'Bookmark'}
+					title={isStarred ? 'Remove bookmark' : 'Bookmark'}
+					class="grid place-items-center size-5 rounded-full cursor-pointer transition-colors {isStarred ? 'text-a-600' : 'text-n-400 hover:text-n-700'}"
+				>
+					<Bookmark size={16} fill={isStarred ? 'currentColor' : 'none'} />
+				</button>
+			</div>
 
 			<div class="flex-1 min-w-0">
 
@@ -297,6 +329,16 @@
   				{/if}
   				{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
    			</p>
+				<div class="shrink-0 flex items-center gap-1">
+					<button
+						type="button"
+						onclick={toggleBookmark}
+						aria-label={isStarred ? 'Remove bookmark' : 'Bookmark'}
+						title={isStarred ? 'Remove bookmark' : 'Bookmark'}
+						class="shrink-0 grid place-items-center size-6 rounded-full cursor-pointer bg-surface/70 backdrop-blur-sm transition-colors {isStarred ? 'text-a-600' : 'text-n-500 hover:text-n-800'}"
+					>
+						<Bookmark size={16} fill={isStarred ? 'currentColor' : 'none'} />
+					</button>
         <button
      			type="button"
      			onclick={toggleRead}
@@ -313,6 +355,7 @@
      				</svg>
      			{/if}
     		</button>
+				</div>
 			</div>
 		</div>
 	</div>

@@ -193,6 +193,10 @@
 		{:else}
 			<!-- Top-level item (All) -->
 			<FeedItem feed={node} />
+			{#if node.id === -1}
+				<!-- Bookmarks (Miniflux starred) pseudo-feed, right under "All" -->
+				<FeedItem feed={feeds.getStarredNode()} />
+			{/if}
 		{/if}
 	{/each}
 	<!-- Category insert line (after last category) -->

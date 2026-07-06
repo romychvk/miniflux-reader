@@ -185,11 +185,14 @@ function createEntriesStore() {
 
     loading = true;
     try {
+      // The Bookmarks view lists starred entries regardless of read state, so
+      // the unread-only default (and per-feed hide rules) must not apply here.
+      const isStarredView = apiPath.includes("starred=true");
       const sep = apiPath.includes("?") ? "&" : "?";
       let params = "";
       if (searchQuery) {
         params = `search=${encodeURIComponent(searchQuery)}&`;
-      } else if (!showAll) {
+      } else if (!showAll && !isStarredView) {
         params = "status=unread&";
       }
       const data = await apiCall<{ total: number; entries: Entry[] }>(
@@ -227,7 +230,7 @@ function createEntriesStore() {
           // Best-effort background reconcile; failures leave the backlog for the next load.
         });
       } else {
-        entries = applyClientHide(deduped);
+        entries = isStarredView ? deduped : applyClientHide(deduped);
       }
 
       // Eagerly resolve covers for the newest rule-based entries so setting/changing a
@@ -334,6 +337,19 @@ function createEntriesStore() {
       }
     } catch (e) {
       ui.showError(e instanceof Error ? e.message : "Failed to update status");
+    }
+  }
+
+  // Toggle an entry's starred/bookmark state. Miniflux's per-entry bookmark
+  // endpoint takes no body and returns 204, flipping the flag server-side — so
+  // we mirror that by flipping the local `starred` after the call succeeds.
+  async function toggleBookmark(entryId: number) {
+    try {
+      await apiCall(`entries/${entryId}/bookmark`, { method: "PUT" });
+      const entry = entries.find((e) => e.id === entryId);
+      if (entry) entry.starred = !entry.starred;
+    } catch (e) {
+      ui.showError(e instanceof Error ? e.message : "Failed to update bookmark");
     }
   }
 
@@ -579,6 +595,7 @@ function createEntriesStore() {
     },
     loadEntries,
     markRead,
+    toggleBookmark,
     refetchContent,
     refetchFeedLatest,
     blockExistingMatches,

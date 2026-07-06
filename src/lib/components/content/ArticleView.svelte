@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, RotateCw, ChevronLeft, ChevronRight, Ban } from 'lucide-svelte';
+	import { X, RotateCw, ChevronLeft, ChevronRight, Ban, Bookmark } from 'lucide-svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import type { Entry } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -193,6 +193,13 @@
 			class="ml-auto shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors"
 		>
 			<Ban size={14} />
+		</button>
+		<button
+			onclick={() => entries.toggleBookmark(entry.id)}
+			title={(entry.starred ?? false) ? 'Remove bookmark' : 'Bookmark'}
+			class="shrink-0 p-1 rounded-md transition-colors {(entry.starred ?? false) ? 'text-a-600 hover:bg-n-100' : 'text-n-400 hover:text-n-700 hover:bg-n-100'}"
+		>
+			<Bookmark size={14} fill={(entry.starred ?? false) ? 'currentColor' : 'none'} />
 		</button>
 		<button
 			onclick={refetch}

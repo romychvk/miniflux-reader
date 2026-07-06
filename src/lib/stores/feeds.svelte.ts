@@ -278,6 +278,22 @@ function createFeedsStore() {
 		return feedTree.find(n => n.id === -1) ?? null;
 	}
 
+	// Bookmarks pseudo-feed (Miniflux "starred"). Kept OUT of feedTree on purpose:
+	// the ordering/DnD/counter code hard-assumes feedTree[0] is the "All" node, so
+	// FeedTree.svelte renders this constant directly instead. Miniflux has no
+	// starred counter, so it never shows an unread badge.
+	const STARRED_NODE: FeedNode = {
+		id: -2,
+		title: 'Bookmarks',
+		apiPath: 'entries?starred=true',
+		isFeed: false,
+		unread: 0
+	};
+
+	function getStarredNode(): FeedNode {
+		return STARRED_NODE;
+	}
+
 	function findFeedNodeById(id: number, isFeed: boolean): FeedNode | null {
 		if (isFeed) return feedIndex.get(id) ?? null;
 		// Category or "All" node — small list, linear scan is fine
@@ -457,6 +473,7 @@ function createFeedsStore() {
 		reorderCategory,
 		moveFeedToCategory,
 		getAllNode,
+		getStarredNode,
 		findFeedNodeById,
 		getRawFeed,
 		getCategories,

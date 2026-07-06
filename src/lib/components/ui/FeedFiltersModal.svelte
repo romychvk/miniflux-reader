@@ -4,7 +4,7 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { storageGetString, storageSet } from '$lib/storage';
-	import { ListFilter, ExternalLink, X, Plus } from 'lucide-svelte';
+	import { Filter, ExternalLink, X, Plus } from 'lucide-svelte';
 	import {
 		DEDUP_STORAGE_PREFIX,
 		DEDUP_OPTIONS,
@@ -231,7 +231,7 @@
 <div class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
 	<div class="bg-surface rounded-lg shadow-xl w-full max-w-lg mx-4 pointer-events-auto flex max-h-[85vh] flex-col">
 		<div class="px-5 py-4 border-b border-n-200 flex items-center gap-2 shrink-0">
-			<ListFilter class="size-5 text-n-500" />
+			<Filter class="size-5 text-n-500" />
 			<h2 class="text-lg font-semibold text-n-800 min-w-0 truncate">
 				Filters{feed ? ` — ${feed.title}` : ''}
 			</h2>

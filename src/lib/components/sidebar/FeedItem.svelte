@@ -84,6 +84,7 @@
 <button
 	onclick={() => {
 		if (feed.id === -1) goto('/');
+		else if (feed.id === -2) goto('/starred');
 		else if (feed.isFeed) goto(`/feed/${makeFeedSlug(feed.id, feed.title)}`);
 		else goto(`/category/${makeFeedSlug(feed.id, feed.title)}`);
 		if (ui.isMobile) ui.toggleSidebar();

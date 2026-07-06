@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X, ExternalLink, ListFilter } from 'lucide-svelte';
+	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X, ExternalLink, Filter } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -117,7 +117,7 @@
 	let showCatEdit = $state(false);
 
 	const showDotMenu = $derived(
-		ui.selectedFeed && ui.selectedFeed.id !== -1
+		ui.selectedFeed && ui.selectedFeed.id !== -1 && ui.selectedFeed.id !== -2
 	);
 
 	function openDotMenu(e: MouseEvent) {
@@ -296,7 +296,7 @@
 						title="Filters"
 						class="text-n-700 hover:bg-n-200 p-2 rounded-full"
 					>
-						<ListFilter size={20} />
+						<Filter size={20} />
 					</button>
 				{/if}
 				<button

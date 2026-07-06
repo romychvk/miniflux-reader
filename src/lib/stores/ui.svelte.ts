@@ -72,6 +72,7 @@ function createUI() {
 
 	function feedStorageKey(feed: FeedNode): string {
 		if (feed.id === -1) return 'all';
+		if (feed.id === -2) return 'starred';
 		return feed.isFeed ? `feed:${feed.id}` : `category:${feed.id}`;
 	}
 
