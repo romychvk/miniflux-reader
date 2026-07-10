@@ -3,6 +3,10 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Sites with hotlink protection (e.g. darkscene.org) reject image requests that
+		     carry a foreign Referer, breaking thumbnails and article images. Suppress it
+		     document-wide: {@html} content images can't take a per-tag referrerpolicy. -->
+		<meta name="referrer" content="no-referrer" />
 		<link rel="icon" href="data:," />
 		<title>Miniflux Reader</title>
 		<script>
