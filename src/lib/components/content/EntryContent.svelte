@@ -82,6 +82,29 @@
     b, strong {
       @apply font-bold;
     }
+    iframe {
+      @apply mb-4;
+    }
+    /* Video embeds carry a fixed width="640" height="360"; max-w-full alone shrinks the
+       width but keeps the height, cropping the player on narrow screens. Scale them
+       proportionally instead. Scoped to video hosts so fixed-height audio players
+       (bandcamp/soundcloud below) keep their own aspect ratio. */
+    iframe[src*="youtube"],
+    iframe[src*="youtu.be"],
+    iframe[src*="vimeo"],
+    iframe[src*="dailymotion"],
+    iframe[src*="dai.ly"],
+    iframe[src*="bilibili"] {
+      @apply w-full h-auto;
+      max-width: 640px;
+      aspect-ratio: 16 / 9;
+    }
+    p:has(iframe[src^="https://bandcamp.com"]) {
+      @apply mb-0;
+      iframe {
+        @apply -mb-2;
+      }
+    }
     /* Відступ зверху для елементів, які знаходяться прямо внутри article.prose */
     & > i,
     & > img,
