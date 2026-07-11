@@ -177,6 +177,17 @@ function createEntriesStore() {
   let showAll = $state(false);
   let searchQuery = $state("");
   let abortController: AbortController | null = null;
+  let cachedUserId: number | null = null;
+
+  // The current Miniflux user id (needed for the All-view mark-all-as-read endpoint).
+  // Fetched once and cached for the session.
+  async function currentUserId(): Promise<number> {
+    if (cachedUserId === null) {
+      const me = await apiCall<{ id: number }>("me");
+      cachedUserId = me.id;
+    }
+    return cachedUserId;
+  }
 
   async function loadEntries(apiPath: string) {
     abortController?.abort();
@@ -337,6 +348,84 @@ function createEntriesStore() {
       }
     } catch (e) {
       ui.showError(e instanceof Error ? e.message : "Failed to update status");
+    }
+  }
+
+  // "Mark all as read" for the current view. The topbar button used to send only the
+  // loaded page (≤100 entries), so a feed with a larger unread backlog was left partly
+  // unread (e.g. 242 → 142). This marks the *entire* scope instead: Miniflux's native
+  // mark-all-as-read endpoints for a feed / category / All (one request, whole backlog),
+  // and a paged sweep for the Bookmarks (starred) and search views those endpoints can't
+  // express. Counters are re-synced from the server afterwards.
+  async function markAllRead(feed: {
+    id: number;
+    isFeed: boolean;
+    apiPath: string;
+  }): Promise<void> {
+    const isStarred = feed.apiPath.includes("starred=true");
+    const searching = searchQuery !== "";
+    try {
+      if (!isStarred && !searching) {
+        if (feed.isFeed) {
+          await apiCall(`feeds/${feed.id}/mark-all-as-read`, { method: "PUT" });
+        } else if (feed.id === -1) {
+          const userId = await currentUserId();
+          await apiCall(`users/${userId}/mark-all-as-read`, { method: "PUT" });
+        } else {
+          await apiCall(`categories/${feed.id}/mark-all-as-read`, {
+            method: "PUT",
+          });
+        }
+      } else {
+        await markAllReadPaged(feed.apiPath);
+      }
+
+      // Reflect it locally: everything unread in the view is now read. In the unread-only
+      // view that empties the list; in show-all / search / Bookmarks the entries stay
+      // visible, just flipped to read.
+      for (const e of entries) if (e.status === "unread") e.status = "read";
+      if (!showAll && !isStarred && !searching) {
+        entries = entries.filter((e) => e.status === "unread");
+      }
+      await feeds.loadCounters();
+    } catch (e) {
+      ui.showError(
+        e instanceof Error ? e.message : "Failed to mark all as read",
+      );
+    }
+  }
+
+  // Page through the current view's unread backlog and mark it read in chunks. Used for the
+  // Bookmarks (starred) and search views, which have no native mark-all-as-read endpoint.
+  async function markAllReadPaged(apiPath: string): Promise<void> {
+    const sep = apiPath.includes("?") ? "&" : "?";
+    const searchParam = searchQuery
+      ? `search=${encodeURIComponent(searchQuery)}&`
+      : "";
+    const PAGE = 100;
+    const MAX = 10000; // safety bound against a runaway sweep
+    const ids: number[] = [];
+    let offset = 0;
+    let total = Infinity;
+    while (offset < total && offset < MAX) {
+      const data = await apiCall<{ total: number; entries: Entry[] }>(
+        `${apiPath}${sep}${searchParam}status=unread&order=published_at&direction=desc&limit=${PAGE}&offset=${offset}`,
+      );
+      total = data.total ?? 0;
+      const page = data.entries || [];
+      for (const e of page) ids.push(e.id);
+      offset += PAGE;
+      if (page.length < PAGE) break;
+    }
+    const CHUNK = 500;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      await apiCall("entries", {
+        method: "PUT",
+        body: JSON.stringify({
+          entry_ids: ids.slice(i, i + CHUNK),
+          status: "read",
+        }),
+      });
     }
   }
 
@@ -595,6 +684,7 @@ function createEntriesStore() {
     },
     loadEntries,
     markRead,
+    markAllRead,
     toggleBookmark,
     refetchContent,
     refetchFeedLatest,

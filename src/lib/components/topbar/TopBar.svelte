@@ -103,11 +103,11 @@
 	const hasUnread = $derived(entries.entries.some(e => e.status === 'unread'));
 
 	async function markAllAsRead() {
-		const unreadIds = entries.entries.filter(e => e.status === 'unread').map(e => e.id);
-		if (unreadIds.length === 0) return;
+		const feed = ui.selectedFeed;
+		if (!feed) return;
 		markingAllRead = true;
 		try {
-			await entries.markRead(unreadIds, true);
+			await entries.markAllRead(feed);
 		} finally {
 			markingAllRead = false;
 		}

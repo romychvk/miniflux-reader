@@ -481,6 +481,7 @@ function createFeedsStore() {
 		updateFeed,
 		deleteFeed,
 		updateCategory,
+		loadCounters,
 		refreshFeed,
 		refreshAllFeeds,
 		refreshCategoryFeeds
