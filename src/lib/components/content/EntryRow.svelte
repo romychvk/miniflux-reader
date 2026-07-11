@@ -234,19 +234,14 @@
 			<div class="flex-1 min-w-0">
 
   				<h3 class="leading-snug mb-2 font-bold {isRead ? 'text-n-500' : ''}">{entry.title}</h3>
+      <p class="text-xs text-n-600 mb-2 flex items-center gap-2">
+   					{#if feedIcon}
+  						<img src={feedIcon} alt="" class="size-3 mt-px shrink-0 {isRead ? 'opacity-80' : ''}" />
+   					{/if}
+   					{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
+  				</p>
 
           <div class="grow flex gap-4 w-full justify-between">
-            <div class="grow">
-      				<p class="text-xs text-n-600 mb-2 flex items-center gap-2">
-       					{#if feedIcon}
-      						<img src={feedIcon} alt="" class="size-3 mt-px shrink-0 {isRead ? 'opacity-80' : ''}" />
-       					{/if}
-       					{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
-      				</p>
-      				{#if description}
-       					<p class="text-sm leading-normal text-n-800 line-clamp-6">{description}</p>
-      				{/if}
-            </div>
             {#if thumbnailUrl}
       		    <div
       		    	class="relative self-start shrink-0 w-56 max-h-[150px] mt-1 rounded overflow-hidden bg-n-100 flex items-center justify-center"
@@ -270,6 +265,13 @@
        					/>
       				</div>
        			{/if}
+            <div class="grow">
+
+      				{#if description}
+       					<p class="text-sm leading-normal text-n-800 line-clamp-6">{description}</p>
+      				{/if}
+            </div>
+
           </div>
 			</div>
 

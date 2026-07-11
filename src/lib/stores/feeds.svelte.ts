@@ -466,6 +466,7 @@ function createFeedsStore() {
 
 	return {
 		get feedTree() { return feedTree; },
+		get rawFeeds() { return rawFeeds; },
 		get loading() { return loading; },
 		loadFeeds,
 		updateCounters,

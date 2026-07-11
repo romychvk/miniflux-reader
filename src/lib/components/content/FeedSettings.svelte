@@ -104,6 +104,8 @@
 	let rssInstance = $state(rss0.instance);
 	let rssBridge = $state(rss0.bridge);
 	let rssSourceUrl = $state(rss0.sourceUrl);
+	// Fixed per feed — a bridge either wraps a feed (`url`) or scrapes a page (`home_page`).
+	const rssSourceKey = rss0.sourceKey ?? 'url';
 	let rssParams = $state<RssBridgeParam[]>(rss0.params);
 
 	// The feed_url actually sent to Miniflux: the assembled bridge URL when on, else direct.
@@ -113,6 +115,7 @@
 					instance: rssInstance,
 					bridge: rssBridge,
 					sourceUrl: rssSourceUrl,
+					sourceKey: rssSourceKey,
 					params: rssParams
 				})
 			: rssSourceUrl
@@ -240,6 +243,7 @@
 			instance: rssInstance,
 			bridge: rssBridge,
 			sourceUrl: rssSourceUrl,
+			sourceKey: rssSourceKey,
 			params: rssParams
 		};
 		storageSet(rssKey, rssConfig);
@@ -562,7 +566,13 @@
 						placeholder="https://example.com/feed.atom"
 						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
 					/>
-					<p class="mt-1 text-xs text-n-500">The underlying feed the bridge wraps (the <code>url</code> parameter).</p>
+					<p class="mt-1 text-xs text-n-500">
+						{#if rssSourceKey === 'home_page'}
+							The page the bridge scrapes (the <code>home_page</code> parameter).
+						{:else}
+							The underlying feed the bridge wraps (the <code>url</code> parameter).
+						{/if}
+					</p>
 				</div>
 
 				<div>

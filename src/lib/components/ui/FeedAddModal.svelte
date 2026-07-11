@@ -1,10 +1,11 @@
 <script lang="ts">
 	import type { Category, FeedCreate } from '$lib/types';
 
-	let { categories, onclose, onsave }: {
+	let { categories, onclose, onsave, onwizard }: {
 		categories: Category[];
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
+		onwizard?: () => void;
 	} = $props();
 
 	let feedUrl = $state('');
@@ -87,21 +88,34 @@
 				<label for="add-feed-crawler" class="text-sm text-n-700">Fetch original content (crawler)</label>
 			</div>
 
-			<div class="flex justify-end gap-2 pt-2">
-				<button
-					type="button"
-					onclick={onclose}
-					class="px-4 py-2 text-sm text-n-600 hover:bg-n-100 rounded-md"
-				>
-					Cancel
-				</button>
-				<button
-					type="submit"
-					disabled={saving || !feedUrl.trim()}
-					class="px-4 py-2 text-sm bg-a-600 text-white rounded-md hover:bg-a-700 disabled:opacity-50"
-				>
-					{saving ? 'Adding...' : 'Add'}
-				</button>
+			<div class="flex items-center justify-between gap-2 pt-2">
+				{#if onwizard}
+					<button
+						type="button"
+						onclick={onwizard}
+						class="text-xs text-a-600 underline hover:text-a-700"
+					>
+						Page has no RSS feed? Build one with RSS-Bridge
+					</button>
+				{:else}
+					<span></span>
+				{/if}
+				<div class="flex gap-2">
+					<button
+						type="button"
+						onclick={onclose}
+						class="px-4 py-2 text-sm text-n-600 hover:bg-n-100 rounded-md"
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						disabled={saving || !feedUrl.trim()}
+						class="px-4 py-2 text-sm bg-a-600 text-white rounded-md hover:bg-a-700 disabled:opacity-50"
+					>
+						{saving ? 'Adding...' : 'Add'}
+					</button>
+				</div>
 			</div>
 		</form>
 	</div>

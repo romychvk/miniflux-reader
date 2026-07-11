@@ -26,9 +26,9 @@ function parseSuggestion(text: string): RuleSuggestion {
 	};
 }
 
-// Run one pass against the configured provider. `messages` is the full
-// conversation so far (initial request, plus any refine turns).
-export async function requestRules(messages: AiMessage[]): Promise<RuleSuggestion> {
+// Run one pass against the configured provider and return the raw reply text.
+// `messages` is the full conversation so far (initial request, plus any refine turns).
+export async function requestAi(system: string, messages: AiMessage[]): Promise<string> {
 	if (!aiConfig.isConfigured) {
 		throw new Error('AI assistant is not configured. Set it up in Settings.');
 	}
@@ -42,7 +42,7 @@ export async function requestRules(messages: AiMessage[]): Promise<RuleSuggestio
 		body: JSON.stringify({
 			provider: aiConfig.provider,
 			model: aiConfig.model,
-			system: SYSTEM_PROMPT,
+			system,
 			messages
 		})
 	});
@@ -51,5 +51,9 @@ export async function requestRules(messages: AiMessage[]): Promise<RuleSuggestio
 	if (!res.ok) {
 		throw new Error(data?.error || `AI request failed (${res.status})`);
 	}
-	return parseSuggestion(data?.text ?? '');
+	return data?.text ?? '';
+}
+
+export async function requestRules(messages: AiMessage[]): Promise<RuleSuggestion> {
+	return parseSuggestion(await requestAi(SYSTEM_PROMPT, messages));
 }

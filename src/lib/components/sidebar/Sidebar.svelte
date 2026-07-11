@@ -7,8 +7,10 @@
 	import { resizable } from '$lib/actions/resize';
 	import FeedTree from './FeedTree.svelte';
 	import FeedAddModal from '$lib/components/ui/FeedAddModal.svelte';
+	import ScrapedFeedWizard from '$lib/components/ui/ScrapedFeedWizard.svelte';
 
 	let showAddModal = $state(false);
+	let showWizard = $state(false);
 
 	function handleLogout() {
 		auth.logout();
@@ -98,6 +100,15 @@
 	<FeedAddModal
 		categories={feeds.getCategories()}
 		onclose={() => showAddModal = false}
+		onsave={(data) => feeds.createFeed(data)}
+		onwizard={() => { showAddModal = false; showWizard = true; }}
+	/>
+{/if}
+
+{#if showWizard}
+	<ScrapedFeedWizard
+		categories={feeds.getCategories()}
+		onclose={() => showWizard = false}
 		onsave={(data) => feeds.createFeed(data)}
 	/>
 {/if}

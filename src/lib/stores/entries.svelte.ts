@@ -100,6 +100,39 @@ function extractDescription(content: string): string {
   return text.length > 150 ? text.slice(0, 250) + "..." : text;
 }
 
+// CssSelectorBridge does not expose a publication-date selector. When it emits an item
+// without a timestamp, Miniflux falls back to the time it discovered the item, making a
+// freshly-added scraped feed look as though every article was published at once. Expanded
+// article HTML commonly retains the real machine-readable date as <time datetime="…">.
+// Use that value for scraped feeds only; ordinary RSS/Atom timestamps remain authoritative.
+function isCssSelectorFeed(entry: Entry): boolean {
+  try {
+    return (
+      new URL(entry.feed.feed_url).searchParams.get("bridge") ===
+      "CssSelectorBridge"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function publishedAtFromContent(entry: Entry): string | null {
+  if (!entry.content || !isCssSelectorFeed(entry)) return null;
+
+  const doc = domParser.parseFromString(entry.content, "text/html");
+  const raw = doc.querySelector("time[datetime]")?.getAttribute("datetime")?.trim();
+  if (!raw) return null;
+
+  const timestamp = Date.parse(raw);
+  // Reject malformed values and implausible/event dates. A small future allowance covers
+  // clock skew between the source, RSS-Bridge, Miniflux and the browser.
+  const earliest = Date.UTC(1990, 0, 1);
+  const latest = Date.now() + 24 * 60 * 60 * 1000;
+  if (!Number.isFinite(timestamp) || timestamp < earliest || timestamp > latest) return null;
+
+  return new Date(timestamp).toISOString();
+}
+
 // An image attached to the RSS item itself (enclosure / media:content / media:thumbnail —
 // Miniflux maps all of these to `enclosures`). A free thumbnail source when the content
 // has no usable <img>.
@@ -129,6 +162,8 @@ function enrichEntries(
 ): Entry[] {
   for (const entry of entries) {
     if (entry.content) entry.content = decodeContent(entry.content);
+    const contentPublishedAt = publishedAtFromContent(entry);
+    if (contentPublishedAt) entry.published_at = contentPublishedAt;
     entry._thumbnailUrl = pickThumbnail(
       entry,
       hasCoverRule(coverRuleFor(entry.feed.id)),
@@ -223,6 +258,11 @@ function createEntriesStore() {
       const deduped = dedupeEntries(
         enrichEntries(data.entries || [], loadCoverRule),
         modeFor,
+      );
+      // Miniflux sorted by its fallback discovery timestamp. Content-derived dates above can
+      // differ, so restore the requested newest-first order before filters/navigation use it.
+      deduped.sort(
+        (a, b) => Date.parse(b.published_at) - Date.parse(a.published_at),
       );
 
       // For a single feed set to "hide (mark read)", reconcile the *whole* unread backlog so the
