@@ -101,12 +101,30 @@ function dedupeImages(doc: Document): boolean {
 	return changed;
 }
 
+// Drop blank spacer paragraphs — `<p>&nbsp;</p>`, `<p>   </p>`, `<p><br></p>` and the
+// like that scraped sites scatter for vertical spacing. `p:empty` can't match these (a
+// `&nbsp;` or blank text node isn't "empty" to CSS), so test the normalized text here:
+// trim() already discards regular whitespace and `&nbsp;`, and we also strip zero-width
+// characters. Paragraphs carrying media (an image, an embed) are kept even without text.
+function dropEmptyParagraphs(doc: Document): boolean {
+	let changed = false;
+	for (const p of doc.querySelectorAll('p')) {
+		if (p.querySelector('img, iframe, video, audio, embed, object, svg, picture, canvas')) continue;
+		if (p.textContent?.replace(/[\u200b-\u200d\ufeff]/g, '').trim()) continue;
+		p.remove();
+		changed = true;
+	}
+	return changed;
+}
+
 // Render-time cleanup for article HTML: upgrade gallery thumbnails to their full-size
-// image, then drop duplicate images. Covers every path that shows article content.
+// image, drop duplicate images, then strip blank spacer paragraphs. Covers every path
+// that shows article content.
 export function processArticleHtml(html: string): string {
 	if (!html) return html;
 	const doc = domParser.parseFromString(html, 'text/html');
 	const upgraded = upgradeGalleryImages(doc);
 	const deduped = dedupeImages(doc);
-	return upgraded || deduped ? doc.body.innerHTML : html;
+	const trimmed = dropEmptyParagraphs(doc);
+	return upgraded || deduped || trimmed ? doc.body.innerHTML : html;
 }
