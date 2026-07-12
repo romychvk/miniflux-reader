@@ -2,6 +2,11 @@ const domParser = new DOMParser();
 
 const IMAGE_URL_RE = /\.(?:jpe?g|png|gif|webp|avif|bmp|svg)(?:[?#]|$)/i;
 
+// Elements that render their own visual content. Used to tell a truly blank wrapper (safe
+// to drop, or safe to pull into a paragraph) from one that only looks empty of text
+// because its payload is media.
+const MEDIA_SELECTOR = 'img, iframe, video, audio, embed, object, svg, picture, canvas';
+
 export function isImageUrl(url: string): boolean {
 	if (!url) return false;
 	try {
@@ -109,7 +114,7 @@ function dedupeImages(doc: Document): boolean {
 function dropEmptyParagraphs(doc: Document): boolean {
 	let changed = false;
 	for (const p of doc.querySelectorAll('p')) {
-		if (p.querySelector('img, iframe, video, audio, embed, object, svg, picture, canvas')) continue;
+		if (p.querySelector(MEDIA_SELECTOR)) continue;
 		if (p.textContent?.replace(/[\u200b-\u200d\ufeff]/g, '').trim()) continue;
 		p.remove();
 		changed = true;
@@ -117,14 +122,101 @@ function dropEmptyParagraphs(doc: Document): boolean {
 	return changed;
 }
 
+// Inline formatting tags that are pure garbage when they hold nothing — scraped pages
+// leave empty `<var></var>`, `<span></span>` and the like behind. Only removed when truly
+// empty (no child elements, no text), so `<span><img></span>` and `<b>x</b>` are safe.
+const EMPTY_INLINE_TAGS = 'var, span, b, i, em, strong, u, s, small, mark, sub, sup, code, font, big, tt, abbr';
+
+function dropEmptyInlineTags(doc: Document): boolean {
+	let changed = false;
+	// Reverse document order so an inner empty element is removed before its parent, which
+	// may then become empty itself (e.g. `<b><i></i></b>`).
+	for (const el of [...doc.querySelectorAll(EMPTY_INLINE_TAGS)].reverse()) {
+		if (el.children.length === 0 && !el.textContent?.trim()) {
+			el.remove();
+			changed = true;
+		}
+	}
+	return changed;
+}
+
+// Elements that stand on their own as blocks — used as separators when wrapping loose
+// content, so a run of inline text ends wherever one of these begins.
+const BLOCK_TAGS = new Set([
+	'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'DL', 'DT', 'DD',
+	'BLOCKQUOTE', 'PRE', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TD', 'TH', 'FIGURE',
+	'FIGCAPTION', 'HR', 'SECTION', 'ARTICLE', 'ASIDE', 'HEADER', 'FOOTER', 'NAV', 'FORM',
+	'FIELDSET', 'ADDRESS', 'DETAILS', 'MAIN', 'HGROUP', 'IMG', 'PICTURE', 'IFRAME', 'VIDEO',
+	'AUDIO', 'EMBED', 'OBJECT', 'CANVAS'
+]);
+
+// Whether a node should stay as its own block rather than be pulled into a wrapping <p>.
+// True for block elements and standalone media, and for inline wrappers that carry only
+// media (`<a><img></a>`) — the article CSS targets those directly, so leave them be.
+function isBlockNode(node: Node): boolean {
+	if (node.nodeType !== Node.ELEMENT_NODE) return false;
+	const el = node as Element;
+	if (BLOCK_TAGS.has(el.nodeName)) return true;
+	return !!el.querySelector(MEDIA_SELECTOR) && !el.textContent?.trim();
+}
+
+// Some feeds emit article bodies as bare text and inline tags with no block wrappers — the
+// content starts mid-sentence with no <p>, so prose spacing never applies (and sometimes
+// no <p> ever appears). Wrap each run of loose text/inline nodes in a <p>, using block
+// elements and standalone media as separators; <br> and whitespace stay inside the run.
+// Runs holding only <br>/whitespace are left alone. Well-formed articles whose top-level
+// children are already block-level are untouched.
+function wrapLooseInlineContent(doc: Document): boolean {
+	// Descend through single block wrappers (`<div><div>…loose text…`) to the element that
+	// actually holds the loose content.
+	let container: Element = doc.body;
+	while (
+		container.children.length === 1 &&
+		['DIV', 'SECTION', 'ARTICLE'].includes(container.firstElementChild!.nodeName) &&
+		![...container.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
+	) {
+		container = container.firstElementChild!;
+	}
+
+	const isBlank = (n: Node) => n.nodeType === Node.TEXT_NODE && !n.textContent?.trim();
+	let changed = false;
+	let group: Node[] = [];
+	const flush = () => {
+		while (group.length && isBlank(group[group.length - 1])) group.pop(); // trailing whitespace
+		const meaningful = group.some(
+			(n) =>
+				(n.nodeType === Node.TEXT_NODE && n.textContent?.trim()) ||
+				(n.nodeType === Node.ELEMENT_NODE && n.nodeName !== 'BR')
+		);
+		if (meaningful) {
+			const p = doc.createElement('p');
+			container.insertBefore(p, group[0]);
+			for (const n of group) p.appendChild(n);
+			changed = true;
+		}
+		group = [];
+	};
+
+	for (const node of [...container.childNodes]) {
+		if (isBlockNode(node)) flush(); // boundary — close the current run
+		else if (node.nodeType === Node.COMMENT_NODE) continue;
+		else if (isBlank(node) && group.length === 0) continue; // skip whitespace between blocks
+		else group.push(node);
+	}
+	flush();
+	return changed;
+}
+
 // Render-time cleanup for article HTML: upgrade gallery thumbnails to their full-size
-// image, drop duplicate images, then strip blank spacer paragraphs. Covers every path
-// that shows article content.
+// image, drop duplicate images, strip empty inline tags, wrap loose bare text in
+// paragraphs, then drop blank spacer paragraphs. Covers every path that shows content.
 export function processArticleHtml(html: string): string {
 	if (!html) return html;
 	const doc = domParser.parseFromString(html, 'text/html');
 	const upgraded = upgradeGalleryImages(doc);
 	const deduped = dedupeImages(doc);
+	const inlineStripped = dropEmptyInlineTags(doc);
+	const wrapped = wrapLooseInlineContent(doc);
 	const trimmed = dropEmptyParagraphs(doc);
-	return upgraded || deduped || trimmed ? doc.body.innerHTML : html;
+	return upgraded || deduped || inlineStripped || wrapped || trimmed ? doc.body.innerHTML : html;
 }
