@@ -207,9 +207,34 @@ function wrapLooseInlineContent(doc: Document): boolean {
 	return changed;
 }
 
+// The next sibling that actually renders, skipping whitespace-only text and comments.
+function nextMeaningfulSibling(node: Node): Node | null {
+	for (let n = node.nextSibling; n; n = n.nextSibling) {
+		if (n.nodeType === Node.ELEMENT_NODE) return n;
+		if (n.nodeType === Node.TEXT_NODE && n.textContent?.trim()) return n;
+	}
+	return null;
+}
+
+// Collapse runs of consecutive `<hr>` into a single rule. Stripping empty content between
+// two rules (an empty `<var>`, a blank `<p>`) can leave `<hr><hr>` with nothing but
+// whitespace between them; keep only the last rule of each run. Rules with real content
+// between them are untouched.
+function collapseConsecutiveHrs(doc: Document): boolean {
+	let changed = false;
+	for (const hr of doc.querySelectorAll('hr')) {
+		if (nextMeaningfulSibling(hr)?.nodeName === 'HR') {
+			hr.remove();
+			changed = true;
+		}
+	}
+	return changed;
+}
+
 // Render-time cleanup for article HTML: upgrade gallery thumbnails to their full-size
 // image, drop duplicate images, strip empty inline tags, wrap loose bare text in
-// paragraphs, then drop blank spacer paragraphs. Covers every path that shows content.
+// paragraphs, drop blank spacer paragraphs, then collapse consecutive rules. Covers every
+// path that shows content.
 export function processArticleHtml(html: string): string {
 	if (!html) return html;
 	const doc = domParser.parseFromString(html, 'text/html');
@@ -218,5 +243,8 @@ export function processArticleHtml(html: string): string {
 	const inlineStripped = dropEmptyInlineTags(doc);
 	const wrapped = wrapLooseInlineContent(doc);
 	const trimmed = dropEmptyParagraphs(doc);
-	return upgraded || deduped || inlineStripped || wrapped || trimmed ? doc.body.innerHTML : html;
+	const hrsCollapsed = collapseConsecutiveHrs(doc);
+	return upgraded || deduped || inlineStripped || wrapped || trimmed || hrsCollapsed
+		? doc.body.innerHTML
+		: html;
 }
