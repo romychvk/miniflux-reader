@@ -82,6 +82,9 @@
     b, strong {
       @apply font-bold;
     }
+    blockquote {
+      @apply pl-5 border-l-6 border-l-neutral-200 text-sm;
+    }
     iframe {
       @apply mb-4;
     }
