@@ -172,43 +172,47 @@
 	{/if}
 
 	<div class="max-w-3xl mx-auto px-8 py-6 relative" class:article-vt={!onClose}>
-	<h1 class="text-2xl leading-tight font-bold mb-3 pr-6">
+	<h1 class="text-3xl leading-snug text-center font-bold mb-6 px-6">
 		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
 	</h1>
 
-	<div class="flex items-center gap-2 text-sm text-n-500 mb-4">
-		{#if feedIcon}
-			<img src={feedIcon} alt="" class="size-3 mt-1 shrink-0" />
-		{/if}
-		<span>{entry.feed.title}</span>
-    <span>&middot;</span>
-		<span>{relaTimestamp(entry.published_at)}</span>
-		{#if entry.author}
-			<span>&middot;</span>
-			<span>{entry.author}</span>
-		{/if}
-		<button
-			onclick={() => ui.openFilterModal({ feedId: entry.feed.id, feedTitle: entry.feed.title, seedTitle: entry.title })}
-			title="Ignore posts like this"
-			class="ml-auto shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors"
-		>
-			<Ban size={14} />
-		</button>
-		<button
-			onclick={() => entries.toggleBookmark(entry.id)}
-			title={(entry.starred ?? false) ? 'Remove bookmark' : 'Bookmark'}
-			class="shrink-0 p-1 rounded-md transition-colors {(entry.starred ?? false) ? 'text-a-600 hover:bg-n-100' : 'text-n-400 hover:text-n-700 hover:bg-n-100'}"
-		>
-			<Bookmark size={14} fill={(entry.starred ?? false) ? 'currentColor' : 'none'} />
-		</button>
-		<button
-			onclick={refetch}
-			disabled={refetching}
-			title="Re-fetch original content (applies the feed's rules)"
-			class="shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors disabled:opacity-50"
-		>
-			<RotateCw size={14} class={refetching ? 'animate-spin' : ''} />
-		</button>
+	<div class="flex flex-col items-center gap-3 text-sm text-n-500 mb-4">
+    <div class="flex items-center gap-2">
+  		{#if feedIcon}
+  			<img src={feedIcon} alt="" class="size-3 mt-1 shrink-0" />
+  		{/if}
+  		<span>{entry.feed.title}</span>
+      <span>&middot;</span>
+  		<span>{relaTimestamp(entry.published_at)}</span>
+  		{#if entry.author}
+  			<span>&middot;</span>
+  			<span>{entry.author}</span>
+  		{/if}
+    </div>
+    <div class="flex items-center gap-2">
+  		<button
+  			onclick={() => ui.openFilterModal({ feedId: entry.feed.id, feedTitle: entry.feed.title, seedTitle: entry.title })}
+  			title="Ignore posts like this"
+  			class="ml-auto shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors"
+  		>
+  			<Ban size={14} />
+  		</button>
+  		<button
+  			onclick={() => entries.toggleBookmark(entry.id)}
+  			title={(entry.starred ?? false) ? 'Remove bookmark' : 'Bookmark'}
+  			class="shrink-0 p-1 rounded-md transition-colors {(entry.starred ?? false) ? 'text-a-600 hover:bg-n-100' : 'text-n-400 hover:text-n-700 hover:bg-n-100'}"
+  		>
+  			<Bookmark size={14} fill={(entry.starred ?? false) ? 'currentColor' : 'none'} />
+  		</button>
+  		<button
+  			onclick={refetch}
+  			disabled={refetching}
+  			title="Re-fetch original content (applies the feed's rules)"
+  			class="shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors disabled:opacity-50"
+  		>
+  			<RotateCw size={14} class={refetching ? 'animate-spin' : ''} />
+  		</button>
+    </div>
 	</div>
 
 	{#if showCover}
