@@ -160,24 +160,29 @@ function isBlockNode(node: Node): boolean {
 	return !!el.querySelector(MEDIA_SELECTOR) && !el.textContent?.trim();
 }
 
+// The element that actually holds article content — descends through single block wrappers
+// (`<div><div>…`) so the loose-content and media passes operate at the level with content.
+function contentRoot(doc: Document): Element {
+	let root: Element = doc.body;
+	while (
+		root.children.length === 1 &&
+		['DIV', 'SECTION', 'ARTICLE'].includes(root.firstElementChild!.nodeName) &&
+		![...root.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
+	) {
+		root = root.firstElementChild!;
+	}
+	return root;
+}
+
 // Some feeds emit article bodies as bare text and inline tags with no block wrappers — the
 // content starts mid-sentence with no <p>, so prose spacing never applies (and sometimes
 // no <p> ever appears). Wrap each run of loose text/inline nodes in a <p>, using block
 // elements and standalone media as separators; <br> and whitespace stay inside the run.
-// Runs holding only <br>/whitespace are left alone. Well-formed articles whose top-level
-// children are already block-level are untouched.
+// A run of only <br>/whitespace is dropped — those are dead spacer garbage (a trailing
+// `<br><br>`, breaks between blocks) that the blocks' own margins already cover.
+// Well-formed articles whose top-level children are already block-level are untouched.
 function wrapLooseInlineContent(doc: Document): boolean {
-	// Descend through single block wrappers (`<div><div>…loose text…`) to the element that
-	// actually holds the loose content.
-	let container: Element = doc.body;
-	while (
-		container.children.length === 1 &&
-		['DIV', 'SECTION', 'ARTICLE'].includes(container.firstElementChild!.nodeName) &&
-		![...container.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim())
-	) {
-		container = container.firstElementChild!;
-	}
-
+	const container = contentRoot(doc);
 	const isBlank = (n: Node) => n.nodeType === Node.TEXT_NODE && !n.textContent?.trim();
 	let changed = false;
 	let group: Node[] = [];
@@ -193,6 +198,13 @@ function wrapLooseInlineContent(doc: Document): boolean {
 			container.insertBefore(p, group[0]);
 			for (const n of group) p.appendChild(n);
 			changed = true;
+		} else {
+			for (const n of group) {
+				if (n.nodeType === Node.ELEMENT_NODE && n.nodeName === 'BR') {
+					(n as Element).remove();
+					changed = true;
+				}
+			}
 		}
 		group = [];
 	};
@@ -204,6 +216,35 @@ function wrapLooseInlineContent(doc: Document): boolean {
 		else group.push(node);
 	}
 	flush();
+	return changed;
+}
+
+// A direct child of the content root that is a standalone image: a bare <img>/<picture>, or
+// an <a>/<figure> wrapping only image(s) with no text of its own.
+function isStandaloneImage(node: Node): boolean {
+	if (node.nodeType !== Node.ELEMENT_NODE) return false;
+	const el = node as Element;
+	if (el.nodeName === 'IMG' || el.nodeName === 'PICTURE') return true;
+	if ((el.nodeName === 'A' || el.nodeName === 'FIGURE') && el.querySelector('img, picture'))
+		return !el.textContent?.trim();
+	return false;
+}
+
+// Wrap standalone top-level images in `<div class="prose-img">` so each renders as its own
+// spaced block, the same way loose text becomes a <p>. One styling hook replaces the fragile
+// `& > img` / `& > a > img` child selectors and catches nested images too. Images that sit
+// inside a paragraph (with adjacent text) are left inline.
+function wrapStandaloneMedia(doc: Document): boolean {
+	const container = contentRoot(doc);
+	let changed = false;
+	for (const node of [...container.children]) {
+		if (!isStandaloneImage(node)) continue;
+		const div = doc.createElement('div');
+		div.className = 'prose-img';
+		container.insertBefore(div, node);
+		div.appendChild(node);
+		changed = true;
+	}
 	return changed;
 }
 
@@ -233,8 +274,8 @@ function collapseConsecutiveHrs(doc: Document): boolean {
 
 // Render-time cleanup for article HTML: upgrade gallery thumbnails to their full-size
 // image, drop duplicate images, strip empty inline tags, wrap loose bare text in
-// paragraphs, drop blank spacer paragraphs, then collapse consecutive rules. Covers every
-// path that shows content.
+// paragraphs, wrap standalone images in a block, drop blank spacer paragraphs, then
+// collapse consecutive rules. Covers every path that shows content.
 export function processArticleHtml(html: string): string {
 	if (!html) return html;
 	const doc = domParser.parseFromString(html, 'text/html');
@@ -242,9 +283,10 @@ export function processArticleHtml(html: string): string {
 	const deduped = dedupeImages(doc);
 	const inlineStripped = dropEmptyInlineTags(doc);
 	const wrapped = wrapLooseInlineContent(doc);
+	const mediaWrapped = wrapStandaloneMedia(doc);
 	const trimmed = dropEmptyParagraphs(doc);
 	const hrsCollapsed = collapseConsecutiveHrs(doc);
-	return upgraded || deduped || inlineStripped || wrapped || trimmed || hrsCollapsed
+	return upgraded || deduped || inlineStripped || wrapped || mediaWrapped || trimmed || hrsCollapsed
 		? doc.body.innerHTML
 		: html;
 }

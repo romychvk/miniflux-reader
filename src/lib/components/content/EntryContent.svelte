@@ -108,10 +108,15 @@
         @apply -mb-2;
       }
     }
-    /* Відступ зверху для елементів, які знаходяться прямо внутри article.prose */
+    /* Standalone images are wrapped in .prose-img (see processArticleHtml) so each sits as
+       its own spaced block; list-item images and top-level <i> keep their own top spacing. */
+    .prose-img {
+      @apply mt-4;
+    }
+    .prose-img img {
+      @apply block;
+    }
     & > i,
-    & > img,
-    & > a > img,
     li > a > img {
       @apply block mt-4;
     }
