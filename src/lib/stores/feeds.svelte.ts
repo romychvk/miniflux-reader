@@ -199,6 +199,19 @@ function createFeedsStore() {
 		if (child) child.iconData = iconData;
 	}
 
+	// Override a feed's sidebar icon and persist it into the favicons cache, so the choice
+	// survives reloads (loadIcons reapplies the cached value and skips re-fetching the
+	// site favicon). Used to swap github feeds' generic octocat for the release-author avatar.
+	function setFeedIcon(feedId: number, iconData: string) {
+		const child = feedIndex.get(feedId);
+		if (child) child.iconData = iconData;
+		const cache: Record<string, string> = storageGet('favicons', {});
+		if (cache[feedId] !== iconData) {
+			cache[feedId] = iconData;
+			storageSet('favicons', cache);
+		}
+	}
+
 	function updateCounters(feedId: number, delta: number) {
 		const allNode = feedTree[0]; // id: -1
 		if (allNode) allNode.unread += delta;
@@ -500,6 +513,7 @@ function createFeedsStore() {
 		get rawFeeds() { return rawFeeds; },
 		get loading() { return loading; },
 		loadFeeds,
+		setFeedIcon,
 		updateCounters,
 		reorderFeed,
 		reorderCategory,

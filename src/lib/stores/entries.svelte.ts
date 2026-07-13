@@ -143,12 +143,42 @@ function imageEnclosure(entry: Entry): string | null {
   return enc?.url ?? null;
 }
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return "";
+  }
+}
+
+function isGithubFeed(entry: Entry): boolean {
+  const h = hostOf(entry.feed.feed_url);
+  return h === "github.com" || h === "www.github.com";
+}
+
+// GitHub ships the release-author avatar as a media:thumbnail — an image enclosure at
+// avatars.githubusercontent.com. It's uninformative as a card/cover image (see pickThumbnail),
+// but it's reused as the feed's sidebar icon so multiple github feeds stay distinct.
+function githubAvatar(entry: Entry): string | null {
+  const enc = entry.enclosures?.find(
+    (e) =>
+      e.url &&
+      e.mime_type?.startsWith("image/") &&
+      /(^|\.)avatars\.githubusercontent\.com$/.test(hostOf(e.url)),
+  );
+  return enc?.url ?? null;
+}
+
 // Best thumbnail without any extra network request: first real content image, else the
 // RSS image enclosure. When the feed has a custom cover rule we skip this entirely and let
 // ensureThumbnail() resolve the cover from the source page (the rule is authoritative for
 // such feeds, e.g. rutracker, whose scraped content holds only UI chrome). The og:image
 // fallback (a network call) is handled lazily by ensureThumbnail() when this returns null.
 function pickThumbnail(entry: Entry, hasCustomRule: boolean): string | null {
+  // GitHub release feeds carry only the author avatar (as an image enclosure) — never a
+  // useful card/cover image. Show no image at all for github feeds (and skip the og:image
+  // fallback too, see ensureThumbnail); the avatar is repurposed as the feed icon instead.
+  if (isGithubFeed(entry)) return null;
   if (hasCustomRule) return null;
   return (
     (entry.content ? extractThumbnail(entry.content) : null) ??
@@ -245,6 +275,19 @@ function createEntriesStore() {
         `${apiPath}${sep}${params}order=published_at&direction=desc&limit=100`,
         { signal },
       );
+
+      // Repurpose the github release-author avatar (dropped as a card image) as the feed's
+      // sidebar icon, so multiple github feeds stay distinct. Newest entry per feed wins
+      // (results are published_at desc). Works from any view (single feed or All/aggregate).
+      const iconUpdates = new Map<number, string>();
+      for (const e of data.entries ?? []) {
+        if (!iconUpdates.has(e.feed.id) && isGithubFeed(e)) {
+          const avatar = githubAvatar(e);
+          if (avatar) iconUpdates.set(e.feed.id, avatar);
+        }
+      }
+      for (const [feedId, url] of iconUpdates) feeds.setFeedIcon(feedId, url);
+
       // Collapse source-level duplicates per each entry's feed setting (read fresh, memoized).
       const modeCache = new Map<number, DedupMode>();
       const modeFor = (id: number): DedupMode => {
@@ -497,7 +540,12 @@ function createEntriesStore() {
     const entry = entries.find((e) => e.id === entryId);
     if (entry) {
       entry.content = content;
-      entry._thumbnailUrl = extractThumbnail(content) ?? imageEnclosure(entry);
+      // Reuse pickThumbnail so re-fetch honours the same suppression (github feeds) and
+      // custom-cover-rule handling as the initial load, rather than re-deriving inline.
+      entry._thumbnailUrl = pickThumbnail(
+        entry,
+        hasCoverRule(loadCoverRule(entry.feed.id)),
+      );
       entry._description = extractDescription(content);
     }
     return content;
@@ -510,6 +558,8 @@ function createEntriesStore() {
   // transient failures are not — see the schedule body.
   function ensureThumbnail(entry: Entry): void {
     if (entry._thumbnailUrl || !entry.url) return;
+    // github feeds are intentionally image-less (see pickThumbnail) — never fetch a cover.
+    if (isGithubFeed(entry)) return;
     if (ogCache === null)
       ogCache = storageGet<Record<string, string>>(OG_CACHE_KEY, {});
 
