@@ -61,14 +61,23 @@
 <style>
   @reference "../../../app.css";
   article.prose :global {
+    h2 {
+      @apply text-2xl mt-6 mb-4 font-bold;
+    }
     h3 {
       @apply text-xl mt-6 mb-4 font-bold;
     }
     p {
       @apply mb-4;
     }
+    blockquote {
+      @apply pl-5 border-l-6 border-l-neutral-200 text-sm mb-4;
+      p {
+        @apply mb-2;
+      }
+    }
     img {
-      @apply mb-6 cursor-zoom-in;
+      @apply mb-2 cursor-zoom-in;
     }
     ol, ul {
       @apply ml-5 mb-5 space-y-1.5;
@@ -82,11 +91,9 @@
     b, strong {
       @apply font-bold;
     }
-    blockquote {
-      @apply pl-5 border-l-6 border-l-neutral-200 text-sm;
-    }
+
     iframe {
-      @apply mb-4;
+      @apply my-8;
     }
     /* Video embeds carry a fixed width="640" height="360"; max-w-full alone shrinks the
        width but keeps the height, cropping the player on narrow screens. Scale them
@@ -111,10 +118,10 @@
     /* Standalone images are wrapped in .prose-img (see processArticleHtml) so each sits as
        its own spaced block; list-item images and top-level <i> keep their own top spacing. */
     .prose-img {
-      @apply mt-4;
+      @apply my-8;
     }
     .prose-img img {
-      @apply block;
+      @apply block mx-auto;
     }
     & > i,
     li > a > img {
