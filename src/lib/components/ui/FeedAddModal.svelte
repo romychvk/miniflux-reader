@@ -1,8 +1,10 @@
 <script lang="ts">
-	import type { Category, FeedCreate } from '$lib/types';
+	import type { FeedCreate } from '$lib/types';
+	import { feeds } from '$lib/stores/feeds.svelte';
+	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
+	import CategorySelect from './CategorySelect.svelte';
 
-	let { categories, onclose, onsave, onwizard }: {
-		categories: Category[];
+	let { onclose, onsave, onwizard }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
 		onwizard?: () => void;
@@ -10,25 +12,33 @@
 
 	let feedUrl = $state('');
 	let categoryId: number = $state(0);
+	let newCategoryName = $state('');
 	let crawler = $state(false);
 
+	// Default to the "— Without category —" (Miniflux "All") bucket, falling back to
+	// the first category, so leaving the picker untouched keeps a feed uncategorized.
 	$effect(() => {
-		if (!categoryId && categories.length) categoryId = categories[0].id;
+		if (!categoryId) categoryId = feeds.getNoCategoryId() ?? feeds.getCategories()[0]?.id ?? 0;
 	});
 	let saving = $state(false);
+
+	const needsCategoryName = $derived(categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim());
 
 	function onkeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onclose();
 	}
 
 	async function handleSave() {
-		if (!feedUrl.trim()) return;
+		if (!feedUrl.trim() || needsCategoryName) return;
 
 		saving = true;
 		try {
+			const categoryIdToUse = categoryId === NEW_CATEGORY_SENTINEL
+				? (await feeds.createCategory(newCategoryName.trim())).id
+				: categoryId;
 			const data: FeedCreate = {
 				feed_url: feedUrl.trim(),
-				category_id: categoryId,
+				category_id: categoryIdToUse,
 			};
 			if (crawler) data.crawler = true;
 			await onsave(data);
@@ -67,15 +77,7 @@
 
 			<div>
 				<label for="add-feed-category" class="block text-sm font-medium text-n-700 mb-1">Category</label>
-				<select
-					id="add-feed-category"
-					bind:value={categoryId}
-					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 bg-surface"
-				>
-					{#each categories as cat}
-						<option value={cat.id}>{cat.title}</option>
-					{/each}
-				</select>
+				<CategorySelect id="add-feed-category" bind:value={categoryId} bind:newName={newCategoryName} />
 			</div>
 
 			<div class="flex items-center gap-2">
@@ -110,7 +112,7 @@
 					</button>
 					<button
 						type="submit"
-						disabled={saving || !feedUrl.trim()}
+						disabled={saving || !feedUrl.trim() || needsCategoryName}
 						class="px-4 py-2 text-sm bg-a-600 text-white rounded-md hover:bg-a-700 disabled:opacity-50"
 					>
 						{saving ? 'Adding...' : 'Add'}

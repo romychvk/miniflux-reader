@@ -19,11 +19,13 @@
 	} from '$lib/rssbridge';
 	import { COVER_STORAGE_PREFIX, asCoverRule } from '$lib/cover';
 	import { USER_AGENT_PRESETS, CUSTOM_UA, matchUserAgentPreset } from '$lib/userAgent';
+	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
+	import CategorySelect from '$lib/components/ui/CategorySelect.svelte';
 	import AiRuleAssistant from './AiRuleAssistant.svelte';
 
 	let { feed }: { feed: Feed } = $props();
 
-	const categories = feeds.getCategories();
+	let newCategoryName = $state('');
 
 	const navItems = [
 		{ id: 'general', label: 'General' },
@@ -225,7 +227,8 @@
 		if (title !== initial.title) changes.title = title;
 		if (siteUrl !== initial.site_url) changes.site_url = siteUrl;
 		if (effectiveFeedUrl !== initial.feed_url) changes.feed_url = effectiveFeedUrl;
-		if (categoryId !== initial.category_id) changes.category_id = categoryId;
+		if (categoryId !== initial.category_id && categoryId !== NEW_CATEGORY_SENTINEL)
+			changes.category_id = categoryId;
 		if (crawler !== initial.crawler) changes.crawler = crawler;
 		if (scraperRules !== initial.scraper_rules) changes.scraper_rules = scraperRules;
 		if (rewriteRules !== initial.rewrite_rules) changes.rewrite_rules = rewriteRules;
@@ -277,16 +280,22 @@
 	}
 
 	async function handleSave() {
-		const changes = computeChanges();
-		if (
-			Object.keys(changes).length === 0 &&
-			rssSignature === initialRssSignature &&
-			coverSelector === initialCoverSelector &&
-			coverAttr === initialCoverAttr
-		)
-			return;
+		if (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim()) return;
 		saving = true;
 		try {
+			// Resolve a pending "＋ New category…" into a real category before diffing.
+			if (categoryId === NEW_CATEGORY_SENTINEL) {
+				categoryId = (await feeds.createCategory(newCategoryName.trim())).id;
+				newCategoryName = '';
+			}
+			const changes = computeChanges();
+			if (
+				Object.keys(changes).length === 0 &&
+				rssSignature === initialRssSignature &&
+				coverSelector === initialCoverSelector &&
+				coverAttr === initialCoverAttr
+			)
+				return;
 			await persistChanges(changes);
 			savedAt = Date.now();
 			ui.showSuccess('Feed settings saved.');
@@ -410,16 +419,14 @@
 					</div>
 					<div class="grow">
 						<label for="feed-category" class="mb-1 block text-sm font-medium text-n-700">Category</label>
-						<select
+						<CategorySelect
 							id="feed-category"
 							bind:value={categoryId}
-							class="w-full text-base rounded-md border border-n-300 bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-400"
-						>
-							{#each categories as cat (cat.id)}
-  						<option value={cat.id}>{cat.title}</option>
-  					{/each}
-  				</select>
-  			</div>
+							bind:newName={newCategoryName}
+							selectClass="w-full text-base rounded-md border border-n-300 bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-400"
+							inputClass="mt-2 w-full text-base rounded-md border border-n-300 bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-400"
+						/>
+					</div>
 				</div>
 
 				<div>
@@ -816,7 +823,7 @@
 		<button
 			type="button"
 			onclick={handleSave}
-			disabled={saving || !dirty}
+			disabled={saving || !dirty || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
 			class="rounded-md bg-a-600 px-4 py-2 text-sm text-white hover:bg-a-700 disabled:opacity-50"
 		>
 			{saving ? 'Saving…' : 'Save'}

@@ -98,7 +98,6 @@
 
 {#if showAddModal}
 	<FeedAddModal
-		categories={feeds.getCategories()}
 		onclose={() => showAddModal = false}
 		onsave={(data) => feeds.createFeed(data)}
 		onwizard={() => { showAddModal = false; showWizard = true; }}
@@ -107,7 +106,6 @@
 
 {#if showWizard}
 	<ScrapedFeedWizard
-		categories={feeds.getCategories()}
 		onclose={() => showWizard = false}
 		onsave={(data) => feeds.createFeed(data)}
 	/>

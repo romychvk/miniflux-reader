@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { Sparkles, Copy, Check, FlaskConical } from 'lucide-svelte';
-	import type { Category, FeedCreate } from '$lib/types';
+	import type { FeedCreate } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
+	import CategorySelect from './CategorySelect.svelte';
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { storageGetString, storageSet } from '$lib/storage';
@@ -26,8 +28,7 @@
 		parseSelectorSuggestion
 	} from '$lib/ai/selectorPrompt';
 
-	let { categories, onclose, onsave }: {
-		categories: Category[];
+	let { onclose, onsave }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
 	} = $props();
@@ -74,8 +75,12 @@
 	let limit = $state<number | null>(null);
 	let discardThumbnail = $state(false);
 
-	// Writable derived: defaults to the first category, user's pick sticks via bind:value.
-	let categoryId: number = $derived(categories[0]?.id ?? 0);
+	// Defaults to "— Without category —" (Miniflux "All"); the user's pick then sticks.
+	let categoryId: number = $state(0);
+	let newCategoryName = $state('');
+	$effect(() => {
+		if (!categoryId) categoryId = feeds.getNoCategoryId() ?? feeds.getCategories()[0]?.id ?? 0;
+	});
 	let crawler = $state(true); // let Miniflux fetch the full articles by default
 
 	let testing = $state(false);
@@ -227,11 +232,15 @@
 
 	async function handleCreate() {
 		if (!bridgeUrl || saving || testing) return;
+		if (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim()) return;
 		// First click runs the test; on failure the button becomes "Create anyway".
 		if (!testCurrent && !(await testBridge())) return;
 		saving = true;
 		try {
-			const data: FeedCreate = { feed_url: bridgeUrl, category_id: categoryId };
+			const categoryIdToUse = categoryId === NEW_CATEGORY_SENTINEL
+				? (await feeds.createCategory(newCategoryName.trim())).id
+				: categoryId;
+			const data: FeedCreate = { feed_url: bridgeUrl, category_id: categoryIdToUse };
 			if (crawler) data.crawler = true;
 			await onsave(data);
 			storageSet(RSS_BRIDGE_INSTANCE_KEY, instance.trim());
@@ -430,15 +439,7 @@
 					</div>
 					<div>
 						<label for="wiz-category" class="block text-sm font-medium text-n-700 mb-1">Category</label>
-						<select
-							id="wiz-category"
-							bind:value={categoryId}
-							class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400 bg-surface"
-						>
-							{#each categories as cat (cat.id)}
-								<option value={cat.id}>{cat.title}</option>
-							{/each}
-						</select>
+						<CategorySelect id="wiz-category" bind:value={categoryId} bind:newName={newCategoryName} />
 					</div>
 				</div>
 
@@ -573,7 +574,7 @@
 			<button
 				type="button"
 				onclick={handleCreate}
-				disabled={saving || testing || !bridgeUrl}
+				disabled={saving || testing || !bridgeUrl || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
 				class="px-4 py-2 text-sm bg-a-600 text-white rounded-md hover:bg-a-700 disabled:opacity-50"
 			>
 				{saving

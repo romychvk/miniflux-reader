@@ -1,4 +1,5 @@
 import { apiCall } from '$lib/api';
+import { NO_CATEGORY_LABEL, categoryDisplayTitle } from '$lib/category';
 import { createFeedIcon } from '$lib/icons';
 import { storageGet, storageSet } from '$lib/storage';
 import type { Category, Feed, FeedCounters, FeedCreate, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
@@ -7,6 +8,7 @@ import { ui } from './ui.svelte';
 function createFeedsStore() {
 	let feedTree = $state<FeedNode[]>([]);
 	let rawFeeds = $state<Feed[]>([]);
+	let rawCategories = $state<Category[]>([]);
 	let loading = $state(false);
 	let abortController: AbortController | null = null;
 
@@ -87,12 +89,14 @@ function createFeedsStore() {
 
 		loading = true;
 		try {
-			const [feedList, counters] = await Promise.all([
+			const [feedList, counters, catList] = await Promise.all([
 				apiCall<Feed[]>('feeds', { signal }),
-				apiCall<FeedCounters>('feeds/counters', { signal })
+				apiCall<FeedCounters>('feeds/counters', { signal }),
+				apiCall<Category[]>('categories', { signal })
 			]);
 
 			rawFeeds = feedList;
+			rawCategories = catList;
 			const unreads = counters.unreads;
 
 			// Extract unique categories
@@ -131,7 +135,7 @@ function createFeedsStore() {
 
 				tree.push({
 					id: catId,
-					title: catTitle,
+					title: categoryDisplayTitle(catTitle),
 					apiPath: `categories/${catId}/entries`,
 					isFeed: false,
 					unread: catUnread,
@@ -304,10 +308,37 @@ function createFeedsStore() {
 		return rawFeeds.find(f => f.id === feedId) ?? null;
 	}
 
+	// Sourced from the authoritative Miniflux category list (includes empty and
+	// newly-created categories), relabeled for display, with "— Without category —"
+	// pinned first and the rest alphabetical.
 	function getCategories(): Category[] {
-		return feedTree
-			.filter(n => n.id !== -1 && n.children)
-			.map(n => ({ id: n.id, title: n.title }));
+		return rawCategories
+			.map(c => ({ id: c.id, title: categoryDisplayTitle(c.title) }))
+			.sort((a, b) => {
+				if (a.title === NO_CATEGORY_LABEL) return -1;
+				if (b.title === NO_CATEGORY_LABEL) return 1;
+				return a.title.localeCompare(b.title);
+			});
+	}
+
+	// Id of Miniflux's default "All" category (shown as "— Without category —"),
+	// used to default the Add Feed picker. Null if it can't be found.
+	function getNoCategoryId(): number | null {
+		return rawCategories.find(c => c.title === 'All')?.id ?? null;
+	}
+
+	async function createCategory(title: string): Promise<Category> {
+		try {
+			const cat = await apiCall<Category>('categories', {
+				method: 'POST',
+				body: JSON.stringify({ title })
+			});
+			await loadFeeds();
+			return cat;
+		} catch (e) {
+			ui.showError(e instanceof Error ? e.message : 'Failed to create category');
+			throw e;
+		}
 	}
 
 	async function createFeed(data: FeedCreate) {
@@ -478,6 +509,8 @@ function createFeedsStore() {
 		findFeedNodeById,
 		getRawFeed,
 		getCategories,
+		getNoCategoryId,
+		createCategory,
 		createFeed,
 		updateFeed,
 		deleteFeed,
