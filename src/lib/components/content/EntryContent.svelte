@@ -62,10 +62,14 @@
   @reference "../../../app.css";
   article.prose :global {
     h2 {
-      @apply text-2xl mt-6 mb-4 font-bold;
+      @apply text-2xl mb-4 font-bold;
     }
     h3 {
-      @apply text-xl mt-6 mb-4 font-bold;
+      @apply text-xl mb-4 font-bold;
+    }
+    /* Top gap only between blocks — never above the article's first element */
+    :is(h2, h3):not(:first-child) {
+      @apply mt-6;
     }
     p {
       @apply mb-4;

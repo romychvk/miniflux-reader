@@ -171,12 +171,12 @@
 		</button>
 	{/if}
 
-	<div class="max-w-3xl mx-auto px-8 py-6 relative" class:article-vt={!onClose}>
-	<h1 class="text-3xl leading-snug text-center font-bold mb-6 px-6">
+	<div class="max-w-3xl mx-auto px-6 py-4 relative" class:article-vt={!onClose}>
+	<h1 class="text-3xl leading-snug text-center font-bold mb-3 px-6">
 		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
 	</h1>
 
-	<div class="flex flex-col items-center gap-3 text-sm text-n-500 mb-4">
+	<div class="flex flex-col items-center gap-3 text-sm text-n-500 mb-3">
     <div class="flex items-center gap-2">
   		{#if feedIcon}
   			<img src={feedIcon} alt="" class="size-3 mt-1 shrink-0" />
