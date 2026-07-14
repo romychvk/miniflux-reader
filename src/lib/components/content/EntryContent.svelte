@@ -68,7 +68,7 @@
       @apply text-xl mb-4 font-bold;
     }
     /* Top gap only between blocks — never above the article's first element */
-    :is(h2, h3):not(:first-child) {
+    :is(h2, h3, div.prose-img, figure):not(:first-child) {
       @apply mt-6;
     }
     p {
@@ -119,10 +119,16 @@
         @apply -mb-2;
       }
     }
+    figure {
+      @apply mb-8;
+    }
+    figcaption {
+      @apply text-center text-sm mt-3;
+    }
     /* Standalone images are wrapped in .prose-img (see processArticleHtml) so each sits as
        its own spaced block; list-item images and top-level <i> keep their own top spacing. */
     .prose-img {
-      @apply my-8;
+      @apply mb-8;
     }
     .prose-img img {
       @apply block mx-auto;
