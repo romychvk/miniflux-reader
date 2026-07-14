@@ -1,5 +1,5 @@
 import { apiCall } from '$lib/api';
-import { NO_CATEGORY_LABEL, categoryDisplayTitle } from '$lib/category';
+import { categoryDisplayTitle } from '$lib/category';
 import { createFeedIcon } from '$lib/icons';
 import { storageGet, storageSet } from '$lib/storage';
 import type { Category, Feed, FeedCounters, FeedCreate, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
@@ -325,19 +325,23 @@ function createFeedsStore() {
 	// newly-created categories), relabeled for display, with "— Without category —"
 	// pinned first and the rest alphabetical.
 	function getCategories(): Category[] {
+		const defaultId = getNoCategoryId();
 		return rawCategories
 			.map(c => ({ id: c.id, title: categoryDisplayTitle(c.title) }))
 			.sort((a, b) => {
-				if (a.title === NO_CATEGORY_LABEL) return -1;
-				if (b.title === NO_CATEGORY_LABEL) return 1;
+				if (a.id === defaultId) return -1;
+				if (b.id === defaultId) return 1;
 				return a.title.localeCompare(b.title);
 			});
 	}
 
-	// Id of Miniflux's default "All" category (shown as "— Without category —"),
-	// used to default the Add Feed picker. Null if it can't be found.
+	// Id of Miniflux's default category (the "no category" bucket), used to sort it
+	// first and to default the Add Feed picker. Miniflux creates it with the account
+	// titled "All", so it's the lowest-id category — and that stays true even if the
+	// user renames it (e.g. to "Uncategorized"), which a title match would miss.
 	function getNoCategoryId(): number | null {
-		return rawCategories.find(c => c.title === 'All')?.id ?? null;
+		if (rawCategories.length === 0) return null;
+		return rawCategories.reduce((min, c) => (c.id < min.id ? c : min)).id;
 	}
 
 	async function createCategory(title: string): Promise<Category> {
@@ -354,13 +358,14 @@ function createFeedsStore() {
 		}
 	}
 
-	async function createFeed(data: FeedCreate) {
+	async function createFeed(data: FeedCreate): Promise<number | undefined> {
 		try {
-			await apiCall('feeds', {
+			const res = await apiCall<{ feed_id: number }>('feeds', {
 				method: 'POST',
 				body: JSON.stringify(data)
 			});
 			await loadFeeds();
+			return res?.feed_id;
 		} catch (e) {
 			ui.showError(e instanceof Error ? e.message : 'Failed to create feed');
 			throw e;

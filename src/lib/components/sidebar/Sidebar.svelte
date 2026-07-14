@@ -5,12 +5,24 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { resizable } from '$lib/actions/resize';
+	import { makeFeedSlug } from '$lib/slug';
+	import type { FeedCreate } from '$lib/types';
 	import FeedTree from './FeedTree.svelte';
 	import FeedAddModal from '$lib/components/ui/FeedAddModal.svelte';
 	import ScrapedFeedWizard from '$lib/components/ui/ScrapedFeedWizard.svelte';
 
 	let showAddModal = $state(false);
 	let showWizard = $state(false);
+
+	// After a feed is created, open it so the user lands on their new feed
+	// instead of having to hunt for it in the sidebar.
+	async function handleCreateFeed(data: FeedCreate) {
+		const id = await feeds.createFeed(data);
+		if (id == null) return;
+		const node = feeds.findFeedNodeById(id, true);
+		if (node) goto(`/feed/${makeFeedSlug(node.id, node.title)}`);
+		if (ui.isMobile) ui.toggleSidebar();
+	}
 
 	function handleLogout() {
 		auth.logout();
@@ -99,7 +111,7 @@
 {#if showAddModal}
 	<FeedAddModal
 		onclose={() => showAddModal = false}
-		onsave={(data) => feeds.createFeed(data)}
+		onsave={handleCreateFeed}
 		onwizard={() => { showAddModal = false; showWizard = true; }}
 	/>
 {/if}
@@ -107,6 +119,6 @@
 {#if showWizard}
 	<ScrapedFeedWizard
 		onclose={() => showWizard = false}
-		onsave={(data) => feeds.createFeed(data)}
+		onsave={handleCreateFeed}
 	/>
 {/if}

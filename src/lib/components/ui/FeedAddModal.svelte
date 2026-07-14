@@ -13,7 +13,6 @@
 	let feedUrl = $state('');
 	let categoryId: number = $state(0);
 	let newCategoryName = $state('');
-	let crawler = $state(false);
 
 	// Default to the "— Without category —" (Miniflux "All") bucket, falling back to
 	// the first category, so leaving the picker untouched keeps a feed uncategorized.
@@ -40,7 +39,6 @@
 				feed_url: feedUrl.trim(),
 				category_id: categoryIdToUse,
 			};
-			if (crawler) data.crawler = true;
 			await onsave(data);
 			onclose();
 		} catch {
@@ -78,16 +76,6 @@
 			<div>
 				<label for="add-feed-category" class="block text-sm font-medium text-n-700 mb-1">Category</label>
 				<CategorySelect id="add-feed-category" bind:value={categoryId} bind:newName={newCategoryName} />
-			</div>
-
-			<div class="flex items-center gap-2">
-				<input
-					id="add-feed-crawler"
-					type="checkbox"
-					bind:checked={crawler}
-					class="rounded border-n-300"
-				/>
-				<label for="add-feed-crawler" class="text-sm text-n-700">Fetch original content (crawler)</label>
 			</div>
 
 			<div class="flex items-center justify-between gap-2 pt-2">
