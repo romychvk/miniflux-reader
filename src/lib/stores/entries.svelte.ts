@@ -169,6 +169,28 @@ function githubAvatar(entry: Entry): string | null {
   return enc?.url ?? null;
 }
 
+// Telegram feeds (via RSS-Bridge) have a generic rssbridge.de feed_url, but every post links to
+// t.me — so the post URL host is the reliable "this is a Telegram post" signal.
+function isTelegramEntry(entry: Entry): boolean {
+  return hostOf(entry.url) === "t.me";
+}
+
+// A Telegram post URL is https://t.me/{channel}/{id} (public) or https://t.me/s/{channel}/{id}
+// (preview). The channel root page's og:image is the channel avatar — the very same image
+// Telegram serves as the og:image of every *text-only* post. Returns the channel root URL so we
+// can resolve that avatar once and suppress it as a per-post cover (see ensureTelegramAvatar).
+function telegramChannelRoot(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.host !== "t.me") return null;
+    const seg = u.pathname.split("/").filter(Boolean);
+    const channel = seg[0] === "s" ? seg[1] : seg[0];
+    return channel ? `https://t.me/${channel}` : null;
+  } catch {
+    return null;
+  }
+}
+
 // Best thumbnail without any extra network request: first real content image, else the
 // RSS image enclosure. When the feed has a custom cover rule we skip this entirely and let
 // ensureThumbnail() resolve the cover from the source page (the rule is authoritative for
@@ -234,6 +256,29 @@ function ogSchedule(task: () => Promise<void>): void {
   };
   if (ogActive < OG_MAX_CONCURRENT) run();
   else ogQueue.push(run);
+}
+
+// --- Telegram channel-avatar suppression ----------------------------------------------
+// Telegram uses the channel avatar as the og:image of every text-only post, so without this
+// each such post shows the identical avatar as its card cover (an uninformative, repeated
+// image). We resolve each feed's avatar once (the og:image of its channel root page) and drop
+// it wherever a post's og:image matches; posts with a real photo keep theirs (their og:image
+// differs from the avatar). The sidebar icon already is the channel avatar (Miniflux fetches
+// the t.me favicon), so unlike github feeds there's nothing to repurpose for the icon.
+const TG_AVATAR_KEY = "tgAvatars_v1"; // feedId -> avatar url ('' = checked, channel has none)
+let tgAvatarCache: Record<string, string> | null = null;
+
+function loadTgAvatars(): Record<string, string> {
+  if (tgAvatarCache === null)
+    tgAvatarCache = storageGet<Record<string, string>>(TG_AVATAR_KEY, {});
+  return tgAvatarCache;
+}
+
+// True when `url` is the (already resolved) channel avatar for this Telegram feed — i.e. the
+// post is text-only and this og:image should not be shown as a card cover.
+function isTelegramAvatarUrl(entry: Entry, url: string): boolean {
+  if (!url || !isTelegramEntry(entry)) return false;
+  return loadTgAvatars()[String(entry.feed.id)] === url;
 }
 
 function createEntriesStore() {
@@ -551,6 +596,40 @@ function createEntriesStore() {
     return content;
   }
 
+  const tgAvatarInFlight = new Set<number>();
+
+  // Resolve (once per feed, cached) a Telegram channel's avatar so text-only posts don't show it
+  // as a card cover. Only the channel root is fetched here; each post's own og:image is still
+  // resolved by ensureThumbnail, and suppressed when it equals this avatar (isTelegramAvatarUrl).
+  function ensureTelegramAvatar(entry: Entry): void {
+    const feedId = entry.feed.id;
+    const cache = loadTgAvatars();
+    if (cache[String(feedId)] !== undefined || tgAvatarInFlight.has(feedId)) return;
+    const root = telegramChannelRoot(entry.url);
+    if (!root) return;
+    tgAvatarInFlight.add(feedId);
+    ogSchedule(async () => {
+      let avatar: string | null = null;
+      try {
+        const res = await fetch(`/api/og-image?url=${encodeURIComponent(root)}`);
+        if (res.ok) avatar = (await res.json())?.url || "";
+      } catch {
+        /* transient — leave unresolved so a later load retries */
+      } finally {
+        tgAvatarInFlight.delete(feedId);
+      }
+      if (avatar === null) return; // undetermined — don't cache a transient failure
+      cache[String(feedId)] = avatar;
+      storageSet(TG_AVATAR_KEY, cache);
+      // A post can resolve its own og:image (the avatar) before this channel-root lookup
+      // returns; drop it from any such already-loaded post now that we know it's the avatar.
+      if (avatar)
+        for (const e of entries)
+          if (e.feed.id === feedId && e._thumbnailUrl === avatar)
+            e._thumbnailUrl = null;
+    });
+  }
+
   // Fill in a missing thumbnail. Lazy and cached: invoked per row from the UI only for image
   // views, runs at most once per article URL. By default reads the page's og:image; if the
   // feed has a custom cover rule, fetches the page HTML and extracts via the CSS selector.
@@ -560,6 +639,9 @@ function createEntriesStore() {
     if (entry._thumbnailUrl || !entry.url) return;
     // github feeds are intentionally image-less (see pickThumbnail) — never fetch a cover.
     if (isGithubFeed(entry)) return;
+    // Telegram: learn the channel avatar so text-only posts (whose og:image is that avatar)
+    // don't show it as a card cover; posts with a real photo keep theirs.
+    if (isTelegramEntry(entry)) ensureTelegramAvatar(entry);
     if (ogCache === null)
       ogCache = storageGet<Record<string, string>>(OG_CACHE_KEY, {});
 
@@ -571,7 +653,7 @@ function createEntriesStore() {
 
     const cached = ogCache[cacheKey];
     if (cached !== undefined) {
-      if (cached) entry._thumbnailUrl = cached;
+      if (cached && !isTelegramAvatarUrl(entry, cached)) entry._thumbnailUrl = cached;
       return;
     }
     if (ogInFlight.has(cacheKey)) return;
@@ -607,7 +689,10 @@ function createEntriesStore() {
       storageSet(OG_CACHE_KEY, ogCache);
       if (image) {
         const target = entries.find((e) => e.id === entry.id) ?? entry;
-        if (!target._thumbnailUrl) target._thumbnailUrl = image;
+        // Suppress a Telegram text post's cover (its og:image is the channel avatar). The raw
+        // value is still cached above so we don't refetch; suppression is applied at read time.
+        if (!target._thumbnailUrl && !isTelegramAvatarUrl(target, image))
+          target._thumbnailUrl = image;
       }
     });
   }
