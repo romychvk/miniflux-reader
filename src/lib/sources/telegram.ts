@@ -10,9 +10,7 @@ function isTelegramPost(entry: Entry): boolean {
 }
 
 // A Telegram post URL is https://t.me/{channel}/{id} (public) or https://t.me/s/{channel}/{id}
-// (preview). The channel root page's og:image is the channel avatar — the very same image
-// Telegram serves as the og:image of every *text-only* post, so it otherwise shows as an
-// identical card cover on every such post. Returns the channel root URL, or null.
+// (preview). The channel root page's og:image is the channel avatar. Returns the root URL, or null.
 function channelRoot(url: string): string | null {
   try {
     const u = new URL(url);
@@ -25,55 +23,103 @@ function channelRoot(url: string): string | null {
   }
 }
 
-// Per-feed channel avatar (the og:image of the channel root), resolved once and cached in
-// localStorage. '' means "checked, channel has no avatar".
-const AVATAR_KEY = "tgAvatars_v1"; // feedId -> avatar url
-let avatarCache: Record<string, string> | null = null;
-const inFlight = new Set<number>();
+// A Telegram text-only post's og:image is the channel avatar, so the same image repeats as a card
+// cover across many posts. We recognise it two ways and drop it as a cover:
+//   (a) prime() — the og:image of the channel root page (immediate, so fresh posts never flash);
+//   (b) coverHidden() — any cover URL that repeats across >= REPEAT_THRESHOLD distinct posts.
+// (b) is essential because Telegram rotates the telesco.pe file token over time: a months-old
+// cached post cover points at a stale avatar URL that (a)'s freshly-resolved channel avatar no
+// longer matches — but that stale URL still repeats across the feed's text posts, so (b) catches
+// it. Both signals feed the same per-feed set of known avatar URLs, persisted to localStorage.
+// (The sidebar icon already is the channel avatar — Miniflux fetches the t.me favicon — so, unlike
+// github, there's nothing to repurpose for the icon.)
+const KNOWN_KEY = "tgAvatars_v2"; // feedId -> known avatar url[]
+const REPEAT_THRESHOLD = 3;
 
-function avatars(): Record<string, string> {
-  if (avatarCache === null)
-    avatarCache = storageGet<Record<string, string>>(AVATAR_KEY, {});
-  return avatarCache;
+let knownCache: Record<string, string[]> | null = null;
+const knownSets = new Map<number, Set<string>>();
+const rootFetched = new Set<number>();
+// feedId -> (cover url -> distinct post ids that used it) — repetition tally, in-memory only.
+const tally = new Map<number, Map<string, Set<number>>>();
+
+function knownStore(): Record<string, string[]> {
+  if (knownCache === null)
+    knownCache = storageGet<Record<string, string[]>>(KNOWN_KEY, {});
+  return knownCache;
+}
+
+function knownFor(feedId: number): Set<string> {
+  let set = knownSets.get(feedId);
+  if (!set) {
+    set = new Set(knownStore()[String(feedId)] ?? []);
+    knownSets.set(feedId, set);
+  }
+  return set;
+}
+
+// Record `url` as a known avatar for the feed; returns true only when it was newly added, so the
+// caller clears it from already-loaded posts exactly once.
+function remember(feedId: number, url: string): boolean {
+  const set = knownFor(feedId);
+  if (set.has(url)) return false;
+  set.add(url);
+  const store = knownStore();
+  store[String(feedId)] = [...set];
+  storageSet(KNOWN_KEY, store);
+  return true;
+}
+
+function tallyFor(feedId: number, url: string): Set<number> {
+  let byUrl = tally.get(feedId);
+  if (!byUrl) {
+    byUrl = new Map();
+    tally.set(feedId, byUrl);
+  }
+  let ids = byUrl.get(url);
+  if (!ids) {
+    ids = new Set();
+    byUrl.set(url, ids);
+  }
+  return ids;
 }
 
 export const telegramSource: SourceRules = {
   id: "telegram",
   appliesTo: isTelegramPost,
 
-  // A post's og:image equal to the resolved channel avatar means it's a text-only post — drop it
-  // so it doesn't show the repeated avatar as a card cover. Posts with a real photo have a
-  // different og:image and keep it. The sidebar icon already is the channel avatar (Miniflux
-  // fetches the t.me favicon), so — unlike github — there's nothing to repurpose for the icon.
-  coverHidden(entry, url) {
-    return !!url && avatars()[String(entry.feed.id)] === url;
+  coverHidden(entry, url, ctx) {
+    if (!url) return false;
+    const feedId = entry.feed.id;
+    if (knownFor(feedId).has(url)) return true;
+    // Not yet known — does this cover repeat across posts? (The avatar does; real photos don't.)
+    const ids = tallyFor(feedId, url);
+    ids.add(entry.id);
+    if (ids.size >= REPEAT_THRESHOLD && remember(feedId, url)) {
+      ctx.clearCover(feedId, url); // retro-hide posts already showing it
+      return true;
+    }
+    return false;
   },
 
-  // Resolve (once per feed) the channel avatar so coverHidden() can recognise it. Only the channel
-  // root is fetched here; each post's own og:image is resolved by the pipeline's ensureThumbnail.
+  // Resolve the channel root's og:image (the avatar) once per feed so fresh posts are suppressed
+  // immediately, without waiting for the repetition tally. Only the channel root is fetched here;
+  // each post's own og:image is resolved by the pipeline's ensureThumbnail.
   prime(entry, ctx) {
     const feedId = entry.feed.id;
-    const cache = avatars();
-    if (cache[String(feedId)] !== undefined || inFlight.has(feedId)) return;
+    if (rootFetched.has(feedId)) return;
     const root = channelRoot(entry.url);
     if (!root) return;
-    inFlight.add(feedId);
+    rootFetched.add(feedId);
     ctx.schedule(async () => {
-      let avatar: string | null = null;
+      let avatar = "";
       try {
         const res = await fetch(`/api/og-image?url=${encodeURIComponent(root)}`);
         if (res.ok) avatar = (await res.json())?.url || "";
       } catch {
-        /* transient — leave unresolved so a later load retries */
-      } finally {
-        inFlight.delete(feedId);
+        rootFetched.delete(feedId); // transient — allow a later retry
+        return;
       }
-      if (avatar === null) return; // undetermined — don't cache a transient failure
-      cache[String(feedId)] = avatar;
-      storageSet(AVATAR_KEY, cache);
-      // A post can resolve its own og:image (the avatar) before this channel-root lookup returns;
-      // drop it from any such already-loaded post now that we know it's the channel avatar.
-      if (avatar) ctx.clearCover(feedId, avatar);
+      if (avatar && remember(feedId, avatar)) ctx.clearCover(feedId, avatar);
     });
   },
 };

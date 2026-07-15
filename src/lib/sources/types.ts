@@ -26,8 +26,9 @@ export interface SourceRules {
   prime?(entry: Entry, ctx: SourceContext): void;
 
   // Given a resolved cover URL for this entry, return true to drop it (don't show it as a card
-  // image) — e.g. a telegram text post whose og:image is the repeated channel avatar.
-  coverHidden?(entry: Entry, url: string): boolean;
+  // image) — e.g. a telegram text post whose og:image is the repeated channel avatar. May use ctx
+  // to react (e.g. retroactively clear the same cover from other already-loaded posts).
+  coverHidden?(entry: Entry, url: string, ctx: SourceContext): boolean;
 }
 
 // Capabilities the pipeline lends to a source's prime() — it owns the og scheduler, the feed-icon

@@ -559,7 +559,8 @@ function createEntriesStore() {
 
     const cached = ogCache[cacheKey];
     if (cached !== undefined) {
-      if (cached && !source?.coverHidden?.(entry, cached)) entry._thumbnailUrl = cached;
+      if (cached && !source?.coverHidden?.(entry, cached, sourceContext))
+        entry._thumbnailUrl = cached;
       return;
     }
     if (ogInFlight.has(cacheKey)) return;
@@ -597,7 +598,7 @@ function createEntriesStore() {
         const target = entries.find((e) => e.id === entry.id) ?? entry;
         // A source may drop a resolved cover (e.g. a telegram text post's og:image is the channel
         // avatar). The raw value is still cached above; suppression is applied at read time.
-        if (!target._thumbnailUrl && !source?.coverHidden?.(target, image))
+        if (!target._thumbnailUrl && !source?.coverHidden?.(target, image, sourceContext))
           target._thumbnailUrl = image;
       }
     });
