@@ -6,10 +6,12 @@
 	import FeedItem from './FeedItem.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
-	import { ChevronRight, ChevronDown, Pencil, RefreshCw } from 'lucide-svelte';
+	import { ChevronRight, ChevronDown, Pencil, RefreshCw, Plus } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { makeFeedSlug } from '$lib/slug';
 	import { storageGet, storageSet } from '$lib/storage';
+
+	let { onAddFeed }: { onAddFeed: (categoryId: number) => void } = $props();
 
 	let contextMenu = $state<{ x: number; y: number; catId: number } | null>(null);
 	let editingCatId = $state<number | null>(null);
@@ -210,6 +212,7 @@
 		x={contextMenu.x}
 		y={contextMenu.y}
 		items={[
+			{ label: 'Add Feed', icon: Plus, action: () => onAddFeed(contextMenu!.catId) },
 			{ label: 'Edit Category', icon: Pencil, action: () => { editingCatId = contextMenu!.catId; } },
 			{ label: 'Refresh Feeds', icon: RefreshCw, action: async () => {
 				await feeds.refreshCategoryFeeds(contextMenu!.catId);

@@ -4,20 +4,23 @@
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
 	import CategorySelect from './CategorySelect.svelte';
 
-	let { onclose, onsave, onwizard }: {
+	let { onclose, onsave, onwizard, initialCategoryId }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
 		onwizard?: () => void;
+		initialCategoryId?: number;
 	} = $props();
 
 	let feedUrl = $state('');
 	let categoryId: number = $state(0);
 	let newCategoryName = $state('');
 
-	// Default to the "— Without category —" (Miniflux "All") bucket, falling back to
-	// the first category, so leaving the picker untouched keeps a feed uncategorized.
+	// Preselect the category the user acted on (e.g. right-clicked in the sidebar);
+	// otherwise fall back to the "— Without category —" (Miniflux "All") bucket, so
+	// leaving the picker untouched keeps a feed uncategorized.
 	$effect(() => {
-		if (!categoryId) categoryId = feeds.getNoCategoryId() ?? feeds.getCategories()[0]?.id ?? 0;
+		if (!categoryId)
+			categoryId = initialCategoryId ?? feeds.getNoCategoryId() ?? feeds.getCategories()[0]?.id ?? 0;
 	});
 	let saving = $state(false);
 

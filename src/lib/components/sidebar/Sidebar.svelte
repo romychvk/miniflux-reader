@@ -13,6 +13,14 @@
 
 	let showAddModal = $state(false);
 	let showWizard = $state(false);
+	// Category to preselect in the Add Feed modal; set when opened from a category's
+	// right-click menu, undefined when opened from the header "+" button.
+	let addFeedCategoryId = $state<number | undefined>(undefined);
+
+	function openAddModal(categoryId?: number) {
+		addFeedCategoryId = categoryId;
+		showAddModal = true;
+	}
 
 	// After a feed is created, open it so the user lands on their new feed
 	// instead of having to hunt for it in the sidebar.
@@ -59,7 +67,7 @@
 			<h2 class="text-lg text-n-800 font-bold leading-none"><a href="/">Miniflux Reader</a></h2>
 			<div class="flex items-center gap-1">
 				<button
-					onclick={() => showAddModal = true}
+					onclick={() => openAddModal()}
 					class="text-n-700 p-2 rounded-full hover:bg-n-200 transition-colors"
 					title="Add feed"
 				>
@@ -68,7 +76,7 @@
 			</div>
 		</div>
 		<div class="overflow-y-auto flex-1">
-			<FeedTree />
+			<FeedTree onAddFeed={openAddModal} />
 		</div>
 		{@render logoutButton()}
 		<!-- Resize handle -->
@@ -93,7 +101,7 @@
 			<h2 class="text-xl text-a-600 font-medium">Miniflux Reader</h2>
 			<div class="flex items-center gap-2">
 				<button
-					onclick={() => showAddModal = true}
+					onclick={() => openAddModal()}
 					class="text-n-700 hover:bg-n-200 p-2 rounded-full transition-colors"
 					title="Add feed"
 				>
@@ -102,7 +110,7 @@
 			</div>
 		</div>
 		<div class="overflow-y-auto flex-1">
-			<FeedTree />
+			<FeedTree onAddFeed={openAddModal} />
 		</div>
 		{@render logoutButton()}
 	</aside>
@@ -110,6 +118,7 @@
 
 {#if showAddModal}
 	<FeedAddModal
+		initialCategoryId={addFeedCategoryId}
 		onclose={() => showAddModal = false}
 		onsave={handleCreateFeed}
 		onwizard={() => { showAddModal = false; showWizard = true; }}
@@ -118,6 +127,7 @@
 
 {#if showWizard}
 	<ScrapedFeedWizard
+		initialCategoryId={addFeedCategoryId}
 		onclose={() => showWizard = false}
 		onsave={handleCreateFeed}
 	/>

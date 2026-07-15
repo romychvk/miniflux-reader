@@ -28,9 +28,10 @@
 		parseSelectorSuggestion
 	} from '$lib/ai/selectorPrompt';
 
-	let { onclose, onsave }: {
+	let { onclose, onsave, initialCategoryId }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
+		initialCategoryId?: number;
 	} = $props();
 
 	// Instance prefill: the remembered choice, else the instance of any existing bridge feed.
@@ -75,11 +76,13 @@
 	let limit = $state<number | null>(null);
 	let discardThumbnail = $state(false);
 
-	// Defaults to "— Without category —" (Miniflux "All"); the user's pick then sticks.
+	// Preselect the category the user acted on (right-clicked in the sidebar), else
+	// default to "— Without category —" (Miniflux "All"); the user's pick then sticks.
 	let categoryId: number = $state(0);
 	let newCategoryName = $state('');
 	$effect(() => {
-		if (!categoryId) categoryId = feeds.getNoCategoryId() ?? feeds.getCategories()[0]?.id ?? 0;
+		if (!categoryId)
+			categoryId = initialCategoryId ?? feeds.getNoCategoryId() ?? feeds.getCategories()[0]?.id ?? 0;
 	});
 	let crawler = $state(true); // let Miniflux fetch the full articles by default
 
