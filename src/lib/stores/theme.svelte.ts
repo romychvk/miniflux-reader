@@ -1,5 +1,5 @@
 import { storageGet, storageGetString, storageSet } from '$lib/storage';
-import { PRESETS, resolveTheme, type Theme, type TokenMap } from '$lib/themes';
+import { PRESETS, resolveThemeCss, type Theme } from '$lib/themes';
 
 const THEME_KEY = 'theme';
 const CUSTOM_KEY = 'customThemes';
@@ -16,7 +16,7 @@ function createTheme() {
 		return PRESETS.find((p) => p.id === id) ?? custom.find((c) => c.id === id);
 	}
 
-	function applyVars(mode: 'light' | 'dark', vars: TokenMap) {
+	function applyVars(mode: 'light' | 'dark', vars: Record<string, string>) {
 		const s = document.documentElement.style;
 		for (const [k, v] of Object.entries(vars)) s.setProperty('--' + k, v);
 		// Native scrollbars / form controls follow the theme
@@ -25,7 +25,7 @@ function createTheme() {
 
 	function applyCurrent() {
 		const t = find(current) ?? PRESETS[0];
-		const vars = resolveTheme(t);
+		const vars = resolveThemeCss(t);
 		applyVars(t.inputs.mode, vars);
 		storageSet(VARS_KEY, { mode: t.inputs.mode, vars });
 	}
@@ -72,9 +72,9 @@ function createTheme() {
 		if (current === id) setTheme('default');
 	}
 
-	/** Editor live preview — applies vars without persisting anything. */
-	function preview(mode: 'light' | 'dark', vars: TokenMap) {
-		applyVars(mode, vars);
+	/** Editor live preview — applies a draft theme without persisting anything. */
+	function preview(t: Theme) {
+		applyVars(t.inputs.mode, resolveThemeCss(t));
 	}
 
 	/** Restore the persisted current theme after a cancelled/finished preview. */
@@ -82,7 +82,7 @@ function createTheme() {
 		// No fallback here: if the current id can't be resolved (transient state
 		// during a save), keeping the previewed vars beats flashing the default.
 		const t = find(current);
-		if (t) applyVars(t.inputs.mode, resolveTheme(t));
+		if (t) applyVars(t.inputs.mode, resolveThemeCss(t));
 	}
 
 	function newId(): string {

@@ -39,17 +39,17 @@
 </script>
 
 {#snippet logoutButton()}
-	<div class="border-t border-n-200 p-3 mt-auto flex flex-col gap-2.5">
+	<div class="border-t border-sb-200 p-3 mt-auto flex flex-col gap-2.5">
 		<a
 			href="/settings"
-			class="flex items-center gap-2 text-sm text-n-500 hover:text-n-700 transition-colors w-full cursor-pointer"
+			class="flex items-center gap-2 text-sm text-sb-500 hover:text-sb-700 transition-colors w-full cursor-pointer"
 		>
 			<Settings size={16} />
 			Settings
 		</a>
 		<button
 			onclick={handleLogout}
-			class="flex items-center gap-2 text-sm text-n-500 hover:text-n-700 transition-colors w-full cursor-pointer"
+			class="flex items-center gap-2 text-sm text-sb-500 hover:text-sb-700 transition-colors w-full cursor-pointer"
 		>
 			<LogOut size={16} />
 			Logout
@@ -64,11 +64,11 @@
 		style="width: {ui.sidebarWidth}px"
 	>
 		<div class="p-4 flex items-center justify-between">
-			<h2 class="text-lg text-n-800 font-bold leading-none"><a href="/">Miniflux Reader</a></h2>
+			<h2 class="text-lg text-sb-800 font-bold leading-none"><a href="/">Miniflux Reader</a></h2>
 			<div class="flex items-center gap-1">
 				<button
 					onclick={() => openAddModal()}
-					class="text-n-700 p-2 rounded-full hover:bg-n-200 transition-colors"
+					class="text-sb-700 p-2 rounded-full hover:bg-sb-200 transition-colors"
 					title="Add feed"
 				>
 					<Plus size={20} />
@@ -97,12 +97,12 @@
 		onkeydown={(e) => e.key === 'Escape' && ui.toggleSidebar()}
 	></div>
 	<aside class="fixed left-0 top-0 h-full w-72 bg-sidebar z-50 shadow-lg flex flex-col">
-		<div class="p-3 border-b border-n-200 flex items-center justify-between">
+		<div class="p-3 border-b border-sb-200 flex items-center justify-between">
 			<h2 class="text-xl text-a-600 font-medium">Miniflux Reader</h2>
 			<div class="flex items-center gap-2">
 				<button
 					onclick={() => openAddModal()}
-					class="text-n-700 hover:bg-n-200 p-2 rounded-full transition-colors"
+					class="text-sb-700 hover:bg-sb-200 p-2 rounded-full transition-colors"
 					title="Add feed"
 				>
 					<Plus size={20} />

@@ -29,6 +29,29 @@
 
 	--color-sidebar: var(--sidebar);
 	--color-navbar: var(--navbar);
+	--color-sidebar-fg: var(--sidebar-fg);
+	--color-navbar-fg: var(--navbar-fg);
+
+	/* Zone neutral mirrors: the sb- and nb- utilities are the n-* ramp scoped
+	   to the sidebar / navbar, so those areas can re-derive text, hover and
+	   border shades when their background diverges from the theme. */
+	--color-sb-200: var(--sidebar-n-200);
+	--color-sb-300: var(--sidebar-n-300);
+	--color-sb-400: var(--sidebar-n-400);
+	--color-sb-500: var(--sidebar-n-500);
+	--color-sb-600: var(--sidebar-n-600);
+	--color-sb-700: var(--sidebar-n-700);
+	--color-sb-800: var(--sidebar-n-800);
+	--color-sb-900: var(--sidebar-n-900);
+
+	--color-nb-200: var(--navbar-n-200);
+	--color-nb-300: var(--navbar-n-300);
+	--color-nb-400: var(--navbar-n-400);
+	--color-nb-500: var(--navbar-n-500);
+	--color-nb-600: var(--navbar-n-600);
+	--color-nb-700: var(--navbar-n-700);
+	--color-nb-800: var(--navbar-n-800);
+	--color-nb-900: var(--navbar-n-900);
 }
 
 /* Pre-JS / no-JS fallback palette only — the real theme values are applied as
@@ -66,6 +89,27 @@
 	   before these tokens existed: the inline --surface wins the substitution. */
 	--sidebar: var(--surface);
 	--navbar: var(--surface);
+	--sidebar-fg: var(--n-900);
+	--navbar-fg: var(--n-900);
+
+	/* Same indirection for the zone neutral mirrors. */
+	--sidebar-n-200: var(--n-200);
+	--sidebar-n-300: var(--n-300);
+	--sidebar-n-400: var(--n-400);
+	--sidebar-n-500: var(--n-500);
+	--sidebar-n-600: var(--n-600);
+	--sidebar-n-700: var(--n-700);
+	--sidebar-n-800: var(--n-800);
+	--sidebar-n-900: var(--n-900);
+
+	--navbar-n-200: var(--n-200);
+	--navbar-n-300: var(--n-300);
+	--navbar-n-400: var(--n-400);
+	--navbar-n-500: var(--n-500);
+	--navbar-n-600: var(--n-600);
+	--navbar-n-700: var(--n-700);
+	--navbar-n-800: var(--n-800);
+	--navbar-n-900: var(--n-900);
 }
 
 @layer base {

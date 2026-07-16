@@ -33,8 +33,10 @@
 
 	// Live preview: every draft change restyles the whole app; leaving the
 	// editor (cancel, save, navigation) restores the persisted theme.
+	// resolveThemeCss inside preview() reads the draft deeply, so the effect
+	// tracks every input and override.
 	$effect(() => {
-		theme.preview(draft.inputs.mode, resolved);
+		theme.preview(draft);
 	});
 	$effect(() => {
 		// queueMicrotask escapes the teardown's reactive context: state reads

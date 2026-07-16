@@ -193,9 +193,9 @@
 
 <svelte:document onclick={viewDropdownOpen ? handleClickOutside : undefined} onkeydown={onGlobalKeydown} />
 
-<header class="h-12 border-b border-n-200 bg-navbar flex justify-between items-center px-4 gap-3 shrink-0">
+<header class="h-12 border-b border-nb-200 bg-navbar text-nb-900 flex justify-between items-center px-4 gap-3 shrink-0">
 	{#if ui.isMobile}
-		<button onclick={() => ui.toggleSidebar()} class="text-n-600 hover:text-n-900">
+		<button onclick={() => ui.toggleSidebar()} class="text-nb-600 hover:text-nb-900">
 			<Menu size={20} />
 		</button>
 	{/if}
@@ -214,7 +214,7 @@
 					target="_blank"
 					rel="noopener noreferrer"
 					title="Open site"
-					class="shrink-0 mt-1 text-n-500 hover:text-n-800 opacity-0 group-hover:opacity-100 transition-opacity"
+					class="shrink-0 mt-1 text-nb-500 hover:text-nb-800 opacity-0 group-hover:opacity-100 transition-opacity"
 				>
 					<ExternalLink size={18} />
 				</a>
@@ -223,7 +223,7 @@
 	{:else}
 		{#if searchOpen}
 			<div class="flex items-center gap-2 flex-1 min-w-0">
-				<Search size={18} class="text-n-700 shrink-0" />
+				<Search size={18} class="text-nb-700 shrink-0" />
 				<input
 					bind:this={searchInputEl}
 					bind:value={searchInput}
@@ -231,11 +231,11 @@
 					onkeydown={onSearchKeydown}
 					type="text"
 					placeholder="Search articles..."
-					class="flex-1 min-w-0 outline-none text-sm text-n-900 placeholder:text-n-500 border border-n-300 rounded-full px-4 py-1.5"
+					class="flex-1 min-w-0 outline-none text-sm text-nb-900 placeholder:text-nb-500 border border-nb-300 rounded-full px-4 py-1.5"
 				/>
 				<button
 					onclick={closeSearch}
-					class="text-n-700 p-1 rounded-full hover:bg-n-200 shrink-0"
+					class="text-nb-700 p-1 rounded-full hover:bg-nb-200 shrink-0"
 					title="Close search"
 				>
 					<X size={16} />
@@ -253,7 +253,7 @@
 						target="_blank"
 						rel="noopener noreferrer"
 						title="Open site"
-						class="shrink-0 mt-1 text-n-500 hover:text-n-800 opacity-0 group-hover:opacity-100 transition-opacity"
+						class="shrink-0 mt-1 text-nb-500 hover:text-nb-800 opacity-0 group-hover:opacity-100 transition-opacity"
 					>
 						<ExternalLink size={18} />
 					</a>
@@ -266,7 +266,7 @@
 				<button
 					onclick={openSearch}
 					title="Search (Ctrl+K)"
-					class="text-n-700 hover:bg-n-200 p-2 rounded-full"
+					class="text-nb-700 hover:bg-nb-200 p-2 rounded-full"
 				>
 					<Search size={20} />
 				</button>
@@ -278,7 +278,7 @@
 				onclick={refreshCurrentFeed}
 				disabled={refreshing}
 				title={ui.selectedFeed.isFeed ? 'Refresh Feed' : 'Refresh Feeds'}
-				class="text-n-700 hover:bg-n-200 p-2 rounded-full disabled:opacity-50"
+				class="text-nb-700 hover:bg-nb-200 p-2 rounded-full disabled:opacity-50"
 			>
 				<RefreshCw size={20} class={refreshing ? 'animate-spin' : ''} />
 			</button>
@@ -286,7 +286,7 @@
 				onclick={markAllAsRead}
 				disabled={markingAllRead || !hasUnread}
 				title="Mark all as read"
-				class="text-n-700 hover:bg-n-200 p-2 rounded-full disabled:opacity-50"
+				class="text-nb-700 hover:bg-nb-200 p-2 rounded-full disabled:opacity-50"
 			>
 				<CheckCheck size={20} />
 			</button>
@@ -295,7 +295,7 @@
 					<button
 						onclick={() => ui.openFiltersPanel(ui.selectedFeed!.id)}
 						title="Filters"
-						class="text-n-700 hover:bg-n-200 p-2 rounded-full"
+						class="text-nb-700 hover:bg-nb-200 p-2 rounded-full"
 					>
 						<Filter size={20} />
 					</button>
@@ -303,7 +303,7 @@
 				<button
 					onclick={() => entries.toggleShowAll()}
 					title={entries.showAll ? 'Show unread only' : 'Show all'}
-					class="text-n-700 hover:bg-n-200 p-2 rounded-full transition-colors"
+					class="text-nb-700 hover:bg-nb-200 p-2 rounded-full transition-colors"
 				>
 					<Circle size={20} fill={entries.showAll ? 'none' : 'currentColor'} />
 				</button>
@@ -311,7 +311,7 @@
 					<button
 						onclick={() => viewDropdownOpen = !viewDropdownOpen}
 						title={currentViewMode.label}
-						class="text-n-700 hover:bg-n-200 p-2 rounded-full"
+						class="text-nb-700 hover:bg-nb-200 p-2 rounded-full"
 					>
 						<currentViewMode.icon size={24} />
 					</button>
@@ -392,7 +392,7 @@
 		{#if showDotMenu}
 			<button
 				onclick={openDotMenu}
-				class="text-n-700 hover:bg-n-200 p-2 rounded-full shrink-0"
+				class="text-nb-700 hover:bg-nb-200 p-2 rounded-full shrink-0"
 				title="Menu"
 			>
 				<EllipsisVertical size={20} />
@@ -425,7 +425,7 @@
   .display-buttons {
     @apply ml-4;
     &::before {
-      @apply content-[''] block absolute left-[-13px] top-[12px] w-0.5 h-[16px] bg-n-200;
+      @apply content-[''] block absolute left-[-13px] top-[12px] w-0.5 h-[16px] bg-nb-200;
     }
   }
 

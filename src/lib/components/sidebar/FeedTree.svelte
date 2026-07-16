@@ -139,8 +139,8 @@
 			{@const isCatTarget = isCatDropTarget(node.id)}
 			<div
 				role="listitem"
-				class="flex items-center gap-0 rounded hover:bg-n-200 transition-colors
-          {isSelected ? 'bg-n-200 text-a-700' : 'text-n-900'}
+				class="flex items-center gap-0 rounded hover:bg-sb-200 transition-colors
+          {isSelected ? 'bg-sb-200 text-a-700' : 'text-sb-900'}
 					{isCatDragged ? 'opacity-40' : ''}
 					{isCatTarget ? 'ring-2 ring-a-400 bg-a-50' : ''}"
 				draggable="true"
@@ -175,7 +175,7 @@
 				>
 					<span class="truncate flex-1 pointer-events-none">{node.title}</span>
 					{#if node.unread > 0}
-						<span class="text-xs text-n-400 font-normal pointer-events-none">{node.unread}</span>
+						<span class="text-xs text-sb-400 font-normal pointer-events-none">{node.unread}</span>
 					{/if}
 				</button>
 			</div>

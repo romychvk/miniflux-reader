@@ -18,7 +18,7 @@ export const TOKENS = [
 	'a-50', 'a-400', 'a-500', 'a-600', 'a-700',
 	'surface',
 	'danger', 'danger-strong', 'success', 'warning', 'overlay', 'on-accent',
-	'sidebar', 'navbar',
+	'sidebar', 'navbar', 'sidebar-fg', 'navbar-fg',
 ] as const;
 
 export type Token = (typeof TOKENS)[number];
@@ -103,9 +103,13 @@ export function generateTokens(inputs: ThemeInputs): TokenMap {
 		: oklchToHex({ l: 0.975, c: 0.015, h: accent.h });
 
 	map.surface = dark ? oklchToHex({ l: 0.225, c: cMax * 0.5, h: tint.h }) : '#ffffff';
-	// Sidebar / navbar chrome follows the surface unless explicitly overridden
+	// Sidebar / navbar chrome follows the surface unless explicitly overridden;
+	// their text follows the strongest neutral (see resolveTheme for the
+	// contrast-derived value used when a zone background is customized).
 	map.sidebar = map.surface;
 	map.navbar = map.surface;
+	map['sidebar-fg'] = map['n-900'];
+	map['navbar-fg'] = map['n-900'];
 
 	Object.assign(map, dark ? SEMANTIC_DARK : SEMANTIC_LIGHT);
 	// Light accents (yellow, lime) need dark label text; the darkest neutral
@@ -116,6 +120,15 @@ export function generateTokens(inputs: ThemeInputs): TokenMap {
 	return map;
 }
 
+/** Contrast text for a customized zone background: light text on dark, dark on light. */
+function contrastFg(bg: string): string {
+	const c = hexToOklch(bg);
+	const chroma = Math.min(c.c, 0.03);
+	return c.l >= 0.5
+		? oklchToHex({ l: 0.22, c: chroma, h: c.h })
+		: oklchToHex({ l: 0.93, c: chroma, h: c.h });
+}
+
 export function resolveTheme(t: Theme): TokenMap {
 	const map = { ...generateTokens(t.inputs), ...t.overrides };
 	// Keep sidebar/navbar glued to the (possibly overridden) surface unless the
@@ -123,7 +136,55 @@ export function resolveTheme(t: Theme): TokenMap {
 	// carry no sidebar/navbar overrides and must keep looking as before.
 	if (!('sidebar' in t.overrides)) map.sidebar = map.surface;
 	if (!('navbar' in t.overrides)) map.navbar = map.surface;
+	// Zone text: explicit override wins; a customized zone background derives a
+	// contrasting color (dark sidebar in a light theme → light text); an
+	// untouched zone keeps the theme's strongest neutral.
+	if (!('sidebar-fg' in t.overrides))
+		map['sidebar-fg'] = 'sidebar' in t.overrides ? contrastFg(map.sidebar) : map['n-900'];
+	if (!('navbar-fg' in t.overrides))
+		map['navbar-fg'] = 'navbar' in t.overrides ? contrastFg(map.navbar) : map['n-900'];
 	return map;
+}
+
+// Position of each neutral step between the zone background (0) and the zone
+// text (1), measured from the lightness spacing of the canonical light ramp.
+const ZONE_T: Record<string, number> = {
+	'200': 0.072, '300': 0.149, '400': 0.362, '500': 0.555,
+	'600': 0.694, '700': 0.789, '800': 0.909, '900': 1,
+};
+
+/** OKLab midpoint between two hexes at position t (0 = a, 1 = b). */
+function mixOklab(a: string, b: string, t: number): string {
+	const ca = hexToOklch(a);
+	const cb = hexToOklch(b);
+	const ra = (ca.h * Math.PI) / 180;
+	const rb = (cb.h * Math.PI) / 180;
+	const A = ca.c * Math.cos(ra) + (cb.c * Math.cos(rb) - ca.c * Math.cos(ra)) * t;
+	const B = ca.c * Math.sin(ra) + (cb.c * Math.sin(rb) - ca.c * Math.sin(ra)) * t;
+	let h = (Math.atan2(B, A) * 180) / Math.PI;
+	if (h < 0) h += 360;
+	return oklchToHex({ l: ca.l + (cb.l - ca.l) * t, c: Math.hypot(A, B), h });
+}
+
+/**
+ * All CSS variables a theme applies, including the derived per-zone neutral
+ * mirrors (--sidebar-n-200…900, --navbar-n-200…900) used by the sb-* / nb-*
+ * utilities. Untouched zones copy the base ramp verbatim (pixel-identical);
+ * customized zones interpolate between the zone background and zone text so
+ * hovers, borders and muted text keep their hierarchy on any background.
+ */
+export function resolveThemeCss(t: Theme): Record<string, string> {
+	const map = resolveTheme(t);
+	const vars: Record<string, string> = { ...map };
+	for (const zone of ['sidebar', 'navbar'] as const) {
+		const customized = zone in t.overrides || `${zone}-fg` in t.overrides;
+		for (const [step, pos] of Object.entries(ZONE_T)) {
+			vars[`${zone}-n-${step}`] = customized
+				? mixOklab(map[zone], map[`${zone}-fg` as Token], pos)
+				: map[`n-${step}` as Token];
+		}
+	}
+	return vars;
 }
 
 // Hand-tuned Tailwind ramps, transcribed verbatim from the pre-token app.css
