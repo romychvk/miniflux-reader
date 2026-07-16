@@ -75,7 +75,7 @@
       @apply mb-4;
     }
     blockquote {
-      @apply pl-5 border-l-6 border-l-neutral-200 text-sm mb-4;
+      @apply pl-5 border-l-6 border-l-n-200 text-sm mb-4;
       p {
         @apply mb-2;
       }

@@ -198,7 +198,7 @@
 					type="button"
 					onclick={handleSave}
 					disabled={saving}
-					class="rounded-md bg-a-600 px-4 py-2 text-sm text-white hover:bg-a-700 disabled:opacity-50"
+					class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 				>
 					{saving ? 'Saving…' : 'Save'}
 				</button>
@@ -214,7 +214,7 @@
 					<button
 						type="button"
 						onclick={handleClear}
-						class="rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+						class="rounded-md px-3 py-2 text-sm text-danger hover:bg-danger/10"
 					>
 						Clear
 					</button>
@@ -228,8 +228,8 @@
 				<div
 					class={`rounded-md border px-3 py-2 text-sm ${
 						status.ok
-							? 'border-green-200 bg-green-50 text-green-700'
-							: 'border-red-200 bg-red-50 text-red-700'
+							? 'border-success/30 bg-success/10 text-success'
+							: 'border-danger/30 bg-danger/10 text-danger'
 					}`}
 				>
 					{status.text}
@@ -251,7 +251,7 @@
 				<button
 					type="button"
 					onclick={doExport}
-					class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-4 py-2 text-sm text-white hover:bg-a-700"
+					class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700"
 				>
 					<Download class="h-4 w-4" />
 					Export settings
@@ -262,7 +262,7 @@
 				</label>
 			</div>
 			{#if includeSecrets}
-				<p class="-mt-1 text-xs text-amber-600">
+				<p class="-mt-1 text-xs text-warning">
 					The exported file will contain your Miniflux token and AI key — keep it private.
 				</p>
 			{/if}

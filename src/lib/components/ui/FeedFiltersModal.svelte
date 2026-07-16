@@ -226,7 +226,7 @@
 <svelte:window {onkeydown} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-<div class="fixed inset-0 z-40 bg-black/30" onclick={onclose}></div>
+<div class="fixed inset-0 z-40 bg-overlay/30" onclick={onclose}></div>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
 	<div class="bg-surface rounded-lg shadow-xl w-full max-w-lg mx-4 pointer-events-auto flex max-h-[85vh] flex-col">
@@ -257,7 +257,7 @@
 								onclick={() => (dedupMode = opt.value)}
 								aria-pressed={dedupMode === opt.value}
 								class="px-3 py-1.5 text-sm {i > 0 ? 'border-l border-n-300' : ''} {dedupMode === opt.value
-									? 'bg-a-600 text-white'
+									? 'bg-a-600 text-on-accent'
 									: 'bg-surface text-n-700 hover:bg-n-100'}"
 							>
 								{opt.label}
@@ -478,7 +478,7 @@
 				type="button"
 				onclick={handleSave}
 				disabled={saving || !dirty}
-				class="rounded-md bg-a-600 px-4 py-2 text-sm text-white hover:bg-a-700 disabled:opacity-50"
+				class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 			>
 				{saving ? 'Saving…' : 'Save'}
 			</button>

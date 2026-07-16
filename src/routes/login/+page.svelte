@@ -22,7 +22,7 @@
 		<h1 class="text-2xl font-bold mb-6 text-center">Miniflux Reader</h1>
 
 		{#if error}
-			<p class="text-red-600 text-sm mb-4">{error}</p>
+			<p class="text-danger text-sm mb-4">{error}</p>
 		{/if}
 
 		<label class="block mb-4">
@@ -47,7 +47,7 @@
 
 		<button
 			type="submit"
-			class="w-full bg-a-600 text-white py-2 px-4 rounded font-medium hover:bg-a-700 transition-colors"
+			class="w-full bg-a-600 text-on-accent py-2 px-4 rounded font-medium hover:bg-a-700 transition-colors"
 		>
 			Login
 		</button>

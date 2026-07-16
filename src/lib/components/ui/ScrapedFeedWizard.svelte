@@ -269,7 +269,7 @@
 <svelte:window {onkeydown} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
-<div class="fixed inset-0 z-40 bg-black/30" onclick={onclose}></div>
+<div class="fixed inset-0 z-40 bg-overlay/30" onclick={onclose}></div>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
 	<div class="bg-surface rounded-lg shadow-xl w-full max-w-2xl mx-4 pointer-events-auto flex max-h-[90vh] flex-col">
@@ -298,13 +298,13 @@
 						type="button"
 						onclick={loadPage}
 						disabled={loadingPage || !pageUrl.trim()}
-						class="shrink-0 px-4 py-2 text-sm bg-n-600 text-white rounded-md hover:bg-n-700 disabled:opacity-50"
+						class="shrink-0 px-4 py-2 text-sm bg-n-600 text-n-50 rounded-md hover:bg-n-700 disabled:opacity-50"
 					>
 						{loadingPage ? 'Loading…' : doc ? 'Reload' : 'Load page'}
 					</button>
 				</div>
 				{#if pageError}
-					<p class="mt-1 text-xs text-red-600">{pageError}</p>
+					<p class="mt-1 text-xs text-danger">{pageError}</p>
 				{:else if truncated}
 					<p class="mt-1 text-xs text-n-500">
 						The page was truncated at 80&nbsp;KB — the preview may show fewer items than the bridge will.
@@ -341,7 +341,7 @@
 								type="button"
 								onclick={suggest}
 								disabled={aiLoading}
-								class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-a-600 px-3 py-1.5 text-sm text-white hover:bg-a-700 disabled:opacity-50"
+								class="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-a-600 px-3 py-1.5 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 							>
 								<Sparkles class={`h-3.5 w-3.5 ${aiLoading ? 'animate-pulse' : ''}`} />
 								{aiLoading ? 'Working…' : candidates.length ? 'Suggest again' : 'Suggest with AI'}
@@ -380,11 +380,11 @@
 					{/if}
 
 					{#if matchState?.error}
-						<p class="text-xs text-red-600">{matchState.error}</p>
+						<p class="text-xs text-danger">{matchState.error}</p>
 					{:else if matchState?.result}
 						{@const m = matchState.result}
 						{#if m.items.length === 0}
-							<p class="text-xs text-amber-700">
+							<p class="text-xs text-warning">
 								{#if m.matched === 0}
 									Nothing matches this selector. If the items are rendered by JavaScript, RSS-Bridge
 									won't see them either.
@@ -404,7 +404,7 @@
 										<code class="font-mono">{effectiveSelector}</code> to hit the links directly.
 									</p>
 								{:else}
-									<p class="text-xs text-amber-700">
+									<p class="text-xs text-warning">
 										The selector matches containers, not links. The preview resolved the links inside,
 										but the bridge may not — prefer a selector that targets the
 										<code class="font-mono">&lt;a&gt;</code> itself.
@@ -544,7 +544,7 @@
 								title="Copy URL"
 								class="shrink-0 rounded-md border border-n-300 p-2 text-n-600 hover:bg-n-100"
 							>
-								{#if copied}<Check class="h-4 w-4 text-green-600" />{:else}<Copy class="h-4 w-4" />{/if}
+								{#if copied}<Check class="h-4 w-4 text-success" />{:else}<Copy class="h-4 w-4" />{/if}
 							</button>
 							<button
 								type="button"
@@ -557,7 +557,7 @@
 							</button>
 						</div>
 						{#if testCurrent}
-							<p class={`text-xs ${testCurrent.ok ? 'text-green-700' : 'text-red-600'}`}>
+							<p class={`text-xs ${testCurrent.ok ? 'text-success' : 'text-danger'}`}>
 								{testCurrent.message}
 							</p>
 						{/if}
@@ -578,7 +578,7 @@
 				type="button"
 				onclick={handleCreate}
 				disabled={saving || testing || !bridgeUrl || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
-				class="px-4 py-2 text-sm bg-a-600 text-white rounded-md hover:bg-a-700 disabled:opacity-50"
+				class="px-4 py-2 text-sm bg-a-600 text-on-accent rounded-md hover:bg-a-700 disabled:opacity-50"
 			>
 				{saving
 					? 'Creating…'

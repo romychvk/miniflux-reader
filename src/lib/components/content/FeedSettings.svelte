@@ -394,7 +394,7 @@
 			  <div><span class="font-semibold text-n-500 uppercase text-xs">Total entries:</span> <span class="text-n-800">{entryCount ?? '—'}</span></div>
 			</div>
 			{#if feed.parsing_error_count && feed.parsing_error_count > 0}
-				<div class="text-red-600 mb-4 bg-red-50 border border-red-600 rounded px-4 py-2">
+				<div class="text-danger mb-4 bg-danger/10 border border-danger rounded px-4 py-2">
 					<p class="flex items-center gap-1.5 ">
 						<AlertTriangle class="h-4 w-4 shrink-0" />
 						<span class="">Parsing errors</span>
@@ -644,7 +644,7 @@
 							type="button"
 							onclick={refetchLatest}
 							disabled={refetching || !crawler}
-							class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-3 py-1.5 text-sm hover:bg-n-700 bg-n-600 disabled:opacity-50 text-white"
+							class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-3 py-1.5 text-sm hover:bg-n-700 bg-n-600 disabled:opacity-50 text-n-50"
 						>
 							<RotateCw class={`h-3.5 w-3.5 ${refetching ? 'animate-spin' : ''}`} />
 							{refetching ? `Re-fetching ${progress.done}/${progress.total}…` : 'Re-fetch latest'}
@@ -778,7 +778,7 @@
 
 		<!-- Danger zone -->
 		<section id="danger-zone" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-red-600">Danger Zone</h3>
+			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-danger">Danger Zone</h3>
 			{#if confirmDelete}
 				<div class="flex flex-wrap items-center gap-3">
 					<span class="text-sm text-n-700">Unsubscribe from <strong>{feed.title}</strong>? This removes the feed and all its entries.</span>
@@ -786,7 +786,7 @@
 						type="button"
 						onclick={unsubscribe}
 						disabled={deleting}
-						class="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-50"
+						class="inline-flex items-center gap-1.5 rounded-md bg-danger px-3 py-1.5 text-sm text-on-accent hover:bg-danger-strong disabled:opacity-50"
 					>
 						<Trash2 class="h-3.5 w-3.5" />
 						{deleting ? 'Unsubscribing…' : 'Yes, unsubscribe'}
@@ -804,7 +804,7 @@
 				<button
 					type="button"
 					onclick={() => (confirmDelete = true)}
-					class="inline-flex items-center gap-1.5 rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+					class="inline-flex items-center gap-1.5 rounded-md border border-danger/40 px-3 py-1.5 text-sm text-danger hover:bg-danger/10"
 				>
 					<Trash2 class="h-3.5 w-3.5" />
 					Unsubscribe
@@ -824,7 +824,7 @@
 			type="button"
 			onclick={handleSave}
 			disabled={saving || !dirty || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
-			class="rounded-md bg-a-600 px-4 py-2 text-sm text-white hover:bg-a-700 disabled:opacity-50"
+			class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 		>
 			{saving ? 'Saving…' : 'Save'}
 		</button>

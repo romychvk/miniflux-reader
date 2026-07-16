@@ -19,6 +19,13 @@
 	--color-a-700: var(--a-700);
 
 	--color-surface: var(--surface);
+
+	--color-danger: var(--danger);
+	--color-danger-strong: var(--danger-strong);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-overlay: var(--overlay);
+	--color-on-accent: var(--on-accent);
 }
 
 /* Default theme: slate neutrals + orange accent */
@@ -46,6 +53,13 @@
 	--a-700: oklch(42.4% 0.199 265.638);
 
 	--surface: #ffffff;
+
+	--danger: #dc2626;
+	--danger-strong: #b91c1c;
+	--success: #16a34a;
+	--warning: #b45309;
+	--overlay: #000000;
+	--on-accent: #ffffff;
 }
 
 /* Warm: stone neutrals + orange accent */
@@ -156,6 +170,13 @@
 	--a-700: #fdba74;
 
 	--surface: #1a1d25;
+
+	--danger: #ef4444;
+	--danger-strong: #dc2626;
+	--success: #22c55e;
+	--warning: #f59e0b;
+	--overlay: #000000;
+	--on-accent: #ffffff;
 }
 
 @layer base {

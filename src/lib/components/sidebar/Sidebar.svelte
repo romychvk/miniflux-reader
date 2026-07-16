@@ -92,7 +92,7 @@
 {#if ui.isMobile && ui.sidebarOpen}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="fixed inset-0 bg-black/30 z-40"
+		class="fixed inset-0 bg-overlay/30 z-40"
 		onclick={() => ui.toggleSidebar()}
 		onkeydown={(e) => e.key === 'Escape' && ui.toggleSidebar()}
 	></div>

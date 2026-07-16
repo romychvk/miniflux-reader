@@ -233,7 +233,7 @@
 				type="button"
 				onclick={() => runPass()}
 				disabled={loading}
-				class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-3 py-1.5 text-sm text-white hover:bg-a-700 disabled:opacity-50"
+				class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-3 py-1.5 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 			>
 				<Sparkles class={`h-3.5 w-3.5 ${loading ? 'animate-pulse' : ''}`} />
 				{loading ? 'Working…' : result ? 'Suggest again' : 'Suggest rules'}
@@ -349,7 +349,7 @@
 						type="button"
 						onclick={apply}
 						disabled={loading}
-						class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-3 py-1.5 text-sm text-white hover:bg-a-700 disabled:opacity-50"
+						class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-3 py-1.5 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 					>
 						<Check class="h-3.5 w-3.5" />
 						Apply to fields

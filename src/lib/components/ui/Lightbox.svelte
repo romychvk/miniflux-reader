@@ -12,6 +12,8 @@
 
 <svelte:window onkeydown={onKeydown} />
 
+<!-- Deliberately literal black/white (not theme tokens): image-viewer chrome must stay a dark
+     scrim with white controls under every theme, including light custom ones. -->
 {#if ui.lightboxImage}
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 cursor-zoom-out"
