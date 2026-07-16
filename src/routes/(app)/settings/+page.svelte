@@ -4,6 +4,7 @@
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { exportSettings, importSettings } from '$lib/settingsBackup';
+	import AppearanceSection from '$lib/components/settings/AppearanceSection.svelte';
 
 	const ANTHROPIC_MODELS = ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'];
 
@@ -126,7 +127,9 @@
 <div class="w-full max-w-3xl px-4 py-6 sm:px-6">
 	<h2 class="mb-6 px-1 text-lg font-semibold text-n-800">Settings</h2>
 
-	<section class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
+	<AppearanceSection />
+
+	<section class="mt-6 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
 		<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">AI Assistant</h3>
 		<p class="mb-4 text-sm text-n-500">
 			Used to suggest Scraper &amp; Rewrite rules from a feed's settings screen. Your API key is

@@ -13,7 +13,7 @@ function createTheme() {
 	const all = $derived<readonly Theme[]>([...PRESETS, ...custom]);
 
 	function find(id: string): Theme | undefined {
-		return all.find((t) => t.id === id);
+		return PRESETS.find((p) => p.id === id) ?? custom.find((c) => c.id === id);
 	}
 
 	function applyVars(mode: 'light' | 'dark', vars: TokenMap) {
@@ -79,8 +79,10 @@ function createTheme() {
 
 	/** Restore the persisted current theme after a cancelled/finished preview. */
 	function endPreview() {
-		const t = find(current) ?? PRESETS[0];
-		applyVars(t.inputs.mode, resolveTheme(t));
+		// No fallback here: if the current id can't be resolved (transient state
+		// during a save), keeping the previewed vars beats flashing the default.
+		const t = find(current);
+		if (t) applyVars(t.inputs.mode, resolveTheme(t));
 	}
 
 	function newId(): string {
