@@ -1,3 +1,11 @@
+// Single change-notification hook so the settings-sync engine can watch writes without
+// storage.ts importing anything (auth.svelte.ts imports this module — imports here would cycle).
+let onChange: ((key: string) => void) | null = null;
+
+export function setStorageChangeListener(fn: ((key: string) => void) | null): void {
+	onChange = fn;
+}
+
 export function storageGet<T>(key: string, fallback: T): T {
 	try {
 		const raw = localStorage.getItem(key);
@@ -23,6 +31,7 @@ export function storageSet(key: string, value: unknown): void {
 		} else {
 			localStorage.setItem(key, JSON.stringify(value));
 		}
+		onChange?.(key);
 	} catch {
 		// QuotaExceededError or SecurityError — silently fail
 	}
@@ -31,6 +40,7 @@ export function storageSet(key: string, value: unknown): void {
 export function storageRemove(key: string): void {
 	try {
 		localStorage.removeItem(key);
+		onChange?.(key);
 	} catch {
 		// SecurityError — silently fail
 	}

@@ -8,6 +8,7 @@
 	import { theme } from '$lib/stores/theme.svelte';
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
+	import { settingsSync } from '$lib/settingsSync.svelte';
 	import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
 	import TopBar from '$lib/components/topbar/TopBar.svelte';
 	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
@@ -33,6 +34,10 @@
 			return;
 		}
 
+		// Reconcile settings with the server before any store hydrates from localStorage.
+		// A changed pull reloads the page — bail out rather than racing loadFeeds() against it.
+		if ((await settingsSync.syncOnBoot()) === 'reloading') return;
+
 		const mql = window.matchMedia('(max-width: 768px)');
 		const onMediaChange = (e: MediaQueryListEvent) => ui.setMobile(e.matches);
 		ui.setMobile(mql.matches);
@@ -45,6 +50,8 @@
 		entries.initShowAll();
 		theme.init();
 		aiConfig.init();
+		// All init-time localStorage reads are done — safe to start watching for changes.
+		settingsSync.start();
 
 		await feeds.loadFeeds();
 		ready = true;

@@ -4,6 +4,7 @@
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { exportSettings, importSettings } from '$lib/settingsBackup';
+	import { settingsSync } from '$lib/settingsSync.svelte';
 	import AppearanceSection from '$lib/components/settings/AppearanceSection.svelte';
 
 	const ANTHROPIC_MODELS = ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'];
@@ -105,6 +106,9 @@
 			return;
 		try {
 			const n = importSettings(await file.text());
+			// Without this the post-reload boot would see clean-vs-server state and
+			// overwrite the freshly imported settings with the server's copy.
+			settingsSync.markDirty();
 			ui.showSuccess(`Imported ${n} settings. Reloading…`);
 			setTimeout(() => location.reload(), 700);
 		} catch (err) {
@@ -243,10 +247,19 @@
 
 	<section class="mt-6 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
 		<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">Backup &amp; Restore</h3>
-		<p class="mb-4 text-sm text-n-500">
+		<p class="mb-2 text-sm text-n-500">
 			Your settings (feed RSS-Bridge / duplicate / cover rules, layout &amp; view preferences,
-			feed order, theme, AI config) are stored only in this browser. Export them to a file to move
-			them to another browser or device.
+			feed order, themes) sync to your server automatically and follow you across browsers
+			and devices. Export remains as a manual backup or to move settings between accounts.
+		</p>
+		<p class="mb-4 text-xs">
+			{#if settingsSync.syncError}
+				<span class="text-danger">{settingsSync.syncError} — settings are kept in this browser and will sync when the server is reachable.</span>
+			{:else if settingsSync.lastSyncAt}
+				<span class="text-success">Synced with server at {new Date(settingsSync.lastSyncAt).toLocaleTimeString()}.</span>
+			{:else}
+				<span class="text-n-500">Not synced yet in this session.</span>
+			{/if}
 		</p>
 
 		<div class="space-y-4">

@@ -4,3 +4,9 @@ services:
     restart: unless-stopped
     expose:
       - "3000"
+    volumes:
+      # Per-user settings blobs written by /api/settings — must survive rebuilds.
+      - settings-data:/app/data
+
+volumes:
+  settings-data:
