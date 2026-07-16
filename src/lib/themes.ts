@@ -18,6 +18,7 @@ export const TOKENS = [
 	'a-50', 'a-400', 'a-500', 'a-600', 'a-700',
 	'surface',
 	'danger', 'danger-strong', 'success', 'warning', 'overlay', 'on-accent',
+	'sidebar', 'navbar',
 ] as const;
 
 export type Token = (typeof TOKENS)[number];
@@ -102,6 +103,9 @@ export function generateTokens(inputs: ThemeInputs): TokenMap {
 		: oklchToHex({ l: 0.975, c: 0.015, h: accent.h });
 
 	map.surface = dark ? oklchToHex({ l: 0.225, c: cMax * 0.5, h: tint.h }) : '#ffffff';
+	// Sidebar / navbar chrome follows the surface unless explicitly overridden
+	map.sidebar = map.surface;
+	map.navbar = map.surface;
 
 	Object.assign(map, dark ? SEMANTIC_DARK : SEMANTIC_LIGHT);
 	// Light accents (yellow, lime) need dark label text; the darkest neutral
@@ -113,7 +117,13 @@ export function generateTokens(inputs: ThemeInputs): TokenMap {
 }
 
 export function resolveTheme(t: Theme): TokenMap {
-	return { ...generateTokens(t.inputs), ...t.overrides };
+	const map = { ...generateTokens(t.inputs), ...t.overrides };
+	// Keep sidebar/navbar glued to the (possibly overridden) surface unless the
+	// theme overrides them explicitly — presets and pre-existing custom themes
+	// carry no sidebar/navbar overrides and must keep looking as before.
+	if (!('sidebar' in t.overrides)) map.sidebar = map.surface;
+	if (!('navbar' in t.overrides)) map.navbar = map.surface;
+	return map;
 }
 
 // Hand-tuned Tailwind ramps, transcribed verbatim from the pre-token app.css

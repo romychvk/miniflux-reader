@@ -193,7 +193,7 @@
 
 <svelte:document onclick={viewDropdownOpen ? handleClickOutside : undefined} onkeydown={onGlobalKeydown} />
 
-<header class="h-12 border-b border-n-200 bg-surface flex justify-between items-center px-4 gap-3 shrink-0">
+<header class="h-12 border-b border-n-200 bg-navbar flex justify-between items-center px-4 gap-3 shrink-0">
 	{#if ui.isMobile}
 		<button onclick={() => ui.toggleSidebar()} class="text-n-600 hover:text-n-900">
 			<Menu size={20} />

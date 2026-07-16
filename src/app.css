@@ -26,6 +26,9 @@
 	--color-warning: var(--warning);
 	--color-overlay: var(--overlay);
 	--color-on-accent: var(--on-accent);
+
+	--color-sidebar: var(--sidebar);
+	--color-navbar: var(--navbar);
 }
 
 /* Pre-JS / no-JS fallback palette only — the real theme values are applied as
@@ -58,6 +61,11 @@
 	--warning: #b45309;
 	--overlay: #000000;
 	--on-accent: #ffffff;
+
+	/* var(--surface) indirection also covers pre-paint for themeVars saved
+	   before these tokens existed: the inline --surface wins the substitution. */
+	--sidebar: var(--surface);
+	--navbar: var(--surface);
 }
 
 @layer base {
