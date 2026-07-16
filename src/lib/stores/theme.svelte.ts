@@ -1,52 +1,112 @@
-import { storageGetString, storageSet } from '$lib/storage';
+import { storageGet, storageGetString, storageSet } from '$lib/storage';
+import { PRESETS, resolveTheme, type Theme, type TokenMap } from '$lib/themes';
 
 const THEME_KEY = 'theme';
-
-const themes = [
-	{ id: 'default', label: 'Default', accent: 'oklch(54.6% 0.245 262.881)', neutral: '#f1f5f9' },
-	{ id: 'cool', label: 'Cool', accent: '#0891b2', neutral: '#f3f4f6' },
-	{ id: 'forest', label: 'Forest', accent: '#059669', neutral: '#e7e5e4' },
-	{ id: 'warm', label: 'Warm', accent: '#ea580c', neutral: '#e7e5e4' },
-	{ id: 'rose', label: 'Rose', accent: '#e11d48', neutral: '#e4e4e7' },
-	{ id: 'dark', label: 'Dark', accent: '#ea580c', neutral: '#252830' },
-] as const;
-
-type ThemeId = (typeof themes)[number]['id'];
+const CUSTOM_KEY = 'customThemes';
+// Resolved vars of the active theme, applied pre-paint by the app.html script.
+const VARS_KEY = 'themeVars';
 
 function createTheme() {
-	let current = $state<ThemeId>('default');
+	let current = $state<string>('default');
+	let custom = $state<Theme[]>([]);
+
+	const all = $derived<readonly Theme[]>([...PRESETS, ...custom]);
+
+	function find(id: string): Theme | undefined {
+		return all.find((t) => t.id === id);
+	}
+
+	function applyVars(mode: 'light' | 'dark', vars: TokenMap) {
+		const s = document.documentElement.style;
+		for (const [k, v] of Object.entries(vars)) s.setProperty('--' + k, v);
+		// Native scrollbars / form controls follow the theme
+		s.colorScheme = mode;
+	}
+
+	function applyCurrent() {
+		const t = find(current) ?? PRESETS[0];
+		const vars = resolveTheme(t);
+		applyVars(t.inputs.mode, vars);
+		storageSet(VARS_KEY, { mode: t.inputs.mode, vars });
+	}
 
 	function init() {
+		custom = storageGet<Theme[]>(CUSTOM_KEY, []).filter(
+			(t) =>
+				t &&
+				typeof t.id === 'string' &&
+				typeof t.label === 'string' &&
+				t.inputs &&
+				(t.inputs.mode === 'light' || t.inputs.mode === 'dark')
+		);
+		for (const t of custom) t.overrides ??= {};
+
 		const saved = storageGetString(THEME_KEY);
-		if (saved && themes.some((t) => t.id === saved)) {
-			current = saved as ThemeId;
-		}
-		applyTheme(current);
+		current = saved && find(saved) ? saved : 'default';
+		// Also heals a stale/missing themeVars (e.g. right after a settings import)
+		applyCurrent();
 	}
 
-	function setTheme(id: ThemeId) {
+	function setTheme(id: string) {
+		if (!find(id)) return;
 		current = id;
 		storageSet(THEME_KEY, id);
-		applyTheme(id);
+		applyCurrent();
 	}
 
-	function applyTheme(id: ThemeId) {
-		if (id === 'default') {
-			document.documentElement.removeAttribute('data-theme');
-		} else {
-			document.documentElement.setAttribute('data-theme', id);
-		}
+	function persistCustom() {
+		storageSet(CUSTOM_KEY, $state.snapshot(custom));
+	}
+
+	function saveCustom(t: Theme) {
+		const i = custom.findIndex((c) => c.id === t.id);
+		if (i >= 0) custom[i] = t;
+		else custom.push(t);
+		persistCustom();
+		if (current === t.id) applyCurrent();
+	}
+
+	function deleteCustom(id: string) {
+		custom = custom.filter((c) => c.id !== id);
+		persistCustom();
+		if (current === id) setTheme('default');
+	}
+
+	/** Editor live preview — applies vars without persisting anything. */
+	function preview(mode: 'light' | 'dark', vars: TokenMap) {
+		applyVars(mode, vars);
+	}
+
+	/** Restore the persisted current theme after a cancelled/finished preview. */
+	function endPreview() {
+		const t = find(current) ?? PRESETS[0];
+		applyVars(t.inputs.mode, resolveTheme(t));
+	}
+
+	function newId(): string {
+		return `custom-${Date.now().toString(36)}`;
 	}
 
 	return {
 		get current() {
 			return current;
 		},
-		get themes() {
-			return themes;
+		get presets() {
+			return PRESETS;
+		},
+		get custom() {
+			return custom;
+		},
+		get all() {
+			return all;
 		},
 		init,
 		setTheme,
+		saveCustom,
+		deleteCustom,
+		preview,
+		endPreview,
+		newId,
 	};
 }
 

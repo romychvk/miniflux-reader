@@ -9,10 +9,19 @@
 		<meta name="referrer" content="no-referrer" />
 		<link rel="icon" href="data:," />
 		<title>Miniflux Reader</title>
+		<!-- Anti-FOUC: apply the active theme's resolved CSS variables before first paint.
+		     The theme store rewrites 'themeVars' on every init/switch/save; absent or
+		     corrupt data degrades to the :root fallback palette in app.css. -->
 		<script>
-			(function() {
-				var t = localStorage.getItem('theme');
-				if (t && t !== 'default') document.documentElement.setAttribute('data-theme', t);
+			(function () {
+				try {
+					var d = JSON.parse(localStorage.getItem('themeVars') || 'null');
+					if (d && d.vars) {
+						var s = document.documentElement.style;
+						for (var k in d.vars) s.setProperty('--' + k, String(d.vars[k]));
+						if (d.mode) s.colorScheme = d.mode;
+					}
+				} catch (e) {}
 			})();
 		</script>
 		%sveltekit.head%

@@ -7,6 +7,7 @@
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
+	import { resolveTheme } from '$lib/themes';
 	import { makeFeedSlug } from '$lib/slug';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
@@ -367,15 +368,16 @@
 							<div class="border-t border-n-200 mt-1 py-4">
 								<div class="px-4 text-sm mb-3 font-medium text-n-500">Theme</div>
 								<div class="px-4 flex flex-wrap gap-3">
-									{#each theme.themes as t (t.id)}
+									{#each theme.all as t (t.id)}
+										{@const swatch = resolveTheme(t)}
 										<button
 											onclick={() => theme.setTheme(t.id)}
 											class="text-sm text-n-700 flex rounded-full hover:outline-n-400 hover:outline-2 items-center gap-2 {theme.current === t.id ? 'font-bold outline-a-600 outline-2' : ''}"
 											title={t.label}
 										>
 											<span class="flex overflow-hidden rounded-full border border-n-200">
-												<span class="block w-4 h-8" style="background:{t.neutral}"></span>
-												<span class="block w-4 h-8" style="background:{t.accent}"></span>
+												<span class="block w-4 h-8" style="background:{swatch['n-200']}"></span>
+												<span class="block w-4 h-8" style="background:{swatch['a-600']}"></span>
 											</span>
 										</button>
 									{/each}
