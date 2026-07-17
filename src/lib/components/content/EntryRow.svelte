@@ -8,7 +8,6 @@
 	import { cardAspect } from '$lib/stores/cardAspect.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
-	import { getScrollDirection, addScrollTracker, removeScrollTracker } from '$lib/scroll';
 	import { Ban, Bookmark, Check, Circle } from 'lucide-svelte';
 	import ArticleView from './ArticleView.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
@@ -104,27 +103,37 @@
 		}
 	}
 
-	// IntersectionObserver action for auto-mark-read
+	// IntersectionObserver action for auto-mark-read. A row is marked read only when it leaves
+	// the viewport past the TOP edge — i.e. the user scrolled down past it. Exiting via the
+	// bottom (scrolling back up) must never mark read. The row's position relative to the
+	// observer root tells us which edge it left, so there's no need to track scroll direction
+	// globally — and it works with the nested <main> scroll container (a window scroll listener
+	// did not, which is why upward scrolls used to mark rows read).
 	function autoMarkRead(node: HTMLElement) {
 		let prevInView = false;
-		addScrollTracker();
 
 		const observer = new IntersectionObserver(
 			([e]) => {
 				const inView = e.isIntersecting;
-				if (!inView && prevInView && entry.status === 'unread' && getScrollDirection() === 'down' && ui.autoMarkReadOnScroll && !ui.isMarkReadSuppressed) {
+				if (
+					!inView &&
+					prevInView &&
+					entry.status === 'unread' &&
+					ui.autoMarkReadOnScroll &&
+					!ui.isMarkReadSuppressed &&
+					e.boundingClientRect.bottom <= (e.rootBounds?.top ?? 0)
+				) {
 					entries.markRead([entry.id], true);
 				}
 				prevInView = inView;
 			},
-			{ threshold: 0 }
+			{ root: node.closest('main'), threshold: 0 }
 		);
 		observer.observe(node);
 
 		return {
 			destroy() {
 				observer.disconnect();
-				removeScrollTracker();
 			}
 		};
 	}
