@@ -68,7 +68,7 @@
       @apply text-xl mb-4 font-bold;
     }
     /* Top gap only between blocks — never above the article's first element */
-    :is(h2, h3, div.prose-img, figure):not(:first-child) {
+    :is(h2, h3, div.prose-img, figure, pre):not(:first-child) {
       @apply mt-6;
     }
     p {
@@ -94,6 +94,49 @@
     }
     b, strong {
       @apply font-bold;
+    }
+
+    /* Code blocks arrive in two shapes: the standard `<pre><code>…</code></pre>` holding
+       real newlines, and — from feeds whose source markup was flattened upstream — one
+       `<p>` per line inside the <code>. `white-space: pre` is inherited either way so
+       indentation survives; the per-line paragraphs only need their prose margins off. */
+    pre {
+      @apply mb-6 overflow-x-auto rounded-lg border border-n-200 bg-n-100 p-4 text-sm leading-relaxed text-n-800;
+      tab-size: 2;
+    }
+    /* A <figure> wrapper already carries the block's spacing — don't stack both. */
+    figure:has(> pre) {
+      @apply mb-6;
+    }
+    figure > pre {
+      @apply my-0;
+    }
+    /* Inline code only — inside a block the <pre> is already the frame. The size stays
+       em-relative so a chip keeps its proportion wherever it sits (body text, a heading,
+       a blockquote); an absolute `text-*` here would also carry a line-height, which
+       --tw-leading (`inherits: false`) would not let the <pre> override back. */
+    :not(pre) > code {
+      @apply rounded border border-n-200 bg-n-100 px-1 py-0.5 text-[0.875em] text-n-800;
+    }
+    pre code {
+      @apply block;
+    }
+    pre code p {
+      @apply mb-0;
+    }
+    /* Diff markers: `<ins>`/`<del>` would otherwise render as a bare underline and
+       strikethrough. Tint them instead, with no padding so the columns stay aligned. */
+    pre :is(ins, del, mark) {
+      @apply no-underline text-inherit;
+    }
+    pre ins {
+      @apply bg-success/20;
+    }
+    pre del {
+      @apply bg-danger/20 line-through;
+    }
+    pre mark {
+      @apply bg-warning/25;
     }
 
     iframe {

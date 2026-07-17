@@ -110,10 +110,13 @@ function dedupeImages(doc: Document): boolean {
 // like that scraped sites scatter for vertical spacing. `p:empty` can't match these (a
 // `&nbsp;` or blank text node isn't "empty" to CSS), so test the normalized text here:
 // trim() already discards regular whitespace and `&nbsp;`, and we also strip zero-width
-// characters. Paragraphs carrying media (an image, an embed) are kept even without text.
+// characters. Paragraphs carrying media (an image, an embed) are kept even without text,
+// and so are paragraphs inside a <pre> — some feeds emit one <p> per code line, where a
+// blank one is a blank line of code.
 function dropEmptyParagraphs(doc: Document): boolean {
 	let changed = false;
 	for (const p of doc.querySelectorAll('p')) {
+		if (p.closest('pre')) continue;
 		if (p.querySelector(MEDIA_SELECTOR)) continue;
 		if (p.textContent?.replace(/[\u200b-\u200d\ufeff]/g, '').trim()) continue;
 		p.remove();
