@@ -1,4 +1,4 @@
-import { apiCall } from "$lib/api";
+import { apiCall, authedFetch } from "$lib/api";
 import type { Entry } from "$lib/types";
 import type { FilterRule } from "$lib/contentFilter";
 import { storageGet, storageGetString, storageSet } from "$lib/storage";
@@ -573,7 +573,7 @@ function createEntriesStore() {
       let image: string | null = null;
       try {
         if (hasCoverRule(rule)) {
-          const res = await fetch(
+          const res = await authedFetch(
             `/api/fetch-page?url=${encodeURIComponent(entry.url)}`,
           );
           if (res.ok)
@@ -581,7 +581,7 @@ function createEntriesStore() {
               extractCover((await res.json())?.html || "", rule, entry.url) ||
               "";
         } else {
-          const res = await fetch(
+          const res = await authedFetch(
             `/api/og-image?url=${encodeURIComponent(entry.url)}`,
           );
           if (res.ok) image = (await res.json())?.url || "";

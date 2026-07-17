@@ -1,11 +1,13 @@
 import type { RequestHandler } from './$types';
+import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 
 // Fetches the raw HTML of an article page server-side so the rule assistant can
 // see the original DOM structure (needed to propose scraper_rules for the
 // "expand" case). Browser fetch can't do this cross-origin, hence the proxy.
 //
-// SSRF note: this is a personal, single-user tool — the user already controls
-// the server and their feeds — so we only constrain the scheme, not the host.
+// This fetches an arbitrary user-supplied URL, so it must not be usable anonymously:
+// requireMinifluxAuth gates it behind a valid Miniflux token. Host-level SSRF filtering
+// (private/loopback ranges, redirect checks) and a streaming byte cap are still TODO — see safeFetch.
 
 const MAX_BYTES = 80_000;
 
@@ -20,7 +22,10 @@ function clean(html: string): string {
 		.trim();
 }
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ request, url }) => {
+	const auth = await requireMinifluxAuth(request);
+	if (auth instanceof Response) return auth;
+
 	const target = url.searchParams.get('url');
 	if (!target) {
 		return new Response(JSON.stringify({ error: 'Missing url' }), {

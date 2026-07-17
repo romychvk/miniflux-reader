@@ -1,6 +1,21 @@
 import { auth } from '$lib/stores/auth.svelte';
 import { ui } from '$lib/stores/ui.svelte';
 
+// Authed fetch to our own server-side helper endpoints (fetch-page, og-image, rss-bridge).
+// Like the Miniflux proxy they now require the user's token so they can't be driven anonymously
+// (see requireMinifluxAuth). Returns the raw Response — callers read .ok / .json() themselves —
+// and preserves the caller's init (signal, method, extra headers).
+export function authedFetch(input: string, init?: RequestInit): Promise<Response> {
+	return fetch(input, {
+		...init,
+		headers: {
+			'X-Auth-Token': auth.apiToken,
+			'X-Miniflux-Server': auth.serverUrl,
+			...(init?.headers as Record<string, string>)
+		}
+	});
+}
+
 export async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
 	const headers: Record<string, string> = {
 		'X-Auth-Token': auth.apiToken,

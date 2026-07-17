@@ -7,6 +7,7 @@
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { storageSet } from '$lib/storage';
+	import { authedFetch } from '$lib/api';
 	import { buildRssBridgeUrl, defaultInstance, RSS_BRIDGE_INSTANCE_KEY } from '$lib/rssbridge';
 	import {
 		parsePage,
@@ -132,7 +133,7 @@
 		loadingPage = true;
 		pageError = '';
 		try {
-			const res = await fetch(`/api/fetch-page?url=${encodeURIComponent(target)}`);
+			const res = await authedFetch(`/api/fetch-page?url=${encodeURIComponent(target)}`);
 			const data = await res.json().catch(() => null);
 			if (!res.ok) throw new Error(data?.error || `Failed to load page (${res.status})`);
 			pageHtml = data?.html ?? '';

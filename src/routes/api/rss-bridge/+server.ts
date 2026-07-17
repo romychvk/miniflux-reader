@@ -1,5 +1,6 @@
 import type { RequestHandler } from './$types';
 import { buildCatalog, matchBridges, normalizeHost, type BridgeMatch } from '$lib/rssbridgeCatalog';
+import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 
 // Answers "does the user's RSS-Bridge instance have a ready-made bridge for this domain?".
 //
@@ -14,8 +15,8 @@ import { buildCatalog, matchBridges, normalizeHost, type BridgeMatch } from '$li
 // syncable, so a client-side cache would be pushed into the /api/settings blob (512KB cap) and end up
 // in the user's settings export.
 //
-// SSRF note: `instance` is a user-supplied URL fetched server-side. Same stance as /api/fetch-page —
-// a personal, single-user tool — so only the scheme is constrained.
+// SSRF note: `instance` is a user-supplied URL fetched server-side. Auth-gated like /api/fetch-page
+// (requireMinifluxAuth); host-level filtering of private/loopback addresses is still TODO — see safeFetch.
 
 const TTL_MS = 6 * 60 * 60 * 1000; // bridge lists only change when the instance is redeployed
 const MAX_BYTES = 8_000_000; // the real payload is ~1.2MB; this guards a hostile/huge instance
@@ -86,7 +87,10 @@ async function getCatalog(instance: URL): Promise<BridgeMatch[]> {
 	return task;
 }
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ request, url }) => {
+	const auth = await requireMinifluxAuth(request);
+	if (auth instanceof Response) return auth;
+
 	const instanceParam = url.searchParams.get('instance');
 	if (!instanceParam) return json({ error: 'Missing instance' }, 400);
 

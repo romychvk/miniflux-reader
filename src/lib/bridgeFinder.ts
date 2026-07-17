@@ -1,4 +1,5 @@
 import type { BridgeMatch } from '$lib/rssbridgeCatalog';
+import { authedFetch } from '$lib/api';
 
 // The Add Feed companion to feedFinder.ts: asks the user's RSS-Bridge instance whether it already
 // has a purpose-built bridge for the typed domain, so a site with no feed of its own (Bandcamp…)
@@ -22,7 +23,7 @@ export async function findBridges(pageUrl: string, instance: string): Promise<Br
 
 	try {
 		const query = new URLSearchParams({ instance: instance.trim(), url: pageUrl.trim() });
-		const res = await fetch(`/api/rss-bridge?${query}`, {
+		const res = await authedFetch(`/api/rss-bridge?${query}`, {
 			signal: AbortSignal.timeout(TIMEOUT_MS)
 		});
 		if (!res.ok) return [];
@@ -40,5 +41,5 @@ export async function findBridges(pageUrl: string, instance: string): Promise<Br
 export function warmBridgeCatalog(instance: string): void {
 	if (!instance.trim()) return;
 	const query = new URLSearchParams({ instance: instance.trim(), warm: '1' });
-	void fetch(`/api/rss-bridge?${query}`).catch(() => {});
+	void authedFetch(`/api/rss-bridge?${query}`).catch(() => {});
 }

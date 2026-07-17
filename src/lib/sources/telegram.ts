@@ -2,6 +2,7 @@ import type { Entry } from "$lib/types";
 import type { SourceRules } from "./types";
 import { hostOf } from "./host";
 import { storageGet, storageSet } from "$lib/storage";
+import { authedFetch } from "$lib/api";
 
 // Telegram feeds (via RSS-Bridge) have a generic rssbridge.de feed_url, but every post links to
 // t.me — so the post URL host is the reliable "this is a Telegram post" signal.
@@ -113,7 +114,7 @@ export const telegramSource: SourceRules = {
     ctx.schedule(async () => {
       let avatar = "";
       try {
-        const res = await fetch(`/api/og-image?url=${encodeURIComponent(root)}`);
+        const res = await authedFetch(`/api/og-image?url=${encodeURIComponent(root)}`);
         if (res.ok) avatar = (await res.json())?.url || "";
       } catch {
         rootFetched.delete(feedId); // transient — allow a later retry

@@ -4,6 +4,7 @@
 // instance; Miniflux then subscribes to that URL like any feed.
 
 import type { RssBridgeConfig } from './rssbridge';
+import { authedFetch } from '$lib/api';
 
 export interface PreviewItem {
 	title: string;
@@ -167,7 +168,7 @@ export async function testBridgeUrl(
 	noItemsHint = ''
 ): Promise<BridgeTestResult> {
 	try {
-		const res = await fetch(`/api/fetch-page?url=${encodeURIComponent(bridgeUrl)}`);
+		const res = await authedFetch(`/api/fetch-page?url=${encodeURIComponent(bridgeUrl)}`);
 		const data = await res.json().catch(() => null);
 		if (!res.ok) {
 			return {

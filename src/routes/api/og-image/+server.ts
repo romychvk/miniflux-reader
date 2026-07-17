@@ -1,10 +1,12 @@
 import type { RequestHandler } from './$types';
+import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 
 // Default thumbnail source: fetch an article page server-side and read its Open Graph /
 // Twitter image meta tag. Used for entries whose content has no usable <img> and no image
 // enclosure, when the feed has no custom cover rule (those go through /api/fetch-page +
 // the client-side CSS extractor instead). Results are cached client-side, so this runs at
-// most once per article. Same SSRF stance as /api/fetch-page (scheme-only check).
+// most once per article. Auth-gated like /api/fetch-page; host-level SSRF filtering is still
+// TODO (see safeFetch).
 
 function metaContent(html: string, key: string): string | null {
 	// Match a <meta> tag whose property/name equals `key`, in any attribute order.
@@ -14,7 +16,10 @@ function metaContent(html: string, key: string): string | null {
 	return tag.match(/content=["']([^"']+)["']/i)?.[1] ?? null;
 }
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ request, url }) => {
+	const auth = await requireMinifluxAuth(request);
+	if (auth instanceof Response) return auth;
+
 	const target = url.searchParams.get('url');
 	const fail = (status: number, error: string) =>
 		new Response(JSON.stringify({ error }), {

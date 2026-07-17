@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Sparkles, RotateCw, Check, Undo2 } from 'lucide-svelte';
 	import type { Entry, Feed, AiMessage, RuleSuggestion } from '$lib/types';
-	import { apiCall } from '$lib/api';
+	import { apiCall, authedFetch } from '$lib/api';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
@@ -108,7 +108,7 @@
 				let rawPageHtml: string | undefined;
 				if (crawler) {
 					try {
-						const r = await fetch(`/api/fetch-page?url=${encodeURIComponent(list[0].url)}`);
+						const r = await authedFetch(`/api/fetch-page?url=${encodeURIComponent(list[0].url)}`);
 						if (r.ok) rawPageHtml = (await r.json())?.html;
 					} catch {
 						/* the assistant can still propose rewrite rules from the content */
