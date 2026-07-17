@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ExternalLink } from 'lucide-svelte';
 	import type { FeedCreate } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
@@ -111,17 +112,31 @@
 					<p class="text-xs text-n-500 mb-1">Found {results.length} feeds — pick one:</p>
 					<div class="border border-n-200 rounded-md divide-y divide-n-200 max-h-64 overflow-y-auto">
 						{#each results as feed (feed.url)}
-							<button
-								type="button"
-								onclick={() => addFeed(feed.url)}
-								disabled={saving}
-								class="w-full text-left px-3 py-2 hover:bg-n-100 disabled:opacity-50"
-							>
-								{#if feed.title && feed.title !== feed.url}
-									<div class="text-sm font-medium text-n-800">{feed.title}</div>
-								{/if}
-								<div class="text-xs text-n-500 truncate">{feed.url}</div>
-							</button>
+							<!-- Split row: the body adds the feed, the icon opens it. An <a> cannot
+							     live inside the <button>, so they sit side by side instead. -->
+							<div class="flex items-stretch">
+								<button
+									type="button"
+									onclick={() => addFeed(feed.url)}
+									disabled={saving}
+									class="flex-1 min-w-0 text-left px-3 py-2 hover:bg-n-100 disabled:opacity-50"
+								>
+									{#if feed.title && feed.title !== feed.url}
+										<div class="text-sm font-medium text-n-800">{feed.title}</div>
+									{/if}
+									<div class="text-xs text-n-500 truncate">{feed.url}</div>
+								</button>
+								<a
+									href={feed.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									title="Open feed in a new tab"
+									aria-label="Open {feed.title || feed.url} in a new tab"
+									class="flex items-center px-3 text-n-500 hover:text-a-600 hover:bg-n-100"
+								>
+									<ExternalLink size={14} />
+								</a>
+							</div>
 						{/each}
 					</div>
 				</div>
