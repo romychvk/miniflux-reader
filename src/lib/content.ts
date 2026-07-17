@@ -1,3 +1,5 @@
+import { highlightCodeBlocks } from '$lib/highlight';
+
 const domParser = new DOMParser();
 
 const IMAGE_URL_RE = /\.(?:jpe?g|png|gif|webp|avif|bmp|svg)(?:[?#]|$)/i;
@@ -277,8 +279,8 @@ function collapseConsecutiveHrs(doc: Document): boolean {
 
 // Render-time cleanup for article HTML: upgrade gallery thumbnails to their full-size
 // image, drop duplicate images, strip empty inline tags, wrap loose bare text in
-// paragraphs, wrap standalone images in a block, drop blank spacer paragraphs, then
-// collapse consecutive rules. Covers every path that shows content.
+// paragraphs, wrap standalone images in a block, drop blank spacer paragraphs, collapse
+// consecutive rules, then color code blocks. Covers every path that shows content.
 export function processArticleHtml(html: string): string {
 	if (!html) return html;
 	const doc = domParser.parseFromString(html, 'text/html');
@@ -289,7 +291,9 @@ export function processArticleHtml(html: string): string {
 	const mediaWrapped = wrapStandaloneMedia(doc);
 	const trimmed = dropEmptyParagraphs(doc);
 	const hrsCollapsed = collapseConsecutiveHrs(doc);
-	return upgraded || deduped || inlineStripped || wrapped || mediaWrapped || trimmed || hrsCollapsed
+	// Last: the passes above reshape blocks, this one only paints inside them.
+	const highlighted = highlightCodeBlocks(doc);
+	return upgraded || deduped || inlineStripped || wrapped || mediaWrapped || trimmed || hrsCollapsed || highlighted
 		? doc.body.innerHTML
 		: html;
 }

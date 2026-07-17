@@ -125,8 +125,11 @@
       @apply mb-0;
     }
     /* Diff markers: `<ins>`/`<del>` would otherwise render as a bare underline and
-       strikethrough. Tint them instead, with no padding so the columns stay aligned. */
-    pre :is(ins, del, mark) {
+       strikethrough. Tint them instead, with no padding so the columns stay aligned.
+       The tint is the signal, so syntax color inside a marked run stands down rather
+       than stack on it — a green string on the green "added" tint measures 2.44:1. */
+    pre :is(ins, del, mark),
+    pre :is(ins, del, mark) [class^='tok-'] {
       @apply no-underline text-inherit;
     }
     pre ins {
@@ -137,6 +140,23 @@
     }
     pre mark {
       @apply bg-warning/25;
+    }
+    /* Syntax tokens (emitted by $lib/highlight.ts) ride the theme ramp rather than a
+       highlighter's own stylesheet, so code follows every preset and custom theme. */
+    pre .tok-comment {
+      @apply text-n-500 italic;
+    }
+    pre .tok-kw {
+      @apply text-a-600;
+    }
+    pre .tok-string {
+      @apply text-success;
+    }
+    pre .tok-num {
+      @apply text-warning;
+    }
+    pre .tok-key {
+      @apply text-danger;
     }
 
     iframe {
