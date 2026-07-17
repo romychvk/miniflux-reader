@@ -3,11 +3,12 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
 	import CategorySelect from './CategorySelect.svelte';
+	import { findFeeds, type FoundFeed } from '$lib/feedFinder';
 
 	let { onclose, onsave, onwizard, initialCategoryId }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
-		onwizard?: () => void;
+		onwizard?: (url: string) => void;
 		initialCategoryId?: number;
 	} = $props();
 
@@ -23,23 +24,28 @@
 			categoryId = initialCategoryId ?? feeds.getNoCategoryId() ?? feeds.getCategories()[0]?.id ?? 0;
 	});
 	let saving = $state(false);
+	let discovering = $state(false);
+	let found = $state.raw<FoundFeed[]>([]);
+	let discoveredFor = $state<string | null>(null);
 
 	const needsCategoryName = $derived(categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim());
+
+	// Results belong to the URL they were found for, so editing the field drops them.
+	const results = $derived(discoveredFor !== null && discoveredFor === feedUrl.trim() ? found : null);
+	const noneFound = $derived(results !== null && results.length === 0);
 
 	function onkeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onclose();
 	}
 
-	async function handleSave() {
-		if (!feedUrl.trim() || needsCategoryName) return;
-
+	async function addFeed(url: string) {
 		saving = true;
 		try {
 			const categoryIdToUse = categoryId === NEW_CATEGORY_SENTINEL
 				? (await feeds.createCategory(newCategoryName.trim())).id
 				: categoryId;
 			const data: FeedCreate = {
-				feed_url: feedUrl.trim(),
+				feed_url: url,
 				category_id: categoryIdToUse,
 			};
 			await onsave(data);
@@ -49,6 +55,25 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	// The typed URL may be a feed, a page that advertises feeds, or neither — ask first,
+	// then add outright when there is only one answer.
+	async function handleSave() {
+		const url = feedUrl.trim();
+		if (!url || needsCategoryName || saving || discovering) return;
+
+		discovering = true;
+		let list: FoundFeed[];
+		try {
+			list = await findFeeds(url);
+		} finally {
+			discovering = false;
+		}
+		found = list;
+		discoveredFor = url;
+
+		if (list.length === 1) await addFeed(list[0].url);
 	}
 </script>
 
@@ -71,7 +96,7 @@
 					type="url"
 					bind:value={feedUrl}
 					required
-					placeholder="https://example.com/feed.xml"
+					placeholder="https://example.com"
 					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 				/>
 			</div>
@@ -81,14 +106,39 @@
 				<CategorySelect id="add-feed-category" bind:value={categoryId} bind:newName={newCategoryName} />
 			</div>
 
+			{#if results && results.length > 1}
+				<div>
+					<p class="text-xs text-n-500 mb-1">Found {results.length} feeds — pick one:</p>
+					<div class="border border-n-200 rounded-md divide-y divide-n-200 max-h-64 overflow-y-auto">
+						{#each results as feed (feed.url)}
+							<button
+								type="button"
+								onclick={() => addFeed(feed.url)}
+								disabled={saving}
+								class="w-full text-left px-3 py-2 hover:bg-n-100 disabled:opacity-50"
+							>
+								{#if feed.title && feed.title !== feed.url}
+									<div class="text-sm font-medium text-n-800">{feed.title}</div>
+								{/if}
+								<div class="text-xs text-n-500 truncate">{feed.url}</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if noneFound}
+				<p class="text-xs text-n-500">No RSS feed found on this page.</p>
+			{/if}
+
 			<div class="flex items-center justify-between gap-2 pt-2">
-				{#if onwizard}
+				{#if noneFound && onwizard}
 					<button
 						type="button"
-						onclick={onwizard}
+						onclick={() => onwizard(feedUrl.trim())}
 						class="text-xs text-a-600 underline hover:text-a-700"
 					>
-						Page has no RSS feed? Build one with RSS-Bridge
+						Build one with RSS-Bridge
 					</button>
 				{:else}
 					<span></span>
@@ -103,10 +153,10 @@
 					</button>
 					<button
 						type="submit"
-						disabled={saving || !feedUrl.trim() || needsCategoryName}
+						disabled={saving || discovering || !feedUrl.trim() || needsCategoryName}
 						class="px-4 py-2 text-sm bg-a-600 text-on-accent rounded-md hover:bg-a-700 disabled:opacity-50"
 					>
-						{saving ? 'Adding...' : 'Add'}
+						{saving ? 'Adding...' : discovering ? 'Searching...' : 'Add'}
 					</button>
 				</div>
 			</div>

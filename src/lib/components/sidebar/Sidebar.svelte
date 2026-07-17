@@ -13,6 +13,8 @@
 
 	let showAddModal = $state(false);
 	let showWizard = $state(false);
+	// Handed to the wizard when Add Feed found nothing for a URL, so it isn't retyped.
+	let wizardPageUrl = $state('');
 	// Category to preselect in the Add Feed modal; set when opened from a category's
 	// right-click menu, undefined when opened from the header "+" button.
 	let addFeedCategoryId = $state<number | undefined>(undefined);
@@ -121,13 +123,14 @@
 		initialCategoryId={addFeedCategoryId}
 		onclose={() => showAddModal = false}
 		onsave={handleCreateFeed}
-		onwizard={() => { showAddModal = false; showWizard = true; }}
+		onwizard={(url) => { wizardPageUrl = url; showAddModal = false; showWizard = true; }}
 	/>
 {/if}
 
 {#if showWizard}
 	<ScrapedFeedWizard
 		initialCategoryId={addFeedCategoryId}
+		initialPageUrl={wizardPageUrl}
 		onclose={() => showWizard = false}
 		onsave={handleCreateFeed}
 	/>

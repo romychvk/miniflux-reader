@@ -28,10 +28,12 @@
 		parseSelectorSuggestion
 	} from '$lib/ai/selectorPrompt';
 
-	let { onclose, onsave, initialCategoryId }: {
+	let { onclose, onsave, initialCategoryId, initialPageUrl }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
 		initialCategoryId?: number;
+		// Seeded when the user lands here from Add Feed, so they don't retype the URL.
+		initialPageUrl?: string;
 	} = $props();
 
 	// Instance prefill: the remembered choice, else the instance of any existing bridge feed.
@@ -51,7 +53,10 @@
 	const PAGE_CAP = 80_000;
 	const PREVIEW_LIMIT = 20;
 
-	let pageUrl = $state('');
+	// Seeding once is the intent: the wizard mounts fresh each time it opens, and from
+	// there pageUrl is the user's to edit.
+	// svelte-ignore state_referenced_locally
+	let pageUrl = $state(initialPageUrl ?? '');
 	let loadedUrl = $state(''); // URL the current doc came from — the bridge uses this one
 	let pageHtml = $state.raw('');
 	let doc = $state.raw<Document | null>(null);
