@@ -2,6 +2,12 @@ services:
   app:
     build: .
     restart: unless-stopped
+    environment:
+      # Pins the Miniflux instance the auth-gate + helper endpoints (fetch-page, og-image,
+      # rss-bridge) and /api/settings will accept. Set the value in Dokploy → Environment
+      # Settings; it reaches the container via ${...} interpolation from Dokploy's .env.
+      # Empty = unset → gate stays permissive (no breakage), so this is safe before you set it.
+      - ALLOWED_MINIFLUX_SERVER=${ALLOWED_MINIFLUX_SERVER:-}
     expose:
       - "3000"
     volumes:
