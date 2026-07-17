@@ -27,7 +27,21 @@
 		ui.layoutMode === 'three-column' && !ui.isMobile && !isFullView
 	);
 
-	onMount(async () => {
+	// onMount stays synchronous so the matchMedia cleanup is actually registered: a cleanup
+	// returned after an `await` runs in a detached microtask that Svelte never sees, leaking
+	// the listener. The async boot sequence runs alongside via boot().
+	onMount(() => {
+		const mql = window.matchMedia('(max-width: 768px)');
+		const onMediaChange = (e: MediaQueryListEvent) => ui.setMobile(e.matches);
+		mql.addEventListener('change', onMediaChange);
+		ui.setMobile(mql.matches);
+
+		void boot();
+
+		return () => mql.removeEventListener('change', onMediaChange);
+	});
+
+	async function boot() {
 		auth.init();
 		if (!auth.isLoggedIn) {
 			goto('/login');
@@ -38,10 +52,6 @@
 		// A changed pull reloads the page — bail out rather than racing loadFeeds() against it.
 		if ((await settingsSync.syncOnBoot()) === 'reloading') return;
 
-		const mql = window.matchMedia('(max-width: 768px)');
-		const onMediaChange = (e: MediaQueryListEvent) => ui.setMobile(e.matches);
-		ui.setMobile(mql.matches);
-		mql.addEventListener('change', onMediaChange);
 		ui.initSidebarWidth();
 		ui.initLayoutMode();
 		ui.initViewMode();
@@ -55,11 +65,7 @@
 
 		await feeds.loadFeeds();
 		ready = true;
-
-		return () => {
-			mql.removeEventListener('change', onMediaChange);
-		};
-	});
+	}
 </script>
 
 {#if ready}
