@@ -1,15 +1,20 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { ExternalLink } from 'lucide-svelte';
 	import type { FeedCreate } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
 	import CategorySelect from './CategorySelect.svelte';
 	import { findFeeds, type FoundFeed } from '$lib/feedFinder';
+	import { findBridges, warmBridgeCatalog, type BridgeChoice } from '$lib/bridgeFinder';
+	import { defaultInstance } from '$lib/rssbridge';
+	import type { BridgeMatch } from '$lib/rssbridgeCatalog';
 
-	let { onclose, onsave, onwizard, initialCategoryId }: {
+	let { onclose, onsave, onwizard, onbridge, initialCategoryId }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
 		onwizard?: (url: string) => void;
+		onbridge?: (choice: BridgeChoice) => void;
 		initialCategoryId?: number;
 	} = $props();
 
@@ -27,12 +32,25 @@
 	let saving = $state(false);
 	let discovering = $state(false);
 	let found = $state.raw<FoundFeed[]>([]);
+	let bridgeMatches = $state.raw<BridgeMatch[]>([]);
 	let discoveredFor = $state<string | null>(null);
+
+	// '' when no RSS-Bridge instance is known yet — the whole bridge offer then stays out of the way.
+	// Snapshot at mount like ScrapedFeedWizard does: the modal is created fresh each time it opens.
+	const instance = defaultInstance();
+
+	// The instance's bridge list is ~1.2MB to read the first time, so start it while the user is
+	// still typing rather than paying for it on submit.
+	onMount(() => warmBridgeCatalog(instance));
 
 	const needsCategoryName = $derived(categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim());
 
-	// Results belong to the URL they were found for, so editing the field drops them.
+	// Results belong to the URL they were found for, so editing the field drops them. Both sets are
+	// written together, so one key covers them.
 	const results = $derived(discoveredFor !== null && discoveredFor === feedUrl.trim() ? found : null);
+	const bridges = $derived(
+		discoveredFor !== null && discoveredFor === feedUrl.trim() ? bridgeMatches : []
+	);
 	const noneFound = $derived(results !== null && results.length === 0);
 
 	function onkeydown(e: KeyboardEvent) {
@@ -58,23 +76,33 @@
 		}
 	}
 
-	// The typed URL may be a feed, a page that advertises feeds, or neither — ask first,
-	// then add outright when there is only one answer.
+	// The typed URL may be a feed, a page that advertises feeds, or neither — ask first, then add
+	// outright when there is only one answer. The instance is asked in parallel whether it already
+	// has a purpose-built bridge for the domain, which is often the better feed (a hand-rolled
+	// CssSelectorBridge can't read dates off a Bandcamp page; BandcampBridge can).
 	async function handleSave() {
 		const url = feedUrl.trim();
 		if (!url || needsCategoryName || saving || discovering) return;
 
 		discovering = true;
-		let list: FoundFeed[];
+		let list: FoundFeed[] = [];
+		let matches: BridgeMatch[] = [];
 		try {
-			list = await findFeeds(url);
+			// Safe to run together only because both helpers swallow their own errors: neither can
+			// reject and take the other's answer down with it.
+			[list, matches] = await Promise.all([
+				findFeeds(url),
+				instance ? findBridges(url, instance) : Promise.resolve<BridgeMatch[]>([])
+			]);
 		} finally {
 			discovering = false;
 		}
 		found = list;
+		bridgeMatches = matches;
 		discoveredFor = url;
 
-		if (list.length === 1) await addFeed(list[0].url);
+		// A matching bridge is a second answer, so it turns the one-result shortcut into a choice.
+		if (list.length === 1 && matches.length === 0) await addFeed(list[0].url);
 	}
 </script>
 
@@ -107,9 +135,11 @@
 				<CategorySelect id="add-feed-category" bind:value={categoryId} bind:newName={newCategoryName} />
 			</div>
 
-			{#if results && results.length > 1}
+			{#if results && results.length > 0 && (results.length > 1 || bridges.length > 0)}
 				<div>
-					<p class="text-xs text-n-500 mb-1">Found {results.length} feeds — pick one:</p>
+					<p class="text-xs text-n-500 mb-1">
+						{results.length === 1 ? 'Found a feed:' : `Found ${results.length} feeds — pick one:`}
+					</p>
 					<div class="border border-n-200 rounded-md divide-y divide-n-200 max-h-64 overflow-y-auto">
 						{#each results as feed (feed.url)}
 							<!-- Split row: the body adds the feed, the icon opens it. An <a> cannot
@@ -137,6 +167,31 @@
 									<ExternalLink size={14} />
 								</a>
 							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if bridges.length > 0 && onbridge}
+				<div>
+					<p class="text-xs text-n-500 mb-1">
+						{bridges.length === 1
+							? 'Your RSS-Bridge instance has a bridge for this site:'
+							: `Your RSS-Bridge instance has ${bridges.length} bridges for this site:`}
+					</p>
+					<div class="border border-n-200 rounded-md divide-y divide-n-200 max-h-64 overflow-y-auto">
+						{#each bridges as match (match.key)}
+							<button
+								type="button"
+								onclick={() => onbridge({ bridge: match, instance, sourceUrl: feedUrl.trim() })}
+								disabled={saving}
+								class="w-full text-left px-3 py-2 hover:bg-n-100 disabled:opacity-50"
+							>
+								<div class="text-sm font-medium text-n-800">{match.name}</div>
+								{#if match.description}
+									<div class="text-xs text-n-500 line-clamp-2">{match.description}</div>
+								{/if}
+							</button>
 						{/each}
 					</div>
 				</div>

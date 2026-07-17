@@ -3,6 +3,12 @@
 // The settings UI lets the user edit the parts and toggle the bridge on/off; when off, the
 // feed_url becomes the bare `url` param (direct feed) and the bridge config is kept in
 // localStorage (Miniflux has no field to hold it). See FeedSettings.svelte.
+//
+// Browser-only: defaultInstance() reads localStorage and the feeds store. Anything that has to run
+// on the server (the /api/rss-bridge route) uses $lib/rssbridgeCatalog instead, which is pure.
+
+import { storageGetString } from '$lib/storage';
+import { feeds } from '$lib/stores/feeds.svelte';
 
 export interface RssBridgeParam {
 	key: string;
@@ -26,6 +32,19 @@ export const RSS_BRIDGE_STORAGE_PREFIX = 'rssbridge:';
 // The user's preferred instance (global, not per-feed) — safe under the same prefix
 // because per-feed keys are numeric ('rssbridge:123').
 export const RSS_BRIDGE_INSTANCE_KEY = 'rssbridge:instance';
+
+// Instance prefill: the remembered choice, else the instance of any existing bridge feed.
+export function defaultInstance(): string {
+	const stored = storageGetString(RSS_BRIDGE_INSTANCE_KEY);
+	if (stored) return stored;
+	for (const f of feeds.rawFeeds) {
+		if (isRssBridgeUrl(f.feed_url)) {
+			const inst = parseRssBridgeUrl(f.feed_url)?.instance;
+			if (inst) return inst;
+		}
+	}
+	return '';
+}
 
 // A feed_url is an rssbridge URL if it carries a `bridge` query param.
 export function isRssBridgeUrl(url: string): boolean {

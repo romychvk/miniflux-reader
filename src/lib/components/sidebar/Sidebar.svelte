@@ -10,11 +10,16 @@
 	import FeedTree from './FeedTree.svelte';
 	import FeedAddModal from '$lib/components/ui/FeedAddModal.svelte';
 	import ScrapedFeedWizard from '$lib/components/ui/ScrapedFeedWizard.svelte';
+	import BridgeFeedWizard from '$lib/components/ui/BridgeFeedWizard.svelte';
+	import type { BridgeChoice } from '$lib/bridgeFinder';
 
 	let showAddModal = $state(false);
 	let showWizard = $state(false);
 	// Handed to the wizard when Add Feed found nothing for a URL, so it isn't retyped.
 	let wizardPageUrl = $state('');
+	// Set when Add Feed offered a ready-made bridge and the user picked one.
+	let showBridgeWizard = $state(false);
+	let bridgeChoice = $state.raw<BridgeChoice | null>(null);
 	// Category to preselect in the Add Feed modal; set when opened from a category's
 	// right-click menu, undefined when opened from the header "+" button.
 	let addFeedCategoryId = $state<number | undefined>(undefined);
@@ -124,6 +129,7 @@
 		onclose={() => showAddModal = false}
 		onsave={handleCreateFeed}
 		onwizard={(url) => { wizardPageUrl = url; showAddModal = false; showWizard = true; }}
+		onbridge={(choice) => { bridgeChoice = choice; showAddModal = false; showBridgeWizard = true; }}
 	/>
 {/if}
 
@@ -132,6 +138,17 @@
 		initialCategoryId={addFeedCategoryId}
 		initialPageUrl={wizardPageUrl}
 		onclose={() => showWizard = false}
+		onsave={handleCreateFeed}
+	/>
+{/if}
+
+{#if showBridgeWizard && bridgeChoice}
+	<BridgeFeedWizard
+		bridge={bridgeChoice.bridge}
+		instance={bridgeChoice.instance}
+		sourceUrl={bridgeChoice.sourceUrl}
+		initialCategoryId={addFeedCategoryId}
+		onclose={() => showBridgeWizard = false}
 		onsave={handleCreateFeed}
 	/>
 {/if}

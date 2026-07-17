@@ -6,13 +6,8 @@
 	import CategorySelect from './CategorySelect.svelte';
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
-	import { storageGetString, storageSet } from '$lib/storage';
-	import {
-		buildRssBridgeUrl,
-		isRssBridgeUrl,
-		parseRssBridgeUrl,
-		RSS_BRIDGE_INSTANCE_KEY
-	} from '$lib/rssbridge';
+	import { storageSet } from '$lib/storage';
+	import { buildRssBridgeUrl, defaultInstance, RSS_BRIDGE_INSTANCE_KEY } from '$lib/rssbridge';
 	import {
 		parsePage,
 		matchItems,
@@ -35,19 +30,6 @@
 		// Seeded when the user lands here from Add Feed, so they don't retype the URL.
 		initialPageUrl?: string;
 	} = $props();
-
-	// Instance prefill: the remembered choice, else the instance of any existing bridge feed.
-	function defaultInstance(): string {
-		const stored = storageGetString(RSS_BRIDGE_INSTANCE_KEY);
-		if (stored) return stored;
-		for (const f of feeds.rawFeeds) {
-			if (isRssBridgeUrl(f.feed_url)) {
-				const inst = parseRssBridgeUrl(f.feed_url)?.instance;
-				if (inst) return inst;
-			}
-		}
-		return '';
-	}
 
 	// /api/fetch-page slices the cleaned HTML to exactly this size (its MAX_BYTES).
 	const PAGE_CAP = 80_000;

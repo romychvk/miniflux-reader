@@ -140,3 +140,13 @@ export function countBridgeEntries(text: string): { isFeed: boolean; entries: nu
 	const entries = (text.match(/<(entry|item)[\s>]/gi) ?? []).length;
 	return { isFeed, entries };
 }
+
+// RSS-Bridge reports failures *as a feed*: with error_reporting on, a broken request still answers
+// HTTP 200 with a valid Atom document whose single entry is titled "Bridge returned error 404!".
+// Counting entries alone would call that a success, so the entry titles have to be checked too.
+export function bridgeErrorMessage(text: string): string | null {
+	const status = text.match(/Bridge returned error (\d+)/i);
+	if (status) return `The bridge itself returned error ${status[1]}`;
+	if (/<title>[^<]*\b(error|exception)\b/i.test(text)) return 'The bridge returned an error';
+	return null;
+}
