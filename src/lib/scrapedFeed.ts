@@ -143,10 +143,55 @@ export function countBridgeEntries(text: string): { isFeed: boolean; entries: nu
 
 // RSS-Bridge reports failures *as a feed*: with error_reporting on, a broken request still answers
 // HTTP 200 with a valid Atom document whose single entry is titled "Bridge returned error 404!".
-// Counting entries alone would call that a success, so the entry titles have to be checked too.
+// Counting entries alone calls that a success, so the body has to be read for that title too.
+//
+// Only RSS-Bridge's own wording counts. A looser "<title> contains error/exception" test reads every
+// entry title in the document, so a healthy feed carrying a headline like "Windows update error
+// 0x800f0922 fix" would be declared broken.
 export function bridgeErrorMessage(text: string): string | null {
 	const status = text.match(/Bridge returned error (\d+)/i);
-	if (status) return `The bridge itself returned error ${status[1]}`;
-	if (/<title>[^<]*\b(error|exception)\b/i.test(text)) return 'The bridge returned an error';
-	return null;
+	return status ? `The bridge itself returned error ${status[1]}` : null;
+}
+
+export interface BridgeTestResult {
+	ok: boolean;
+	message: string;
+}
+
+// Shared by both wizards so they agree on what "working" means. It was duplicated once, and only
+// the copy learned about bridgeErrorMessage above — which is exactly the drift worth preventing:
+// the scraped-feed wizard went on reporting RSS-Bridge's error document as "1 item".
+export async function testBridgeUrl(
+	bridgeUrl: string,
+	bridgeName: string,
+	noItemsHint = ''
+): Promise<BridgeTestResult> {
+	try {
+		const res = await fetch(`/api/fetch-page?url=${encodeURIComponent(bridgeUrl)}`);
+		const data = await res.json().catch(() => null);
+		if (!res.ok) {
+			return {
+				ok: false,
+				message: `${data?.error || `Bridge request failed (${res.status})`}. Is ${bridgeName} in your instance's enabled_bridges?`
+			};
+		}
+
+		const body: string = data?.html ?? '';
+		const bridgeError = bridgeErrorMessage(body);
+		if (bridgeError) return { ok: false, message: `${bridgeError} — check the values below.` };
+
+		const { isFeed, entries } = countBridgeEntries(body);
+		if (!isFeed) {
+			return {
+				ok: false,
+				message: `The response is not a feed — is ${bridgeName} in your instance's enabled_bridges?`
+			};
+		}
+		if (entries === 0) {
+			return { ok: false, message: `The bridge responded but returned no items${noItemsHint}.` };
+		}
+		return { ok: true, message: `The bridge returned ${entries} item${entries === 1 ? '' : 's'}.` };
+	} catch {
+		return { ok: false, message: 'Could not reach the bridge.' };
+	}
 }

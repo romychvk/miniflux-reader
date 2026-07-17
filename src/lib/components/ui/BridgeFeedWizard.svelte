@@ -6,7 +6,7 @@
 	import CategorySelect from './CategorySelect.svelte';
 	import { storageSet } from '$lib/storage';
 	import { buildRssBridgeUrl, RSS_BRIDGE_INSTANCE_KEY, type RssBridgeParam } from '$lib/rssbridge';
-	import { countBridgeEntries, bridgeErrorMessage } from '$lib/scrapedFeed';
+	import { testBridgeUrl, type BridgeTestResult } from '$lib/scrapedFeed';
 	import type { BridgeMatch, BridgeParam } from '$lib/rssbridgeCatalog';
 
 	// Configure a ready-made bridge the instance already ships (BandcampBridge, RedditBridge…), as
@@ -125,34 +125,9 @@
 		if (!bridgeUrl || testing) return false;
 		testing = true;
 		const target = bridgeUrl;
-		let result: { ok: boolean; message: string };
+		let result: BridgeTestResult;
 		try {
-			const res = await fetch(`/api/fetch-page?url=${encodeURIComponent(target)}`);
-			const data = await res.json().catch(() => null);
-			if (!res.ok) {
-				result = {
-					ok: false,
-					message: `${data?.error || `Bridge request failed (${res.status})`}. Is ${bridge.key} in your instance's enabled_bridges?`
-				};
-			} else {
-				const body = data?.html ?? '';
-				const { isFeed, entries } = countBridgeEntries(body);
-				const bridgeError = bridgeErrorMessage(body);
-				if (bridgeError) {
-					result = { ok: false, message: `${bridgeError} — check the values below.` };
-				} else if (!isFeed) {
-					result = {
-						ok: false,
-						message: `The response is not a feed — is ${bridge.key} in your instance's enabled_bridges?`
-					};
-				} else if (entries === 0) {
-					result = { ok: false, message: 'The bridge responded but returned no items.' };
-				} else {
-					result = { ok: true, message: `The bridge returned ${entries} item${entries === 1 ? '' : 's'}.` };
-				}
-			}
-		} catch {
-			result = { ok: false, message: 'Could not reach the bridge.' };
+			result = await testBridgeUrl(target, bridge.key);
 		} finally {
 			testing = false;
 		}
@@ -238,27 +213,34 @@
 				</div>
 			{/if}
 
+			<!-- Param ids are namespaced: five bridges (InstructablesBridge, NintendoBridge…) have a
+			     param literally named `category`, which would otherwise collide with this wizard's own
+			     `bwiz-category` picker and point both "Category" labels at the same element. -->
 			{#each currentContext?.params ?? [] as param (contextName + '/' + param.name)}
 				<div>
-					<label for={`bwiz-${param.name}`} class="block text-sm font-medium text-n-700 mb-1">
+					<label for={`bwiz-param-${param.name}`} class="block text-sm font-medium text-n-700 mb-1">
 						{param.label}{#if param.required}<span class="text-danger"> *</span>{/if}
 					</label>
 
 					{#if param.type === 'list'}
 						<select
-							id={`bwiz-${param.name}`}
+							id={`bwiz-param-${param.name}`}
 							bind:value={values[param.name]}
 							class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 						>
+							<!-- Options are deliberately unkeyed: upstream keys `values` by label, so two labels
+							     can share one value (InstructablesBridge lists "/makeymakey/" under the same
+							     group twice) and a value-keyed each throws each_key_duplicate — in prod too.
+							     The list is static, so index keying is right anyway. -->
 							{#each groupsOf(param) as group (group.group)}
 								{#if group.group}
 									<optgroup label={group.group}>
-										{#each group.options as option (option.value)}
+										{#each group.options as option}
 											<option value={option.value}>{option.label}</option>
 										{/each}
 									</optgroup>
 								{:else}
-									{#each group.options as option (option.value)}
+									{#each group.options as option}
 										<option value={option.value}>{option.label}</option>
 									{/each}
 								{/if}
@@ -267,7 +249,7 @@
 					{:else if param.type === 'checkbox'}
 						<div class="flex items-center gap-2">
 							<input
-								id={`bwiz-${param.name}`}
+								id={`bwiz-param-${param.name}`}
 								type="checkbox"
 								bind:checked={values[param.name] as boolean}
 								class="rounded border-n-300"
@@ -278,7 +260,7 @@
 						<!-- Not bind:value: Svelte coerces a number input to number|null, which would put a
 						     non-string into `values` and break the String(...).trim() above. -->
 						<input
-							id={`bwiz-${param.name}`}
+							id={`bwiz-param-${param.name}`}
 							type="number"
 							value={values[param.name]}
 							oninput={(e) => (values[param.name] = e.currentTarget.value)}
@@ -287,7 +269,7 @@
 						/>
 					{:else}
 						<input
-							id={`bwiz-${param.name}`}
+							id={`bwiz-param-${param.name}`}
 							type="text"
 							bind:value={values[param.name] as string}
 							spellcheck="false"

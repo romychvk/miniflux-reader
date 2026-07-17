@@ -125,9 +125,32 @@ function parseParam(key: string, raw: unknown): BridgeParam | null {
 	const fallback = asString(r.defaultValue);
 	if (fallback !== undefined) param.defaultValue = fallback;
 
-	if (type === 'list') param.options = parseOptions(r.values);
+	if (type === 'list') {
+		param.options = parseOptions(r.values);
+		param.defaultValue = resolveListDefault(param.defaultValue, param.options);
+	}
 
 	return param;
+}
+
+// A list's defaultValue can name any of three different things upstream, or nothing at all:
+//   value  — BandcampBridge's `type` → "changes"
+//   label  — BlueskyBridge's `data_source` → "Profile"      (18 params)
+//   group  — InstructablesBridge's `category` → "Circuits"  (an optgroup, not an option)
+// Whatever it names has to end up as an option *value*, because that is what the <select> binds to:
+// an unresolved default matches no <option>, so the select renders blank AND the raw default leaks
+// into the query string. Anything still unresolvable is dropped so the caller falls back to the
+// first option — a blank select is never the right answer.
+function resolveListDefault(
+	defaultValue: string | undefined,
+	options: BridgeParamOption[]
+): string | undefined {
+	if (defaultValue === undefined) return undefined;
+	if (options.some((o) => o.value === defaultValue)) return defaultValue;
+
+	const resolved =
+		options.find((o) => o.label === defaultValue) ?? options.find((o) => o.group === defaultValue);
+	return resolved?.value;
 }
 
 function parseParams(raw: unknown): BridgeParam[] {
@@ -141,8 +164,7 @@ function parseParams(raw: unknown): BridgeParam[] {
 }
 
 function parseContexts(raw: unknown): BridgeContext[] {
-	if (!raw || typeof raw !== 'object') return [];
-	const entries = Object.entries(raw as Record<string, unknown>);
+	const entries = raw && typeof raw === 'object' ? Object.entries(raw as Record<string, unknown>) : [];
 
 	// Merged into every context below; CodebergBridge keeps its required `username`/`repo` here, so
 	// dropping it would build silently broken URLs.
@@ -153,11 +175,12 @@ function parseContexts(raw: unknown): BridgeContext[] {
 		return named.map(([name, params]) => ({ name, params: [...globals, ...parseParams(params)] }));
 	}
 
-	// Single-context bridge: keyed by `0` or ''. Its params still need the globals merged in, and
-	// the empty name tells the caller not to send ?context=.
+	// Everything else is one unnamed context, and it is always returned — a bridge that takes no
+	// parameters at all still needs one to hang a URL on. 127 of the 511 usable bridges upstream
+	// serialize as `"parameters": []` (PHP's empty array), and returning [] for those left the wizard
+	// with no context, no URL, and a Create button that could never enable.
 	const single = entries.find(([key]) => UNNAMED_CONTEXTS.has(key));
-	const params = [...globals, ...parseParams(single?.[1])];
-	return params.length > 0 || single ? [{ name: '', params }] : [];
+	return [{ name: '', params: [...globals, ...parseParams(single?.[1])] }];
 }
 
 export function buildCatalog(raw: unknown): BridgeMatch[] {

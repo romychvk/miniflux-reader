@@ -13,7 +13,8 @@
 		matchItems,
 		anchorizeSelector,
 		buildScrapedFeedConfig,
-		countBridgeEntries,
+		testBridgeUrl,
+		type BridgeTestResult,
 		type MatchResult
 	} from '$lib/scrapedFeed';
 	import { requestAi } from '$lib/ai/client';
@@ -184,34 +185,9 @@
 		if (!bridgeUrl || testing) return false;
 		testing = true;
 		const target = bridgeUrl;
-		let result: { ok: boolean; message: string };
+		let result: BridgeTestResult;
 		try {
-			const res = await fetch(`/api/fetch-page?url=${encodeURIComponent(target)}`);
-			const data = await res.json().catch(() => null);
-			if (!res.ok) {
-				result = {
-					ok: false,
-					message: `${data?.error || `Bridge request failed (${res.status})`}. Is CssSelectorBridge in your instance's enabled_bridges?`
-				};
-			} else {
-				const { isFeed, entries } = countBridgeEntries(data?.html ?? '');
-				if (!isFeed) {
-					result = {
-						ok: false,
-						message:
-							'The response is not a feed — check the instance URL and that CssSelectorBridge is enabled.'
-					};
-				} else if (entries === 0) {
-					result = {
-						ok: false,
-						message: 'The bridge responded but returned no items — check the selector.'
-					};
-				} else {
-					result = { ok: true, message: `The bridge returned ${entries} item${entries === 1 ? '' : 's'}.` };
-				}
-			}
-		} catch {
-			result = { ok: false, message: 'Could not reach the bridge.' };
+			result = await testBridgeUrl(target, 'CssSelectorBridge', ' — check the selector');
 		} finally {
 			testing = false;
 		}
