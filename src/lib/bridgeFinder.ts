@@ -13,7 +13,16 @@ import { authedFetch } from '$lib/api';
 export interface BridgeChoice {
 	bridge: BridgeMatch;
 	instance: string;
-	sourceUrl: string; // the URL the user typed — shown for context, never parsed for parameters
+	// The URL the user typed. Never parsed client-side; handed to the instance's action=detect so the
+	// wizard can prefill (and skip) its form.
+	sourceUrl: string;
+}
+
+// The instance's own detectParameters() result: which bridge it matched and the query params it
+// pulled out of the URL (owner/repo, context, …), ready to map onto the wizard's declared params.
+export interface DetectedBridge {
+	bridge: string;
+	params: Record<string, string>;
 }
 
 const TIMEOUT_MS = 5000;
@@ -33,6 +42,37 @@ export async function findBridges(pageUrl: string, instance: string): Promise<Br
 	} catch {
 		// Unreachable instance, timeout, malformed JSON — all mean "no offer to make".
 		return [];
+	}
+}
+
+// Asks the instance to resolve the typed URL to a bridge + parameters (its own action=detect). Same
+// never-throws contract as findBridges: any failure returns null and the wizard just shows its form.
+export async function detectBridgeParams(
+	pageUrl: string,
+	instance: string
+): Promise<DetectedBridge | null> {
+	if (!instance.trim() || !pageUrl.trim()) return null;
+
+	try {
+		const query = new URLSearchParams({
+			instance: instance.trim(),
+			url: pageUrl.trim(),
+			detect: '1'
+		});
+		const res = await authedFetch(`/api/rss-bridge?${query}`, {
+			signal: AbortSignal.timeout(TIMEOUT_MS)
+		});
+		if (!res.ok) return null;
+
+		const data = await res.json();
+		if (!data || typeof data.bridge !== 'string' || !data.bridge) return null;
+		const params =
+			data.params && typeof data.params === 'object'
+				? (data.params as Record<string, string>)
+				: {};
+		return { bridge: data.bridge, params };
+	} catch {
+		return null;
 	}
 }
 

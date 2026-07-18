@@ -62,6 +62,9 @@ export interface SafeFetchResult {
 	ok: boolean;
 	contentType: string | null;
 	body: string;
+	// Set only when followRedirects is false and the response was a redirect: the resolved (absolute)
+	// Location, handed back instead of being followed. See followRedirects below.
+	location?: string | null;
 }
 
 export interface SafeFetchOptions {
@@ -69,6 +72,11 @@ export interface SafeFetchOptions {
 	maxBytes: number;
 	timeoutMs?: number;
 	maxRedirects?: number;
+	// Default true. Set false when the redirect target itself is the answer (RSS-Bridge's
+	// action=detect 301s to the display URL that encodes the detected params) — the first redirect
+	// is returned as `location` and its destination is never fetched. Each hop is still address-
+	// validated before this point, so a false value never skips an SSRF check.
+	followRedirects?: boolean;
 }
 
 // Public-unicast only. ipaddr.js classifies everything else (loopback, private, CGNAT, linkLocal,
@@ -172,7 +180,7 @@ async function readCappedText(res: IncomingMessage, maxBytes: number): Promise<s
 }
 
 export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise<SafeFetchResult> {
-	const { headers = {}, maxBytes, timeoutMs = 12_000, maxRedirects = 4 } = opts;
+	const { headers = {}, maxBytes, timeoutMs = 12_000, maxRedirects = 4, followRedirects = true } = opts;
 
 	let url: URL;
 	try {
@@ -197,12 +205,19 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
 		const location = res.headers.location;
 		if (status >= 300 && status < 400 && location) {
 			res.destroy();
-			if (hop >= maxRedirects) throw new SafeFetchError('redirects', 'too many redirects');
+			let next: URL;
 			try {
-				url = new URL(Array.isArray(location) ? location[0] : location, url);
+				next = new URL(Array.isArray(location) ? location[0] : location, url);
 			} catch {
 				throw new SafeFetchError('upstream', 'invalid redirect location');
 			}
+			// Caller wants the redirect itself, not the page it points to: return the resolved target
+			// without fetching it (its address is therefore never checked — we don't connect to it).
+			if (!followRedirects) {
+				return { status, ok: false, contentType: null, body: '', location: next.toString() };
+			}
+			if (hop >= maxRedirects) throw new SafeFetchError('redirects', 'too many redirects');
+			url = next;
 			continue;
 		}
 

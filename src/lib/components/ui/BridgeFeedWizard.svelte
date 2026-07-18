@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { Copy, Check, FlaskConical } from 'lucide-svelte';
 	import type { FeedCreate } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -7,6 +8,7 @@
 	import { storageSet } from '$lib/storage';
 	import { buildRssBridgeUrl, RSS_BRIDGE_INSTANCE_KEY, type RssBridgeParam } from '$lib/rssbridge';
 	import { testBridgeUrl, type BridgeTestResult } from '$lib/scrapedFeed';
+	import { detectBridgeParams } from '$lib/bridgeFinder';
 	import type { BridgeMatch, BridgeParam } from '$lib/rssbridgeCatalog';
 
 	// Configure a ready-made bridge the instance already ships (BandcampBridge, RedditBridge…), as
@@ -19,8 +21,9 @@
 		onsave: (data: FeedCreate) => Promise<void>;
 		bridge: BridgeMatch;
 		instance: string;
-		// What the user typed in Add Feed. Shown for context only — deriving parameters from it
-		// (band = subdomain…) is bridge-specific guesswork that doesn't generalise, so we don't.
+		// What the user typed in Add Feed. Not parsed here — deriving params locally (band = subdomain…)
+		// is bridge-specific guesswork that doesn't generalise. Instead the instance's own action=detect
+		// (onMount below) resolves params from it, and when it can, we prefill and skip the form.
 		sourceUrl?: string;
 		initialCategoryId?: number;
 	} = $props();
@@ -60,6 +63,62 @@
 	// Unlike the scraped-feed wizard, a real bridge returns real content, so leave this off.
 	let crawler = $state(false);
 
+	// Prefill via the instance's action=detect (see the sourceUrl prop note). With a sourceUrl we open
+	// in "detecting" and then reveal either the auto-filled summary or the form; with none, there's
+	// nothing to detect so the form shows at once.
+	// Reading the props once here is the point — detection runs a single time in onMount.
+	// svelte-ignore state_referenced_locally
+	const willDetect = Boolean(sourceUrl && instance.trim());
+	let detecting = $state(willDetect);
+	let formOpen = $state(!willDetect);
+	let autoDetected = $state(false);
+
+	function paramType(name: string): BridgeParam['type'] | undefined {
+		for (const context of bridge.contexts) {
+			const param = context.params.find((p) => p.name === name);
+			if (param) return param.type;
+		}
+		return undefined;
+	}
+
+	// Map detected params onto `values`, honouring a detected context and checkbox typing (a bare
+	// string value would never match the `=== true` the URL builder checks for). Returns true only
+	// when the active context has every required field filled — the bar for skipping the form; less
+	// than that falls through to the form with whatever was prefilled.
+	function applyDetected(params: Record<string, string>): boolean {
+		const { context, ...rest } = params;
+		if (context && bridge.contexts.some((c) => c.name === context)) contextName = context;
+
+		let appliedAny = false;
+		for (const [name, value] of Object.entries(rest)) {
+			const type = paramType(name);
+			if (!type) continue; // not a param this bridge declares — ignore
+			values[name] =
+				type === 'checkbox' ? value === 'on' || value === 'true' || value === '1' : value;
+			appliedAny = true;
+		}
+		if (!appliedAny) return false;
+
+		const active = bridge.contexts.find((c) => c.name === contextName);
+		const stillMissing = (active?.params ?? []).some(
+			(p) => p.required && p.type !== 'checkbox' && !String(values[p.name] ?? '').trim()
+		);
+		return !stillMissing;
+	}
+
+	onMount(async () => {
+		if (!willDetect) return;
+		const detected = await detectBridgeParams(sourceUrl!, instance);
+		detecting = false;
+		// Only trust a hit for the very bridge this wizard opened for: a github.com URL can detect a
+		// different github bridge than the one the user picked from the list.
+		if (detected && detected.bridge === bridge.key && applyDetected(detected.params)) {
+			autoDetected = true; // formOpen stays false → the form is skipped
+		} else {
+			formOpen = true;
+		}
+	});
+
 	let testing = $state(false);
 	let testResult = $state<{ ok: boolean; message: string } | null>(null);
 	let testedUrl = $state('');
@@ -67,6 +126,19 @@
 	let copied = $state(false);
 
 	const currentContext = $derived(bridge.contexts.find((c) => c.name === contextName));
+
+	function displayValue(param: BridgeParam, value: string | boolean): string {
+		if (param.type === 'checkbox') return 'Yes';
+		if (param.type === 'list') return param.options?.find((o) => o.value === value)?.label ?? String(value);
+		return String(value);
+	}
+
+	// The filled fields, shown as a read-only summary in place of the form we hid after auto-detect.
+	const detectedSummary = $derived(
+		(currentContext?.params ?? [])
+			.filter((p) => (p.type === 'checkbox' ? values[p.name] === true : String(values[p.name] ?? '').trim() !== ''))
+			.map((p) => ({ label: p.label, value: displayValue(p, values[p.name]) }))
+	);
 
 	const bridgeUrl = $derived.by(() => {
 		if (!currentContext || !instance.trim()) return '';
@@ -137,7 +209,7 @@
 	}
 
 	async function handleCreate() {
-		if (!bridgeUrl || saving || testing || missingRequired) return;
+		if (!bridgeUrl || saving || testing || detecting || missingRequired) return;
 		if (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim()) return;
 		// First click runs the test; on failure the button becomes "Create anyway".
 		if (!testCurrent && !(await testBridge())) return;
@@ -186,12 +258,23 @@
 		<div class="px-5 py-4 space-y-4 overflow-y-auto">
 			{#if sourceUrl}
 				<p class="text-xs text-n-500">
-					A ready-made bridge for <span class="font-medium text-n-600">{bridge.host}</span>, from
-					{instance}. Fill in what it needs below — the values aren't guessed from
-					<span class="font-mono">{sourceUrl}</span>.
+					{#if detecting}
+						Detecting parameters from <span class="font-mono">{sourceUrl}</span>…
+					{:else if autoDetected && !formOpen}
+						Auto-filled from <span class="font-mono">{sourceUrl}</span>.
+					{:else}
+						A ready-made bridge for <span class="font-medium text-n-600">{bridge.host}</span>, from
+						{instance}. Fill in what it needs below.
+					{/if}
 				</p>
 			{/if}
 
+			<!-- Three states: waiting on action=detect, the full form, or (after a confident detect) a
+			     read-only summary with an Edit escape hatch. Content indentation is kept flat to avoid
+			     re-indenting the whole param form. -->
+			{#if detecting}
+				<!-- the note above reads "Detecting…"; nothing to show until it resolves -->
+			{:else if formOpen}
 			{#if bridge.contexts.length > 1}
 				<div>
 					<span class="block text-sm font-medium text-n-700 mb-1">Feed type</span>
@@ -283,6 +366,25 @@
 					{/if}
 				</div>
 			{/each}
+			{:else}
+				<div class="rounded-md border border-n-200 bg-n-50 px-3 py-2.5">
+					<dl class="space-y-1 text-sm">
+						{#each detectedSummary as row (row.label)}
+							<div class="flex gap-2">
+								<dt class="shrink-0 text-n-500">{row.label}:</dt>
+								<dd class="min-w-0 break-words font-medium text-n-800">{row.value}</dd>
+							</div>
+						{/each}
+					</dl>
+					<button
+						type="button"
+						onclick={() => (formOpen = true)}
+						class="mt-2 text-xs text-a-600 underline hover:text-a-700"
+					>
+						Edit parameters
+					</button>
+				</div>
+			{/if}
 
 			<div>
 				<label for="bwiz-category" class="block text-sm font-medium text-n-700 mb-1">Category</label>
@@ -296,7 +398,7 @@
 				</label>
 			</div>
 
-			{#if bridgeUrl}
+			{#if bridgeUrl && !detecting}
 				<div class="space-y-2">
 					<label for="bwiz-bridge-url" class="block text-sm font-medium text-n-700">Feed URL</label>
 					<div class="flex gap-2">
@@ -318,7 +420,7 @@
 						<button
 							type="button"
 							onclick={testBridge}
-							disabled={testing || missingRequired}
+							disabled={testing || detecting || missingRequired}
 							class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-n-300 px-3 py-2 text-sm text-n-700 hover:bg-n-100 disabled:opacity-50"
 						>
 							<FlaskConical class={`h-3.5 w-3.5 ${testing ? 'animate-pulse' : ''}`} />
@@ -345,7 +447,7 @@
 			<button
 				type="button"
 				onclick={handleCreate}
-				disabled={saving || testing || !bridgeUrl || missingRequired || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
+				disabled={saving || testing || detecting || !bridgeUrl || missingRequired || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
 				class="px-4 py-2 text-sm bg-a-600 text-on-accent rounded-md hover:bg-a-700 disabled:opacity-50"
 			>
 				{saving

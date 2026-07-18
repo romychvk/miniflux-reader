@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import { buildCatalog, matchBridges, normalizeHost, type BridgeMatch } from '$lib/rssbridgeCatalog';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
-import { safeFetch } from '$lib/server/safeFetch';
+import { safeFetch, type SafeFetchResult } from '$lib/server/safeFetch';
 
 // Answers "does the user's RSS-Bridge instance have a ready-made bridge for this domain?".
 //
@@ -63,6 +63,52 @@ async function fetchCatalog(instance: URL): Promise<BridgeMatch[]> {
 	return buildCatalog(JSON.parse(result.body));
 }
 
+// Reads the instance's ?action=detect redirect. RSS-Bridge 301s to ?action=display&bridge=…&<params>
+// only when a bridge matches AND a format is supplied; a non-match is a plain 200 with no Location.
+// We deliberately don't follow the redirect — its target is the feed itself (a GitHub API round-trip
+// for GithubReleaseBridge) — we only want the params encoded in it. Detection is a bonus, so every
+// failure degrades to { bridge: null } and the wizard falls back to its form.
+async function detectBridge(instance: URL, target: string): Promise<Response> {
+	const detectUrl = new URL(instance.toString());
+	detectUrl.search = '';
+	detectUrl.searchParams.set('action', 'detect');
+	detectUrl.searchParams.set('url', target);
+	detectUrl.searchParams.set('format', 'Atom');
+
+	let result: SafeFetchResult;
+	try {
+		result = await safeFetch(detectUrl.toString(), {
+			headers: { Accept: 'text/html' },
+			maxBytes: 4096,
+			timeoutMs: FETCH_TIMEOUT_MS,
+			followRedirects: false
+		});
+	} catch {
+		return json({ bridge: null, params: {} });
+	}
+
+	if (!result.location) return json({ bridge: null, params: {} });
+
+	let redirect: URL;
+	try {
+		redirect = new URL(result.location);
+	} catch {
+		return json({ bridge: null, params: {} });
+	}
+
+	const bridge = redirect.searchParams.get('bridge');
+	if (!bridge) return json({ bridge: null, params: {} });
+
+	// Everything but the structural keys is a detected parameter (owner/repo, context, u/p/c…),
+	// returned verbatim for the wizard to map onto the bridge's declared params.
+	const params: Record<string, string> = {};
+	for (const [key, value] of redirect.searchParams) {
+		if (key === 'action' || key === 'bridge' || key === 'format') continue;
+		params[key] = value;
+	}
+	return json({ bridge, params });
+}
+
 async function getCatalog(instance: URL): Promise<BridgeMatch[]> {
 	const key = instanceKey(instance);
 
@@ -101,6 +147,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 	if (instance.protocol !== 'http:' && instance.protocol !== 'https:') {
 		return json({ error: 'Only http(s) instances are allowed' }, 400);
+	}
+
+	// action=detect is independent of the (1.2MB) catalog: it's the instance resolving the typed URL
+	// to a bridge + params on its own. Handle it before the catalog fetch so it stays cheap.
+	if (url.searchParams.get('detect')) {
+		const detectTarget = url.searchParams.get('url');
+		if (!detectTarget) return json({ error: 'Missing url' }, 400);
+		return detectBridge(instance, detectTarget);
 	}
 
 	let catalog: BridgeMatch[];
