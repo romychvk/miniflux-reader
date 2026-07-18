@@ -1,4 +1,5 @@
 import { storageGetString, storageSet, storageRemove } from '$lib/storage';
+import { normalizeServerUrl } from '$lib/serverUrl';
 
 function createAuth() {
 	let serverUrl = $state('');
@@ -11,8 +12,15 @@ function createAuth() {
 	}
 
 	function login(server: string, token: string) {
-		serverUrl = server.replace(/\/+$/, '');
-		apiToken = token;
+		// Normalize to the origin so a pasted `/v1/` path (or trailing slash / stray whitespace)
+		// can't leave the stored server mismatching ALLOWED_MINIFLUX_SERVER. Falls back to a light
+		// clean-up if the value somehow isn't a parseable URL (the login form validates first).
+		try {
+			serverUrl = normalizeServerUrl(server);
+		} catch {
+			serverUrl = server.trim().replace(/\/+$/, '');
+		}
+		apiToken = token.trim();
 		storageSet('miniflux_server', serverUrl);
 		storageSet('miniflux_api_key', apiToken);
 	}
