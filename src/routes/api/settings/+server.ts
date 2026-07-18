@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { env } from '$env/dynamic/private';
 
@@ -117,12 +117,17 @@ export const PUT: RequestHandler = async ({ request }) => {
 	const updatedAt = new Date().toISOString();
 	const blob = JSON.stringify({ version: 1, rev, updatedAt, data });
 
+	// Unique temp per write + atomic rename. A crash mid-write can't leave a truncated blob,
+	// and — unlike a shared `${filePath}.tmp` — two concurrent PUTs from the same user (e.g. an
+	// unload flush racing the boot push) no longer interleave into one temp file: each writes its
+	// own, and rename() publishes a complete blob (last writer wins).
+	const tmpPath = `${filePath}.${randomUUID()}.tmp`;
 	try {
 		await mkdir(DATA_DIR, { recursive: true });
-		// tmp + rename so a crash mid-write can't leave a truncated blob
-		await writeFile(`${filePath}.tmp`, blob, 'utf-8');
-		await rename(`${filePath}.tmp`, filePath);
+		await writeFile(tmpPath, blob, 'utf-8');
+		await rename(tmpPath, filePath);
 	} catch (e) {
+		await unlink(tmpPath).catch(() => {});
 		console.error('settings: write failed', e);
 		return json(500, { error: 'Failed to store settings' });
 	}
