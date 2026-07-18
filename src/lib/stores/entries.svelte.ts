@@ -219,6 +219,42 @@ function ogSchedule(task: () => Promise<void>): void {
   else ogQueue.push(run);
 }
 
+// The OG cache is a regenerable localStorage cache (not synced — see isSyncableKey). Resolving a
+// page of covers used to JSON.stringify and write the WHOLE cache after every single image; at
+// concurrency 4 that's a burst of full serializations. Coalesce them: mark the cache dirty and
+// flush at most once per window, plus an immediate flush when the tab is hidden/closed so a
+// just-resolved cover survives a navigation. A hard kill can lose the last batch, but the cache
+// is regenerable — the affected covers simply re-resolve (and re-cache) next session.
+const OG_WRITE_DELAY_MS = 500;
+let ogWriteTimer: ReturnType<typeof setTimeout> | null = null;
+let ogDirty = false;
+let ogUnloadHooked = false;
+
+function flushOgCache(): void {
+  if (ogWriteTimer !== null) {
+    clearTimeout(ogWriteTimer);
+    ogWriteTimer = null;
+  }
+  if (ogDirty && ogCache) {
+    storageSet(OG_CACHE_KEY, ogCache);
+    ogDirty = false;
+  }
+}
+
+function scheduleOgCacheFlush(): void {
+  ogDirty = true;
+  if (!ogUnloadHooked && typeof window !== "undefined") {
+    // Flush a pending batch on tab hide/close (the mobile-safe pair) so covers aren't lost.
+    window.addEventListener("pagehide", flushOgCache);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") flushOgCache();
+    });
+    ogUnloadHooked = true;
+  }
+  // Trailing throttle: at most one write per window no matter how many covers resolve in it.
+  if (ogWriteTimer === null) ogWriteTimer = setTimeout(flushOgCache, OG_WRITE_DELAY_MS);
+}
+
 function createEntriesStore() {
   let entries = $state<Entry[]>([]);
   let loading = $state(false);
@@ -608,7 +644,7 @@ function createEntriesStore() {
       }
       if (image === null) return; // transient failure — don't poison the cache
       ogCache![cacheKey] = image;
-      storageSet(OG_CACHE_KEY, ogCache);
+      scheduleOgCacheFlush();
       if (image) {
         const target = entries.find((e) => e.id === entry.id) ?? entry;
         // A source may drop a resolved cover (e.g. a telegram text post's og:image is the channel
