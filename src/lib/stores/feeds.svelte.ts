@@ -3,29 +3,14 @@ import { categoryDisplayTitle } from '$lib/category';
 import { createFeedIcon } from '$lib/icons';
 import { storageGet, storageSet } from '$lib/storage';
 import type { Category, Feed, FeedCounters, FeedCreate, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
+import { mapPool } from '$lib/pool';
+import { applySavedOrder, persistOrder } from '$lib/feedOrder';
 import { ui } from './ui.svelte';
 
 // Cap the icon and category-refresh fan-outs so a big account (or a category with many feeds)
 // doesn't fire one request per feed at once — icon fetches hammer the proxy and refreshes make
 // Miniflux crawl every source in parallel. 6 is within the audited 4–8 band.
 const FEED_REQUEST_CONCURRENCY = 6;
-
-// Run `task` over each item with at most `limit` running at once: a fixed pool of workers
-// pulling from a shared cursor (same shape as refetchFeedLatest's worker pool / ogSchedule).
-// Each task must handle its own errors — a throw would reject the whole pool.
-async function mapPool<T>(
-	items: T[],
-	limit: number,
-	task: (item: T) => Promise<void>
-): Promise<void> {
-	let cursor = 0;
-	async function worker() {
-		while (cursor < items.length) {
-			await task(items[cursor++]);
-		}
-	}
-	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
-}
 
 function createFeedsStore() {
 	let feedTree = $state<FeedNode[]>([]);
@@ -49,59 +34,6 @@ function createFeedsStore() {
 				}
 			}
 		}
-	}
-
-	function applySavedOrder(tree: FeedNode[]) {
-		const catOrder = storageGet<number[] | null>('categoryOrder', null);
-		const feedOrder = storageGet<Record<string, number[]> | null>('feedOrder', null);
-
-		if (catOrder) {
-			// Separate "All" node from categories
-			const allNode = tree[0]; // id: -1
-			const categories = tree.slice(1);
-
-			categories.sort((a, b) => {
-				const ai = catOrder.indexOf(a.id);
-				const bi = catOrder.indexOf(b.id);
-				if (ai === -1 && bi === -1) return a.title.localeCompare(b.title);
-				if (ai === -1) return 1;
-				if (bi === -1) return -1;
-				return ai - bi;
-			});
-
-			tree.length = 0;
-			tree.push(allNode, ...categories);
-		}
-
-		if (feedOrder) {
-			for (const node of tree) {
-				if (!node.children) continue;
-				const order = feedOrder[node.id];
-				if (!order) continue;
-				node.children.sort((a, b) => {
-					const ai = order.indexOf(a.id);
-					const bi = order.indexOf(b.id);
-					if (ai === -1 && bi === -1) return a.title.localeCompare(b.title);
-					if (ai === -1) return 1;
-					if (bi === -1) return -1;
-					return ai - bi;
-				});
-			}
-		}
-	}
-
-	function persistOrder() {
-		const categories = feedTree.filter(n => n.id !== -1);
-		const catOrder = categories.map(c => c.id);
-		storageSet('categoryOrder', catOrder);
-
-		const feedOrderMap: Record<string, number[]> = {};
-		for (const cat of categories) {
-			if (cat.children) {
-				feedOrderMap[cat.id] = cat.children.map(f => f.id);
-			}
-		}
-		storageSet('feedOrder', feedOrderMap);
 	}
 
 	async function loadFeeds() {
@@ -257,7 +189,7 @@ function createFeedsStore() {
 		cat.children.splice(adjustedIndex, 0, item);
 		feedTree = [...feedTree];
 		rebuildFeedIndex();
-		persistOrder();
+		persistOrder(feedTree);
 	}
 
 	function reorderCategory(catId: number, newIndex: number) {
@@ -270,7 +202,7 @@ function createFeedsStore() {
 		feedTree.splice(adjustedIndex, 0, item);
 		feedTree = [...feedTree];
 		rebuildFeedIndex();
-		persistOrder();
+		persistOrder(feedTree);
 	}
 
 	async function moveFeedToCategory(feedId: number, sourceCatId: number, targetCatId: number, insertIndex: number) {
@@ -288,7 +220,7 @@ function createFeedsStore() {
 		targetCat.unread += feed.unread;
 		feedTree = [...feedTree];
 		rebuildFeedIndex();
-		persistOrder();
+		persistOrder(feedTree);
 
 		try {
 			await apiCall(`feeds/${feedId}`, {
@@ -306,7 +238,7 @@ function createFeedsStore() {
 			sourceCat.unread += feed.unread;
 			feedTree = [...feedTree];
 			rebuildFeedIndex();
-			persistOrder();
+			persistOrder(feedTree);
 			ui.showError(e instanceof Error ? e.message : 'Failed to move feed');
 		}
 	}
