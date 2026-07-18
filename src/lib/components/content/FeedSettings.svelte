@@ -1,13 +1,11 @@
 <script lang="ts">
 	import type { Feed, FeedUpdate } from '$lib/types';
-	import { ExternalLink, RotateCw, Trash2, AlertTriangle, X, Plus } from 'lucide-svelte';
+	import { X } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { apiCall } from '$lib/api';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
-	import { relaTimestamp } from '$lib/time';
 	import { storageGet, storageSet } from '$lib/storage';
 	import {
 		isRssBridgeUrl,
@@ -18,10 +16,13 @@
 		type RssBridgeParam
 	} from '$lib/rssbridge';
 	import { COVER_STORAGE_PREFIX, asCoverRule } from '$lib/cover';
-	import { USER_AGENT_PRESETS, CUSTOM_UA, matchUserAgentPreset } from '$lib/userAgent';
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
-	import CategorySelect from '$lib/components/ui/CategorySelect.svelte';
-	import AiRuleAssistant from './AiRuleAssistant.svelte';
+	import FeedGeneralSection from './feed-settings/FeedGeneralSection.svelte';
+	import FeedNetworkSection from './feed-settings/FeedNetworkSection.svelte';
+	import FeedRssBridgeSection from './feed-settings/FeedRssBridgeSection.svelte';
+	import FeedOriginalContentSection from './feed-settings/FeedOriginalContentSection.svelte';
+	import FeedCoverImageSection from './feed-settings/FeedCoverImageSection.svelte';
+	import FeedDangerZoneSection from './feed-settings/FeedDangerZoneSection.svelte';
 
 	let { feed }: { feed: Feed } = $props();
 
@@ -64,14 +65,6 @@
 	let disabled = $state(initial.disabled);
 	let ignoreHttpCache = $state(initial.ignore_http_cache);
 	let userAgent = $state(initial.user_agent);
-
-	// Which preset the current UA string maps to (drives the selector); typing a
-	// value not in the list resolves to CUSTOM_UA, flipping the select to "Custom…".
-	const uaPreset = $derived(matchUserAgentPreset(userAgent));
-	function applyUaPreset(choice: string) {
-		if (choice === CUSTOM_UA) return; // keep whatever's already in the field
-		userAgent = choice; // the preset's value ('' for the Miniflux default)
-	}
 
 	// --- RSS-Bridge block -------------------------------------------------------------
 	// The feed's URL may be an RSS-Bridge wrapper. We decompose it into editable parts and
@@ -133,13 +126,6 @@
 		})
 	);
 
-	function addRssParam() {
-		rssParams = [...rssParams, { key: '', value: '' }];
-	}
-	function removeRssParam(i: number) {
-		rssParams = rssParams.filter((_, idx) => idx !== i);
-	}
-
 	// --- Cover image rule (client-side, per feed, localStorage) ------------------------
 	// CSS selector (+ optional attribute) to extract the cover from the source page when the
 	// generic og:image heuristic misses it (e.g. rutracker: selector "var.postImg", attr "title").
@@ -157,8 +143,6 @@
 	let refetchCount = $state(25);
 	let refetchStatus = $state<'unread' | 'all'>(entries.showAll ? 'all' : 'unread');
 	let progress = $state({ done: 0, total: 0 });
-	let confirmDelete = $state(false);
-	let deleting = $state(false);
 
 	// Read-only stats
 	let entryCount = $state<number | null>(null);
@@ -301,15 +285,6 @@
 		}
 	}
 
-	async function unsubscribe() {
-		deleting = true;
-		try {
-			await feeds.deleteFeed(feed.id);
-			goto('/');
-		} catch {
-			deleting = false;
-		}
-	}
 </script>
 
 <!-- Close button, fixed to the top-right corner of the main scroll region -->
@@ -350,433 +325,58 @@
 
 	<!-- Sections: only the active one is shown -->
 	<div class="min-w-0 flex-1 max-w-170 max-md:px-2">
-		<!-- General -->
-		<section id="general" class:hidden={activeSection !== 'general'} class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
-			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">General</h3>
+		<FeedGeneralSection
+			active={activeSection === 'general'}
+			{feed}
+			{entryCount}
+			bind:title
+			bind:categoryId
+			bind:newCategoryName
+			bind:siteUrl
+			bind:rssSourceUrl
+			{rssEnabled}
+			{effectiveFeedUrl}
+		/>
 
-			<!-- Stats -->
-			<div class="flex gap-5 mb-4">
-			  <div><span class="font-semibold text-n-500 uppercase text-xs">Last refresh:</span> <span class="" title={feed.checked_at ?? ''}>{feed.checked_at ? `${relaTimestamp(feed.checked_at)} ago` : '—'}</span></div>
-			  <div><span class="font-semibold text-n-500 uppercase text-xs">Total entries:</span> <span class="text-n-800">{entryCount ?? '—'}</span></div>
-			</div>
-			{#if feed.parsing_error_count && feed.parsing_error_count > 0}
-				<div class="text-danger mb-4 bg-danger/10 border border-danger rounded px-4 py-2">
-					<p class="flex items-center gap-1.5 ">
-						<AlertTriangle class="h-4 w-4 shrink-0" />
-						<span class="">Parsing errors</span>
-  				  <span class="">{feed.parsing_error_count}×</span>
-					</p>
-						{#if feed.parsing_error_message}
-							<p class="text-sm mt-1">{feed.parsing_error_message}</p>
-						{/if}
-				</div>
-			{/if}
+		<FeedNetworkSection
+			active={activeSection === 'network'}
+			bind:userAgent
+			bind:disabled
+			bind:ignoreHttpCache
+		/>
 
-			<div class="space-y-4 pb-2">
-	      <div class="flex gap-4 flex-wrap">
-					<div class="w-full lg:w-2/3">
-						<label for="feed-title" class="mb-1 block text-sm font-medium text-n-700">Title</label>
-						<input
-							id="feed-title"
-							type="text"
-							bind:value={title}
-							class="w-full rounded-md border border-n-300 px-3 py-2 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-n-400"
-						/>
-					</div>
-					<div class="grow">
-						<label for="feed-category" class="mb-1 block text-sm font-medium text-n-700">Category</label>
-						<CategorySelect
-							id="feed-category"
-							bind:value={categoryId}
-							bind:newName={newCategoryName}
-							selectClass="w-full text-base rounded-md border border-n-300 bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-400"
-							inputClass="mt-2 w-full text-base rounded-md border border-n-300 bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-400"
-						/>
-					</div>
-				</div>
+		<FeedRssBridgeSection
+			active={activeSection === 'rss-bridge'}
+			bind:rssEnabled
+			bind:rssInstance
+			bind:rssBridge
+			bind:rssSourceUrl
+			bind:rssParams
+			{rssSourceKey}
+		/>
 
-				<div>
-					<label for="feed-feed-url" class="mb-1 block text-sm font-medium text-n-700">Feed URL</label>
-					{#if rssEnabled}
-						<input
-							id="feed-feed-url"
-							type="url"
-							value={effectiveFeedUrl}
-							readonly
-							class="w-full rounded-md border border-n-200 bg-n-50 px-3 py-2 text-sm text-n-500 focus:outline-none"
-						/>
-						<p class="mt-1 text-xs text-n-500">
-							Managed by RSS-Bridge — edit the parameters below, or disable it to set a direct URL.
-						</p>
-					{:else}
-						<input
-							id="feed-feed-url"
-							type="url"
-							bind:value={rssSourceUrl}
-							class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-						/>
-					{/if}
-				</div>
-				<div>
- 					<label for="feed-site-url" class="mb-1 block text-sm font-medium text-n-700">Site URL</label>
- 					<input
-						id="feed-site-url"
-						type="url"
-						bind:value={siteUrl}
-						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
- 					/>
-				</div>
+		<FeedOriginalContentSection
+			active={activeSection === 'original-content'}
+			{feed}
+			bind:crawler
+			bind:scraperRules
+			bind:rewriteRules
+			bind:refetchCount
+			bind:refetchStatus
+			{refetching}
+			{progress}
+			onRefetch={refetchLatest}
+			onApplyAiRules={applyAiRules}
+		/>
 
+		<FeedCoverImageSection
+			active={activeSection === 'cover-image'}
+			bind:coverSelector
+			bind:coverAttr
+		/>
 
+		<FeedDangerZoneSection active={activeSection === 'danger-zone'} {feed} />
 
-			</div>
-
-
-		</section>
-
-		<!-- Network -->
-		<section id="network" class:hidden={activeSection !== 'network'} class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Network Settings</h3>
-			<div>
-				<label for="feed-user-agent" class="mb-1 block text-sm font-medium text-n-700">User Agent</label>
-				<div class="flex flex-col gap-2">
-					<select
-						aria-label="User Agent preset"
-						value={uaPreset}
-						onchange={(e) => applyUaPreset(e.currentTarget.value)}
-						class="w-full shrink-0 rounded-md border border-n-300 bg-surface px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 max-w-fit"
-					>
-						{#each USER_AGENT_PRESETS as p (p.label)}
-							<option value={p.value}>{p.label}</option>
-						{/each}
-						<option value={CUSTOM_UA}>Custom…</option>
-					</select>
-					<textarea
-						id="feed-user-agent"
-						bind:value={userAgent}
-						rows="2"
-						spellcheck="false"
-						placeholder="Leave empty to use the Miniflux default"
-						class="min-w-0 w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-xs break-all focus:outline-none focus:ring-2 focus:ring-n-400"
-					></textarea>
-				</div>
-				<p class="mt-1 text-xs text-n-500">
-					Overrides the User-Agent Miniflux sends when fetching this feed (its
-					<em>Override Default User Agent</em> setting). Empty uses the server default. Some sites
-					(e.g. <code>reddit.com</code>) rate-limit that default with HTTP 429 — pick a preset or
-					enter your own, then save and refresh the feed.
-				</p>
-			</div>
-
-			<div class="mt-4 space-y-3 border-t border-n-100 pt-4">
-				<div class="flex items-center gap-2">
-					<input id="feed-disabled" type="checkbox" bind:checked={disabled} class="rounded border-n-300" />
-					<label for="feed-disabled" class="text-sm text-n-700">Pause updates (don't refresh this feed)</label>
-				</div>
-				<div>
-					<div class="flex items-center gap-2">
-						<input id="feed-ignore-cache" type="checkbox" bind:checked={ignoreHttpCache} class="rounded border-n-300" />
-						<label for="feed-ignore-cache" class="text-sm text-n-700">Ignore HTTP cache (always re-download)</label>
-					</div>
-					<p class="mt-1 text-xs text-n-500">
-						Ignores the server's caching headers (<code>ETag</code>/<code>Last-Modified</code>) and
-						re-downloads the whole feed on every refresh instead of trusting a "304 Not Modified".
-						Only needed for servers that wrongly report "not modified" so new posts never appear.
-					</p>
-				</div>
-			</div>
-		</section>
-
-		<!-- RSS-Bridge -->
-		<section id="rss-bridge" class:hidden={activeSection !== 'rss-bridge'} class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
-			<div class="mb-4 flex items-center justify-between">
-				<h3 class="text-sm font-semibold uppercase tracking-wide text-n-500">RSS-Bridge</h3>
-				<label class="flex items-center gap-2 text-sm text-n-700">
-					<input type="checkbox" bind:checked={rssEnabled} class="rounded border-n-300" />
-					Enabled
-				</label>
-			</div>
-
-			<p class="mb-4 text-xs text-n-500">
-				Route this feed through an RSS-Bridge instance. When disabled, the parameters are kept but
-				the feed uses the direct Source URL (shown in General). Save, then refresh the feed to
-				re-pull entries from the new URL.
-			</p>
-
-			<div class={`space-y-4 transition-opacity ${rssEnabled ? '' : 'pointer-events-none opacity-50'}`}>
-				<div class="flex flex-wrap gap-4">
-					<div class="grow">
-						<label for="rss-instance" class="mb-1 block text-sm font-medium text-n-700">Instance</label>
-						<input
-							id="rss-instance"
-							type="url"
-							bind:value={rssInstance}
-							disabled={!rssEnabled}
-							placeholder="https://rssbridge.de/"
-							class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-						/>
-					</div>
-					<div class="grow">
-						<label for="rss-bridge-name" class="mb-1 block text-sm font-medium text-n-700">Bridge</label>
-						<input
-							id="rss-bridge-name"
-							type="text"
-							bind:value={rssBridge}
-							disabled={!rssEnabled}
-							placeholder="FilterBridge"
-							class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-						/>
-					</div>
-				</div>
-
-				<div>
-					<label for="rss-source" class="mb-1 block text-sm font-medium text-n-700">Source URL</label>
-					<input
-						id="rss-source"
-						type="url"
-						bind:value={rssSourceUrl}
-						disabled={!rssEnabled}
-						placeholder="https://example.com/feed.atom"
-						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-					/>
-					<p class="mt-1 text-xs text-n-500">
-						{#if rssSourceKey === 'home_page'}
-							The page the bridge scrapes (the <code>home_page</code> parameter).
-						{:else}
-							The underlying feed the bridge wraps (the <code>url</code> parameter).
-						{/if}
-					</p>
-				</div>
-
-				<div>
-					<div class="mb-1 flex items-center justify-between">
-						<span class="text-sm font-medium text-n-700">Parameters</span>
-						<button
-							type="button"
-							onclick={addRssParam}
-							disabled={!rssEnabled}
-							class="inline-flex items-center gap-1 rounded-md border border-n-300 px-2 py-1 text-xs text-n-700 hover:bg-n-100 disabled:opacity-50"
-						>
-							<Plus class="h-3.5 w-3.5" /> Add parameter
-						</button>
-					</div>
-					<div class="space-y-2">
-						{#each rssParams as param, i (i)}
-							<div class="flex items-center gap-2">
-								<input
-									type="text"
-									bind:value={param.key}
-									disabled={!rssEnabled}
-									placeholder="filter_type"
-									class="w-40 rounded-md border border-n-300 px-2 py-1.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-								/>
-								<input
-									type="text"
-									bind:value={param.value}
-									disabled={!rssEnabled}
-									placeholder="block"
-									class="min-w-0 flex-1 rounded-md border border-n-300 px-2 py-1.5 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-								/>
-								<button
-									type="button"
-									onclick={() => removeRssParam(i)}
-									disabled={!rssEnabled}
-									title="Remove parameter"
-									class="shrink-0 rounded-md p-1.5 text-n-400 hover:bg-n-100 hover:text-n-700 disabled:opacity-50"
-								>
-									<X class="h-4 w-4" />
-								</button>
-							</div>
-						{/each}
-						{#if rssParams.length === 0}
-							<p class="text-xs text-n-400">No parameters.</p>
-						{/if}
-					</div>
-				</div>
-			</div>
-		</section>
-
-		<!-- Original content -->
-		<section id="original-content" class:hidden={activeSection !== 'original-content'} class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Original Content</h3>
-			<div class="flex flex-col xl:flex-row gap-4 items-start">
-				<div class="flex items-center gap-2 xl:w-1/2">
-					<input id="feed-crawler" type="checkbox" bind:checked={crawler} class="rounded border-n-300" />
-					<label for="feed-crawler" class="text-sm text-n-700">Fetch original content (crawler)</label>
-				</div>
-				<div class="grow mb-4 xl:mb-2 xl:min-w-96">
-					<div class="flex flex-wrap items-center gap-2">
-						<button
-							type="button"
-							onclick={refetchLatest}
-							disabled={refetching || !crawler}
-							class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-3 py-1.5 text-sm hover:bg-n-700 bg-n-600 disabled:opacity-50 text-n-50"
-						>
-							<RotateCw class={`h-3.5 w-3.5 ${refetching ? 'animate-spin' : ''}`} />
-							{refetching ? `Re-fetching ${progress.done}/${progress.total}…` : 'Re-fetch latest'}
-						</button>
-						<input
-							type="number"
-							bind:value={refetchCount}
-							min="1"
-							max="100"
-							disabled={refetching || !crawler}
-							class="w-14 rounded-md border border-n-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-						/>
-						<div>
-  						<select
-  							bind:value={refetchStatus}
-  							disabled={refetching || !crawler}
-  							class="rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
-  						>
-  							<option value="unread">unread</option>
-  							<option value="all">all</option>
-  						</select>
-  						<span class="text-sm text-n-600">entries</span>
-						</div>
-					</div>
-					<p class="mt-1 text-xs text-n-500">Saves changes, then re-applies the rules to the latest entries already downloaded.</p>
-				</div>
-
-			</div>
-			<div class="space-y-3">
-
-
-				<div class={`transition-opacity ${crawler ? '' : 'pointer-events-none opacity-50'}`}>
-					<div>
-						<label for="feed-scraper" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
-							Scraper Rules
-							<a
-								href="https://miniflux.app/docs/rules.html#scraper-rules"
-								target="_blank"
-								rel="noopener noreferrer"
-								title="Miniflux documentation"
-								class="text-a-600 hover:text-a-700"
-							>
-								<ExternalLink class="h-3.5 w-3.5" />
-							</a>
-						</label>
-						<textarea
-							id="feed-scraper"
-							bind:value={scraperRules}
-							rows="2"
-							spellcheck="false"
-							disabled={!crawler}
-							placeholder='article, div[itemprop="articleBody"]'
-							class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-						></textarea>
-						<p class="mt-1 text-xs text-n-500">CSS selector for the main content. Comma-separated for multiple. Only used when the crawler is on.</p>
-					</div>
-				</div>
-
-				<div>
-					<label for="feed-rewrite" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
-						Content Rewrite Rules
-						<a
-							href="https://miniflux.app/docs/rules.html#rewrite-rules"
-							target="_blank"
-							rel="noopener noreferrer"
-							title="Miniflux documentation"
-							class="text-a-600 hover:text-a-700"
-						>
-							<ExternalLink class="h-3.5 w-3.5" />
-						</a>
-					</label>
-					<textarea
-						id="feed-rewrite"
-						bind:value={rewriteRules}
-						rows="2"
-						spellcheck="false"
-						placeholder='remove(".ads, #promo")'
-						class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					></textarea>
-					<p class="mt-1 text-xs text-n-500">Cleanup functions, e.g. remove("…"), replace("a"|"b"). Applied to both fetched and default feed content.</p>
-				</div>
-
-				<AiRuleAssistant
-					{feed}
-					{crawler}
-					currentScraper={scraperRules}
-					currentRewrite={rewriteRules}
-					onapply={applyAiRules}
-				/>
-			</div>
-		</section>
-
-		<!-- Cover image -->
-		<section id="cover-image" class:hidden={activeSection !== 'cover-image'} class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Cover Image</h3>
-			<p class="mb-4 text-xs text-n-500">
-				Where to find the card/article cover when the source has no <code>og:image</code>. Leave empty
-				to use the default (the page's Open Graph image). Set a CSS selector to pull it from specific
-				markup — e.g. rutracker keeps the cover in <code>&lt;var class="postImg" title="…"&gt;</code>,
-				so use selector <code>var.postImg</code> with attribute <code>title</code>.
-			</p>
-			<div class="flex flex-wrap gap-4">
-				<div class="grow">
-					<label for="feed-cover-selector" class="mb-1 block text-sm font-medium text-n-700">CSS selector</label>
-					<input
-						id="feed-cover-selector"
-						type="text"
-						bind:value={coverSelector}
-						spellcheck="false"
-						placeholder="var.postImg"
-						class="w-full rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					/>
-				</div>
-				<div class="w-full sm:w-48">
-					<label for="feed-cover-attr" class="mb-1 block text-sm font-medium text-n-700">Attribute</label>
-					<input
-						id="feed-cover-attr"
-						type="text"
-						bind:value={coverAttr}
-						spellcheck="false"
-						placeholder="title (auto if empty)"
-						class="w-full rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					/>
-				</div>
-			</div>
-			<p class="mt-1 text-xs text-n-500">
-				Attribute holding the URL. If empty, the app auto-detects (src, data-src, href, content, title).
-				Applies when the feed is next loaded.
-			</p>
-		</section>
-
-		<!-- Danger zone -->
-		<section id="danger-zone" class:hidden={activeSection !== 'danger-zone'} class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-danger">Danger Zone</h3>
-			{#if confirmDelete}
-				<div class="flex flex-wrap items-center gap-3">
-					<span class="text-sm text-n-700">Unsubscribe from <strong>{feed.title}</strong>? This removes the feed and all its entries.</span>
-					<button
-						type="button"
-						onclick={unsubscribe}
-						disabled={deleting}
-						class="inline-flex items-center gap-1.5 rounded-md bg-danger px-3 py-1.5 text-sm text-on-accent hover:bg-danger-strong disabled:opacity-50"
-					>
-						<Trash2 class="h-3.5 w-3.5" />
-						{deleting ? 'Unsubscribing…' : 'Yes, unsubscribe'}
-					</button>
-					<button
-						type="button"
-						onclick={() => (confirmDelete = false)}
-						disabled={deleting}
-						class="rounded-md px-3 py-1.5 text-sm text-n-600 hover:bg-n-100"
-					>
-						Cancel
-					</button>
-				</div>
-			{:else}
-				<button
-					type="button"
-					onclick={() => (confirmDelete = true)}
-					class="inline-flex items-center gap-1.5 rounded-md border border-danger/40 px-3 py-1.5 text-sm text-danger hover:bg-danger/10"
-				>
-					<Trash2 class="h-3.5 w-3.5" />
-					Unsubscribe
-				</button>
-			{/if}
-		</section>
 
 		<!-- Save bar: sits directly below the active section -->
 		<div class="mt-6 flex max-w-fit items-center gap-3">
