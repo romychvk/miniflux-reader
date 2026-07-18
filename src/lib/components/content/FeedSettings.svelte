@@ -182,8 +182,9 @@
 	// onto the sections' positions, so each gets a proportional slice and the bottom always
 	// lands on the last one — no section is skipped regardless of its height.
 	onMount(() => {
-		const scroller = container?.parentElement;
-		if (!container || !scroller) return;
+		const scrollerEl = container?.parentElement;
+		if (!container || !scrollerEl) return;
+		const scroller = scrollerEl;
 		const sections = Array.from(container.querySelectorAll<HTMLElement>('section[id]'));
 		if (sections.length === 0) return;
 
