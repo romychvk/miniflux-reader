@@ -12,7 +12,7 @@
 		<!-- Anti-FOUC: apply the active theme's resolved CSS variables before first paint.
 		     The theme store rewrites 'themeVars' on every init/switch/save; absent or
 		     corrupt data degrades to the :root fallback palette in app.css. -->
-		<script>
+		<script nonce="%sveltekit.nonce%">
 			(function () {
 				try {
 					var d = JSON.parse(localStorage.getItem('themeVars') || 'null');
