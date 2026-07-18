@@ -1,11 +1,13 @@
 <script lang="ts">
 	import type { Entry } from '$lib/types';
 	import { processArticleHtml, isImageUrl } from '$lib/content';
+	import { sanitizeHtml } from '$lib/sanitize';
 	import { ui } from '$lib/stores/ui.svelte';
 
 	let { entry }: { entry: Entry } = $props();
 
-	const content = $derived(entry.content ? processArticleHtml(entry.content) : '');
+	// Sanitize last — after processArticleHtml's reshaping — so exactly what reaches {@html} is vetted.
+	const content = $derived(entry.content ? sanitizeHtml(processArticleHtml(entry.content)) : '');
 
 	// The lightbox URL for an image, or null if it shouldn't open one. Gallery images
 	// (`<a href="full.jpg"><img>`) use their full-size href; a plain <img> uses its own

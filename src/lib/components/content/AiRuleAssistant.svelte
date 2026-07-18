@@ -2,6 +2,7 @@
 	import { Sparkles, RotateCw, Check, Undo2 } from 'lucide-svelte';
 	import type { Entry, Feed, AiMessage, RuleSuggestion } from '$lib/types';
 	import { apiCall, authedFetch } from '$lib/api';
+	import { sanitizeHtml } from '$lib/sanitize';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
@@ -289,7 +290,7 @@
 								</div>
 								<div class="max-h-64 overflow-y-auto px-3 pb-3">
 									<article class="prose prose-sm max-w-none break-words">
-										{@html s.before}
+										{@html sanitizeHtml(s.before)}
 									</article>
 								</div>
 							</div>
@@ -299,7 +300,7 @@
 								</div>
 								<div class="max-h-64 overflow-y-auto px-3 pb-3">
 									<article class="prose prose-sm max-w-none break-words">
-										{@html s.after}
+										{@html sanitizeHtml(s.after)}
 									</article>
 								</div>
 							</div>
