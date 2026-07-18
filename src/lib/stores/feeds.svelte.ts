@@ -5,6 +5,28 @@ import { storageGet, storageSet } from '$lib/storage';
 import type { Category, Feed, FeedCounters, FeedCreate, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
 import { ui } from './ui.svelte';
 
+// Cap the icon and category-refresh fan-outs so a big account (or a category with many feeds)
+// doesn't fire one request per feed at once — icon fetches hammer the proxy and refreshes make
+// Miniflux crawl every source in parallel. 6 is within the audited 4–8 band.
+const FEED_REQUEST_CONCURRENCY = 6;
+
+// Run `task` over each item with at most `limit` running at once: a fixed pool of workers
+// pulling from a shared cursor (same shape as refetchFeedLatest's worker pool / ogSchedule).
+// Each task must handle its own errors — a throw would reject the whole pool.
+async function mapPool<T>(
+	items: T[],
+	limit: number,
+	task: (item: T) => Promise<void>
+): Promise<void> {
+	let cursor = 0;
+	async function worker() {
+		while (cursor < items.length) {
+			await task(items[cursor++]);
+		}
+	}
+	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+}
+
 function createFeedsStore() {
 	let feedTree = $state<FeedNode[]>([]);
 	let rawFeeds = $state<Feed[]>([]);
@@ -170,23 +192,21 @@ function createFeedsStore() {
 			}
 		}
 
-		// Fetch uncached icons in parallel
+		// Fetch uncached icons with bounded concurrency
 		if (uncachedFeeds.length > 0) {
 			let cacheUpdated = false;
-			await Promise.allSettled(
-				uncachedFeeds.map(async (feed) => {
-					if (signal.aborted) return;
-					try {
-						const icon = await apiCall<FeedIcon>(`feeds/${feed.id}/icon`, { signal });
-						const iconData = `data:${icon.data}`;
-						cache[feed.id] = iconData;
-						cacheUpdated = true;
-						applyIconToTree(feed.id, iconData);
-					} catch {
-						// skip failed icons
-					}
-				})
-			);
+			await mapPool(uncachedFeeds, FEED_REQUEST_CONCURRENCY, async (feed) => {
+				if (signal.aborted) return;
+				try {
+					const icon = await apiCall<FeedIcon>(`feeds/${feed.id}/icon`, { signal });
+					const iconData = `data:${icon.data}`;
+					cache[feed.id] = iconData;
+					cacheUpdated = true;
+					applyIconToTree(feed.id, iconData);
+				} catch {
+					// skip failed icons
+				}
+			});
 
 			if (cacheUpdated && !signal.aborted) {
 				storageSet('favicons', cache);
@@ -498,15 +518,13 @@ function createFeedsStore() {
 		const cat = feedTree.find(n => n.id === catId);
 		if (!cat?.children) return;
 		const errors: string[] = [];
-		await Promise.all(
-			cat.children.map(async (child) => {
-				try {
-					await apiCall(`feeds/${child.id}/refresh`, { method: 'PUT' });
-				} catch (e) {
-					errors.push(child.title);
-				}
-			})
-		);
+		await mapPool(cat.children, FEED_REQUEST_CONCURRENCY, async (child) => {
+			try {
+				await apiCall(`feeds/${child.id}/refresh`, { method: 'PUT' });
+			} catch (e) {
+				errors.push(child.title);
+			}
+		});
 		if (errors.length > 0) {
 			ui.showError(`Failed to refresh: ${errors.join(', ')}`);
 		}
