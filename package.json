@@ -6,7 +6,9 @@
     "dev": "node node_modules/vite/bin/vite.js dev",
     "build": "pnpm run check && vite build",
     "preview": "vite preview",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "node --import ./tests/setup.mjs --test \"tests/**/*.test.ts\"",
+    "test:proxy": "node tests/proxy.smoke.mjs"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^5.5.4",
