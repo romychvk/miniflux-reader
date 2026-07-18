@@ -66,8 +66,7 @@ function isPlaceholderUrl(url: string): boolean {
 // The card thumbnail is the first "real" image in the content. Modern sites lazy-load
 // images (real URL in data-src/srcset, a placeholder in src), so check those too and
 // skip tracking pixels / tiny spacers — otherwise the card looks image-less.
-function extractThumbnail(content: string): string | null {
-  const doc = domParser.parseFromString(content, "text/html");
+function extractThumbnail(doc: Document): string | null {
   for (const img of doc.querySelectorAll("img")) {
     const w = parseInt(img.getAttribute("width") || "", 10);
     const h = parseInt(img.getAttribute("height") || "", 10);
@@ -90,8 +89,9 @@ function extractThumbnail(content: string): string | null {
   return null;
 }
 
-function extractDescription(content: string): string {
-  const doc = domParser.parseFromString(content, "text/html");
+// Mutates `doc` (inserts spacing text nodes before block elements), so callers must run any
+// read-only extraction (thumbnail, date) against the shared Document *before* this.
+function extractDescription(doc: Document): string {
   for (const br of doc.querySelectorAll(
     "br, p, div, li, tr, h1, h2, h3, h4, h5, h6, blockquote",
   )) {
@@ -117,10 +117,9 @@ function isCssSelectorFeed(entry: Entry): boolean {
   }
 }
 
-function publishedAtFromContent(entry: Entry): string | null {
-  if (!entry.content || !isCssSelectorFeed(entry)) return null;
+function publishedAtFromContent(entry: Entry, doc: Document): string | null {
+  if (!isCssSelectorFeed(entry)) return null;
 
-  const doc = domParser.parseFromString(entry.content, "text/html");
   const raw = doc.querySelector("time[datetime]")?.getAttribute("datetime")?.trim();
   if (!raw) return null;
 
@@ -149,15 +148,16 @@ function imageEnclosure(entry: Entry): string | null {
 // ensureThumbnail() resolve the cover from the source page (the rule is authoritative for
 // such feeds, e.g. rutracker, whose scraped content holds only UI chrome). The og:image
 // fallback (a network call) is handled lazily by ensureThumbnail() when this returns null.
-function pickThumbnail(entry: Entry, hasCustomRule: boolean): string | null {
+function pickThumbnail(
+  entry: Entry,
+  doc: Document | null,
+  hasCustomRule: boolean,
+): string | null {
   // Some sources never carry a useful card/cover image (e.g. github release feeds hold only the
   // author avatar) — show none, and skip the og:image fallback too (see ensureThumbnail).
   if (sourceFor(entry)?.imageless?.(entry)) return null;
   if (hasCustomRule) return null;
-  return (
-    (entry.content ? extractThumbnail(entry.content) : null) ??
-    imageEnclosure(entry)
-  );
+  return (doc ? extractThumbnail(doc) : null) ?? imageEnclosure(entry);
 }
 
 function enrichEntries(
@@ -166,13 +166,22 @@ function enrichEntries(
 ): Entry[] {
   for (const entry of entries) {
     if (entry.content) entry.content = decodeContent(entry.content);
-    const contentPublishedAt = publishedAtFromContent(entry);
+    // Parse the (decoded) content ONCE and share the Document across all three DOM readers.
+    // Previously each of thumbnail / description / date extraction parsed independently
+    // (2–3 DOMParser passes per entry, ~200–300 on a 100-entry page); now it's one per entry.
+    const doc = entry.content
+      ? domParser.parseFromString(entry.content, "text/html")
+      : null;
+
+    // Read-only extractions first; extractDescription mutates the shared doc, so it runs last.
+    const contentPublishedAt = doc ? publishedAtFromContent(entry, doc) : null;
     if (contentPublishedAt) entry.published_at = contentPublishedAt;
     entry._thumbnailUrl = pickThumbnail(
       entry,
+      doc,
       hasCoverRule(coverRuleFor(entry.feed.id)),
     );
-    entry._description = entry.content ? extractDescription(entry.content) : "";
+    entry._description = doc ? extractDescription(doc) : "";
   }
   return entries;
 }
@@ -513,13 +522,19 @@ function createEntriesStore() {
     const entry = entries.find((e) => e.id === entryId);
     if (entry) {
       entry.content = content;
+      // One parse pass here too (thumbnail + description share the Document), mirroring
+      // enrichEntries. Read-only thumbnail extraction before the mutating description read.
+      const doc = content
+        ? domParser.parseFromString(content, "text/html")
+        : null;
       // Reuse pickThumbnail so re-fetch honours the same suppression (github feeds) and
       // custom-cover-rule handling as the initial load, rather than re-deriving inline.
       entry._thumbnailUrl = pickThumbnail(
         entry,
+        doc,
         hasCoverRule(loadCoverRule(entry.feed.id)),
       );
-      entry._description = extractDescription(content);
+      entry._description = doc ? extractDescription(doc) : "";
     }
     return content;
   }
