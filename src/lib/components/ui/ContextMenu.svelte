@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { Component } from 'svelte';
+	import { Icon } from 'lucide-svelte';
 
 	interface MenuItem {
 		label: string;
-		icon?: Component<{ size: number }>;
+		icon?: typeof Icon;
 		action: () => void;
 	}
 
