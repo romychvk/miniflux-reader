@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { createAuthCache } from './authCache';
 
 // Shared credential check for the server-side helper endpoints (fetch-page, og-image,
 // rss-bridge). Each fetches an arbitrary URL on the caller's behalf, so — unlike the Miniflux
@@ -14,7 +15,7 @@ import { env } from '$env/dynamic/private';
 const AUTH_TTL_MS = 5 * 60_000;
 const ME_TIMEOUT_MS = 10_000;
 
-const authCache = new Map<string, { userId: number; expires: number }>();
+const authCache = createAuthCache(AUTH_TTL_MS);
 
 export interface MinifluxIdentity {
 	userId: number;
@@ -45,9 +46,8 @@ export async function requireMinifluxAuth(request: Request): Promise<MinifluxIde
 
 	if (!isAllowedMinifluxServer(server)) return fail(403, 'Server not allowed');
 
-	const cacheKey = `${server}|${token}`;
-	const hit = authCache.get(cacheKey);
-	if (hit && hit.expires > Date.now()) return { userId: hit.userId, server, token };
+	const cachedUserId = authCache.get(server, token);
+	if (cachedUserId !== undefined) return { userId: cachedUserId, server, token };
 
 	let res: Response;
 	try {
@@ -63,7 +63,6 @@ export async function requireMinifluxAuth(request: Request): Promise<MinifluxIde
 	const me = (await res.json().catch(() => null)) as { id?: unknown } | null;
 	if (typeof me?.id !== 'number') return fail(502, 'Unexpected Miniflux response');
 
-	if (authCache.size > 100) authCache.clear();
-	authCache.set(cacheKey, { userId: me.id, expires: Date.now() + AUTH_TTL_MS });
+	authCache.set(server, token, me.id);
 	return { userId: me.id, server, token };
 }

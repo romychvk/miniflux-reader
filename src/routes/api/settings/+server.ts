@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { env } from '$env/dynamic/private';
+import { createAuthCache } from '$lib/server/authCache';
 
 // Server-side settings store: one JSON blob per Miniflux user, so localStorage settings
 // survive browser resets and follow the user across devices. The Miniflux API token is the
@@ -14,7 +15,7 @@ const DATA_DIR = env.SETTINGS_DATA_DIR || 'data';
 const MAX_BYTES = 512 * 1024;
 const AUTH_TTL_MS = 5 * 60_000;
 
-const authCache = new Map<string, { userId: number; expires: number }>();
+const authCache = createAuthCache(AUTH_TTL_MS);
 
 function json(status: number, body: unknown): Response {
 	return new Response(JSON.stringify(body), {
@@ -38,9 +39,7 @@ async function resolveFilePath(request: Request): Promise<string | Response> {
 		return json(403, { error: 'Server not allowed' });
 	}
 
-	const cacheKey = `${server}|${token}`;
-	const hit = authCache.get(cacheKey);
-	let userId = hit && hit.expires > Date.now() ? hit.userId : undefined;
+	let userId = authCache.get(server, token);
 
 	if (userId === undefined) {
 		let res: Response;
@@ -57,8 +56,7 @@ async function resolveFilePath(request: Request): Promise<string | Response> {
 			return json(502, { error: 'Unexpected Miniflux response' });
 		}
 		userId = me.id;
-		if (authCache.size > 100) authCache.clear();
-		authCache.set(cacheKey, { userId, expires: Date.now() + AUTH_TTL_MS });
+		authCache.set(server, token, userId);
 	}
 
 	const name = createHash('sha256').update(`${server}|${userId}`).digest('hex');
