@@ -8,6 +8,7 @@
 	import { cardAspect } from '$lib/stores/cardAspect.svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
+	import { autoMarkRead } from '$lib/autoMarkRead';
 	import { Ban, Bookmark, Check, Circle } from 'lucide-svelte';
 	import ArticleView from './ArticleView.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
@@ -103,40 +104,6 @@
 		}
 	}
 
-	// IntersectionObserver action for auto-mark-read. A row is marked read only when it leaves
-	// the viewport past the TOP edge — i.e. the user scrolled down past it. Exiting via the
-	// bottom (scrolling back up) must never mark read. The row's position relative to the
-	// observer root tells us which edge it left, so there's no need to track scroll direction
-	// globally — and it works with the nested <main> scroll container (a window scroll listener
-	// did not, which is why upward scrolls used to mark rows read).
-	function autoMarkRead(node: HTMLElement) {
-		let prevInView = false;
-
-		const observer = new IntersectionObserver(
-			([e]) => {
-				const inView = e.isIntersecting;
-				if (
-					!inView &&
-					prevInView &&
-					entry.status === 'unread' &&
-					ui.autoMarkReadOnScroll &&
-					!ui.isMarkReadSuppressed &&
-					e.boundingClientRect.bottom <= (e.rootBounds?.top ?? 0)
-				) {
-					entries.markRead([entry.id], true);
-				}
-				prevInView = inView;
-			},
-			{ root: node.closest('main'), threshold: 0 }
-		);
-		observer.observe(node);
-
-		return {
-			destroy() {
-				observer.disconnect();
-			}
-		};
-	}
 </script>
 
 {#if viewMode === 'list'}
@@ -144,7 +111,7 @@
 	<div
 		class="border-b border-n-100"
 		bind:this={rowEl}
-		use:autoMarkRead
+		use:autoMarkRead={entry}
 	>
 		<div
 			class="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-n-200 {isSelected ? 'bg-a-50' : ''}"
@@ -202,7 +169,7 @@
 	<div
 		class="border-b border-n-100"
 		bind:this={rowEl}
-		use:autoMarkRead
+		use:autoMarkRead={entry}
 	>
 		<div
 			class="flex items-start gap-4 px-4 py-3 cursor-pointer hover:bg-n-50 transition-colors {isSelected ? 'bg-a-50' : ''}"
@@ -294,7 +261,7 @@
 	<!-- Cards: vertical card, image on top -->
 	<div
 		bind:this={rowEl}
-		use:autoMarkRead
+		use:autoMarkRead={entry}
 		class="rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 bg-n-100 hover:bg-surface hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''}"
 		onclick={openArticle}
 		oncontextmenu={openContextMenu}
