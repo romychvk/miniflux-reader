@@ -132,6 +132,17 @@
 	}
 }
 
+/*
+  Hero-image breakout width: lead article images (the cover in ArticleView, the first image
+  block in EntryContent) may extend past the text column — up to 64rem, clamped to the
+  nearest @container (the article content area) minus a 3rem gutter, and never narrower
+  than the column itself. One knob for both usage sites; the % and cqw units resolve at
+  the element that uses the token, not here.
+*/
+:root {
+	--hero-breakout-w: max(100%, min(100cqw - 3rem, 64rem));
+}
+
 /* 
   Tech Styles - use custom utilities 
   https://tailwindcss.com/docs/adding-custom-styles#adding-custom-utilities

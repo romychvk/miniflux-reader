@@ -198,6 +198,16 @@
     .prose-img img {
       @apply block mx-auto;
     }
+    /* The lead image breaks out of the text column — up to --hero-breakout-w (app.css),
+       measured against ArticleView's @container, centred via symmetric negative margins.
+       Only the article's first block qualifies; mid-article images keep the text width.
+       Images narrower than the column don't stretch: the wider block merely raises their
+       max-width cap, and mx-auto keeps them centred. */
+    .prose-img:first-child,
+    figure:first-child:has(img) {
+      width: var(--hero-breakout-w);
+      margin-inline: calc((100% - var(--hero-breakout-w)) / 2);
+    }
     & > i,
     li > a > img {
       @apply block mt-4;

@@ -171,6 +171,11 @@
 		</button>
 	{/if}
 
+	<!-- The @container is the measuring block for the hero-image breakout (cqw units in
+	     .hero-breakout here and the lead-image rule in EntryContent). It wraps only the article
+	     column: inline-size containment would make this div the positioning ancestor of the
+	     fixed/sticky buttons above, so they stay outside it. -->
+	<div class="@container">
 	<div class="max-w-3xl mx-auto px-6 py-4 relative" class:article-vt={!onClose}>
 	<h1 class="text-3xl leading-snug text-center font-bold mb-3 px-6">
 		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
@@ -216,12 +221,17 @@
 	</div>
 
 	{#if showCover}
-		<button type="button" onclick={openCover} class="mb-5 block" title="Open image">
-			<img src={coverUrl} alt={entry.title} class="max-w-full h-auto rounded-lg cursor-zoom-in" />
-		</button>
+		<!-- The breakout div (not the button) carries the width so the click target stays the
+		     image itself: the button shrink-wraps its img and centres inside the wider block. -->
+		<div class="hero-breakout mb-5">
+			<button type="button" onclick={openCover} class="block mx-auto" title="Open image">
+				<img src={coverUrl} alt={entry.title} class="max-w-full h-auto rounded-lg cursor-zoom-in" />
+			</button>
+		</div>
 	{/if}
 
 	<EntryContent {entry} />
+	</div>
 	</div>
 </div>
 
@@ -235,5 +245,13 @@
 	.nav-arrow:active,
 	.nav-arrow.pressed {
 		scale: 0.85;
+	}
+
+	/* Wider than the text column, centred via symmetric negative margins; --hero-breakout-w
+	   (app.css) resolves its % and cqw here, against this element's containing block and the
+	   @container above. */
+	.hero-breakout {
+		width: var(--hero-breakout-w);
+		margin-inline: calc((100% - var(--hero-breakout-w)) / 2);
 	}
 </style>
