@@ -1,6 +1,11 @@
 import type { RequestHandler } from './$types';
+import { isAllowedMinifluxServer } from '$lib/server/minifluxAuth';
 
+// Catch-all proxy to the user's Miniflux instance. `server` comes from a caller-supplied header,
+// so it's pinned to ALLOWED_MINIFLUX_SERVER (when set) — without that check this is an open SSRF:
+// anyone could point it at an internal host. A timeout stops a hostile/unreachable host hanging us.
 const ALLOWED_METHODS = ['GET', 'PUT', 'POST', 'DELETE'];
+const TIMEOUT_MS = 60_000; // generous — covers slow fetch-content re-scrapes, but no infinite hang
 
 export const fallback: RequestHandler = async ({ request, params, url }) => {
 	if (!ALLOWED_METHODS.includes(request.method)) {
@@ -13,6 +18,13 @@ export const fallback: RequestHandler = async ({ request, params, url }) => {
 	if (!server || !token) {
 		return new Response(JSON.stringify({ error: 'Missing server or token' }), {
 			status: 400,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
+
+	if (!isAllowedMinifluxServer(server)) {
+		return new Response(JSON.stringify({ error: 'Server not allowed' }), {
+			status: 403,
 			headers: { 'Content-Type': 'application/json' }
 		});
 	}
@@ -39,7 +51,8 @@ export const fallback: RequestHandler = async ({ request, params, url }) => {
 
 	const fetchOptions: RequestInit = {
 		method: request.method,
-		headers: { 'X-Auth-Token': token }
+		headers: { 'X-Auth-Token': token },
+		signal: AbortSignal.timeout(TIMEOUT_MS)
 	};
 
 	if (request.method !== 'GET' && request.method !== 'HEAD') {
