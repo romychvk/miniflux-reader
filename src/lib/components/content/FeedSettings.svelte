@@ -36,11 +36,6 @@
 		{ id: 'danger-zone', label: 'Danger Zone' }
 	];
 	let activeSection = $state('general');
-	let container = $state<HTMLElement | null>(null);
-
-	function scrollToSection(id: string) {
-		container?.querySelector(`#${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	}
 
 	function goBack() {
 		history.back();
@@ -175,36 +170,6 @@
 		} catch {
 			// stats are best-effort
 		}
-	});
-
-	// Scroll-spy. The content is taller than the scroll range, so lower sections can never
-	// reach a fixed line near the top of the viewport. Instead map scroll *progress* (0…1)
-	// onto the sections' positions, so each gets a proportional slice and the bottom always
-	// lands on the last one — no section is skipped regardless of its height.
-	onMount(() => {
-		const scrollerEl = container?.parentElement;
-		if (!container || !scrollerEl) return;
-		const scroller = scrollerEl;
-		const sections = Array.from(container.querySelectorAll<HTMLElement>('section[id]'));
-		if (sections.length === 0) return;
-
-		function update() {
-			const scTop = scroller.getBoundingClientRect().top;
-			const offsets = sections.map((s) => s.getBoundingClientRect().top - scTop + scroller.scrollTop);
-			const lastOffset = offsets[offsets.length - 1];
-			const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-			const progress = maxScroll > 4 ? Math.min(1, Math.max(0, scroller.scrollTop / maxScroll)) : 0;
-			const pos = progress * lastOffset;
-			let current = sections[0].id;
-			for (let i = 0; i < offsets.length; i++) {
-				if (offsets[i] <= pos + 1) current = sections[i].id;
-			}
-			activeSection = current;
-		}
-
-		update();
-		scroller.addEventListener('scroll', update, { passive: true });
-		return () => scroller.removeEventListener('scroll', update);
 	});
 
 	const dirty = $derived(
@@ -358,18 +323,18 @@
 	<X class="size-6.5" />
 </button>
 
-<div bind:this={container} class="flex w-full max-w-5xl gap-6 py-6 sm:px-6">
-	<!-- Section navigation -->
-	<nav class="hidden w-44 shrink-0 md:block">
-		<div class="sticky top-4">
-			<h2 class="mb-4 px-3 text-lg font-semibold text-n-800">Edit Feed</h2>
-			<ul class="space-y-1">
+<div class="flex flex-col md:flex-row w-full max-w-5xl gap-6 py-6 sm:px-6">
+	<!-- Section navigation: sidebar on desktop, horizontal tabs on mobile -->
+	<nav class="w-full shrink-0 md:w-44">
+		<div class="md:sticky md:top-4">
+			<h2 class="mb-4 px-3 text-lg font-semibold text-n-800 max-md:hidden">Edit Feed</h2>
+			<ul class="flex gap-1 overflow-x-auto md:flex-col max-md:pb-1">
 			{#each navItems as item (item.id)}
-				<li>
+				<li class="shrink-0">
 					<button
 						type="button"
-						onclick={() => scrollToSection(item.id)}
-						class={`w-full rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
+						onclick={() => (activeSection = item.id)}
+						class={`w-full whitespace-nowrap rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
 							activeSection === item.id
 								? 'bg-n-100 font-medium text-a-700'
 								: 'text-n-600 hover:bg-n-100'
@@ -383,10 +348,10 @@
 		</div>
 	</nav>
 
-	<!-- Sections -->
-	<div class="min-w-0 flex-1 max-w-170 space-y-6 max-md:px-2">
+	<!-- Sections: only the active one is shown -->
+	<div class="min-w-0 flex-1 max-w-170 max-md:px-2">
 		<!-- General -->
-		<section id="general" class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
+		<section id="general" class:hidden={activeSection !== 'general'} class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">General</h3>
 
 			<!-- Stats -->
@@ -470,7 +435,7 @@
 		</section>
 
 		<!-- Network -->
-		<section id="network" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
+		<section id="network" class:hidden={activeSection !== 'network'} class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Network Settings</h3>
 			<div>
 				<label for="feed-user-agent" class="mb-1 block text-sm font-medium text-n-700">User Agent</label>
@@ -523,7 +488,7 @@
 		</section>
 
 		<!-- RSS-Bridge -->
-		<section id="rss-bridge" class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
+		<section id="rss-bridge" class:hidden={activeSection !== 'rss-bridge'} class="scroll-mt-4 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
 			<div class="mb-4 flex items-center justify-between">
 				<h3 class="text-sm font-semibold uppercase tracking-wide text-n-500">RSS-Bridge</h3>
 				<label class="flex items-center gap-2 text-sm text-n-700">
@@ -632,7 +597,7 @@
 		</section>
 
 		<!-- Original content -->
-		<section id="original-content" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
+		<section id="original-content" class:hidden={activeSection !== 'original-content'} class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Original Content</h3>
 			<div class="flex flex-col xl:flex-row gap-4 items-start">
 				<div class="flex items-center gap-2 xl:w-1/2">
@@ -739,7 +704,7 @@
 		</section>
 
 		<!-- Cover image -->
-		<section id="cover-image" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
+		<section id="cover-image" class:hidden={activeSection !== 'cover-image'} class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Cover Image</h3>
 			<p class="mb-4 text-xs text-n-500">
 				Where to find the card/article cover when the source has no <code>og:image</code>. Leave empty
@@ -778,7 +743,7 @@
 		</section>
 
 		<!-- Danger zone -->
-		<section id="danger-zone" class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
+		<section id="danger-zone" class:hidden={activeSection !== 'danger-zone'} class="scroll-mt-4 rounded-lg border border-n-100 shadow-xl bg-surface p-5">
 			<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-danger">Danger Zone</h3>
 			{#if confirmDelete}
 				<div class="flex flex-wrap items-center gap-3">
@@ -812,29 +777,27 @@
 				</button>
 			{/if}
 		</section>
-	</div>
-</div>
 
-<!-- Sticky save bar -->
-<div class="sticky bottom-0 border-t border-n-200 bg-surface/95 backdrop-blur">
-	<div class="max-md:mx-auto md:ml-50 flex max-w-fit items-center gap-3 px-4 py-3 sm:px-6">
-		{#if savedAt && !dirty}
-			<span class="text-sm text-n-500">Saved</span>
-		{/if}
-		<button
-			type="button"
-			onclick={handleSave}
-			disabled={saving || !dirty || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
-			class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
-		>
-			{saving ? 'Saving…' : 'Save'}
-		</button>
-		<button
-			type="button"
-			onclick={goBack}
-			class="rounded-md px-4 py-2 text-sm text-n-600 bg-n-100 hover:bg-n-200"
-		>
-			Cancel
-		</button>
+		<!-- Save bar: sits directly below the active section -->
+		<div class="mt-6 flex max-w-fit items-center gap-3">
+			{#if savedAt && !dirty}
+				<span class="text-sm text-n-500">Saved</span>
+			{/if}
+			<button
+				type="button"
+				onclick={handleSave}
+				disabled={saving || !dirty || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
+				class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
+			>
+				{saving ? 'Saving…' : 'Save'}
+			</button>
+			<button
+				type="button"
+				onclick={goBack}
+				class="rounded-md px-4 py-2 text-sm text-n-600 bg-n-100 hover:bg-n-200"
+			>
+				Cancel
+			</button>
+		</div>
 	</div>
 </div>
