@@ -34,12 +34,12 @@ export function makeEntrySlug(id: number, title: string): string {
 	return `${id.toString(16)}-${slugify(title)}`;
 }
 
-export function parseFeedSlugId(slug: string): number | null {
-	const m = slug.match(/^(\d+)-/);
+export function parseFeedSlugId(slug: string | undefined): number | null {
+	const m = slug?.match(/^(\d+)-/);
 	return m ? Number(m[1]) : null;
 }
 
-export function parseEntrySlugId(slug: string): number | null {
-	const m = slug.match(/^([0-9a-f]+)-/);
+export function parseEntrySlugId(slug: string | undefined): number | null {
+	const m = slug?.match(/^([0-9a-f]+)-/);
 	return m ? parseInt(m[1], 16) : null;
 }
