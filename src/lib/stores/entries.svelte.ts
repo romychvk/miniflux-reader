@@ -25,6 +25,7 @@ import {
   type HideMatchers,
 } from "$lib/filterHide";
 import { sourceFor, type SourceContext } from "$lib/sources";
+import { mapPool } from "$lib/pool";
 import { feeds } from "./feeds.svelte";
 import { ui } from "./ui.svelte";
 
@@ -537,35 +538,28 @@ function createEntriesStore() {
     const total = list.length;
     let ok = 0;
     let done = 0;
-    let cursor = 0;
     const errors: RefetchError[] = [];
 
-    async function worker() {
-      while (cursor < list.length) {
-        const entry = list[cursor++];
-        try {
-          await fetchAndStore(entry.id);
-          ok++;
-        } catch (e) {
-          const message = e instanceof Error ? e.message : String(e);
-          errors.push({
-            id: entry.id,
-            title: entry.title,
-            url: entry.url,
-            message,
-          });
-          // Surface the real per-entry reason — the bulk toast only shows a count.
-          console.warn(
-            `Re-fetch failed for "${entry.title}" (${entry.url}): ${message}`,
-          );
-        }
-        onProgress?.(++done, total);
+    // Bounded to 4 concurrent re-fetches so we don't hammer the source site.
+    await mapPool(list, 4, async (entry) => {
+      try {
+        await fetchAndStore(entry.id);
+        ok++;
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        errors.push({
+          id: entry.id,
+          title: entry.title,
+          url: entry.url,
+          message,
+        });
+        // Surface the real per-entry reason — the bulk toast only shows a count.
+        console.warn(
+          `Re-fetch failed for "${entry.title}" (${entry.url}): ${message}`,
+        );
       }
-    }
-
-    await Promise.all(
-      Array.from({ length: Math.min(4, list.length) }, () => worker()),
-    );
+      onProgress?.(++done, total);
+    });
     return { total, ok, failed: errors.length, errors };
   }
 
