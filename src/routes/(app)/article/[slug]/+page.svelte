@@ -25,21 +25,27 @@
 			if (existing.status === 'unread') {
 				entries.markRead([existing.id], true);
 			}
-		} else {
-			// Fetch from API
-			loading = true;
-			apiCall<Entry>(`entries/${id}`).then((fetched) => {
-				entry = fetched;
-				ui.selectEntry(fetched);
-				if (fetched.status === 'unread') {
-					entries.markRead([fetched.id], true);
-				}
-			}).catch((e) => {
-				ui.showError(e instanceof Error ? e.message : 'Failed to load article');
-			}).finally(() => {
-				loading = false;
-			});
+			return;
 		}
+
+		// Fetch from API. Abort on re-run so a slow response for a previous article can't
+		// overwrite a newer one when the slug changes faster than the request resolves.
+		const controller = new AbortController();
+		loading = true;
+		apiCall<Entry>(`entries/${id}`, { signal: controller.signal }).then((fetched) => {
+			entry = fetched;
+			ui.selectEntry(fetched);
+			if (fetched.status === 'unread') {
+				entries.markRead([fetched.id], true);
+			}
+		}).catch((e) => {
+			if (e instanceof DOMException && e.name === 'AbortError') return;
+			ui.showError(e instanceof Error ? e.message : 'Failed to load article');
+		}).finally(() => {
+			if (!controller.signal.aborted) loading = false;
+		});
+
+		return () => controller.abort();
 	});
 </script>
 
