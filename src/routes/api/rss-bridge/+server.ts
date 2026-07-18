@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { buildCatalog, matchBridges, normalizeHost, type BridgeMatch } from '$lib/rssbridgeCatalog';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
+import { safeFetch } from '$lib/server/safeFetch';
 
 // Answers "does the user's RSS-Bridge instance have a ready-made bridge for this domain?".
 //
@@ -49,19 +50,17 @@ async function fetchCatalog(instance: URL): Promise<BridgeMatch[]> {
 	listUrl.search = '';
 	listUrl.searchParams.set('action', 'list');
 
-	const res = await fetch(listUrl.toString(), {
+	// safeFetch validates the address (private/loopback blocked), follows redirects safely, times
+	// out, and streams up to MAX_BYTES — replacing the old content-length + text-length guards. A
+	// hostile instance that streams past the cap gets truncated, so JSON.parse throws → 502 below.
+	const result = await safeFetch(listUrl.toString(), {
 		headers: { Accept: 'application/json' },
-		signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
+		maxBytes: MAX_BYTES,
+		timeoutMs: FETCH_TIMEOUT_MS
 	});
-	if (!res.ok) throw new Error(`Instance returned ${res.status}`);
+	if (!result.ok) throw new Error(`Instance returned ${result.status}`);
 
-	const declared = Number(res.headers.get('content-length') ?? 0);
-	if (declared > MAX_BYTES) throw new Error('Bridge list too large');
-
-	const text = await res.text();
-	if (text.length > MAX_BYTES) throw new Error('Bridge list too large');
-
-	return buildCatalog(JSON.parse(text));
+	return buildCatalog(JSON.parse(result.body));
 }
 
 async function getCatalog(instance: URL): Promise<BridgeMatch[]> {

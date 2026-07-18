@@ -1,12 +1,13 @@
 import type { RequestHandler } from './$types';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
+import { safeFetch, SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
 
 // Default thumbnail source: fetch an article page server-side and read its Open Graph /
 // Twitter image meta tag. Used for entries whose content has no usable <img> and no image
 // enclosure, when the feed has no custom cover rule (those go through /api/fetch-page +
 // the client-side CSS extractor instead). Results are cached client-side, so this runs at
-// most once per article. Auth-gated like /api/fetch-page; host-level SSRF filtering is still
-// TODO (see safeFetch).
+// most once per article. Gated like /api/fetch-page: requireMinifluxAuth + safeFetch
+// (private-address blocklist, redirect validation, timeout, streaming byte cap).
 
 function metaContent(html: string, key: string): string | null {
 	// Match a <meta> tag whose property/name equals `key`, in any attribute order.
@@ -40,15 +41,16 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 
 	try {
-		const res = await fetch(parsed.toString(), {
+		const result = await safeFetch(parsed.toString(), {
 			headers: {
 				'User-Agent': 'Mozilla/5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)',
 				Accept: 'text/html,application/xhtml+xml'
-			}
+			},
+			maxBytes: 200_000 // og/twitter meta live in <head>
 		});
-		if (!res.ok) return fail(502, `Source returned ${res.status}`);
+		if (!result.ok) return fail(502, `Source returned ${result.status}`);
 
-		const html = (await res.text()).slice(0, 120_000); // meta tags live in <head>
+		const html = result.body;
 		const raw =
 			metaContent(html, 'og:image') ||
 			metaContent(html, 'og:image:url') ||
@@ -68,7 +70,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		return new Response(JSON.stringify({ url: image }), {
 			headers: { 'Content-Type': 'application/json' }
 		});
-	} catch {
+	} catch (e) {
+		if (e instanceof SafeFetchError) return fail(e.isPolicy ? 400 : 502, describeSafeFetchError(e));
 		return fail(502, 'Failed to fetch page');
 	}
 };

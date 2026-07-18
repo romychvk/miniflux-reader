@@ -1,13 +1,14 @@
 import type { RequestHandler } from './$types';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
+import { safeFetch, SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
 
 // Fetches the raw HTML of an article page server-side so the rule assistant can
 // see the original DOM structure (needed to propose scraper_rules for the
 // "expand" case). Browser fetch can't do this cross-origin, hence the proxy.
 //
-// This fetches an arbitrary user-supplied URL, so it must not be usable anonymously:
-// requireMinifluxAuth gates it behind a valid Miniflux token. Host-level SSRF filtering
-// (private/loopback ranges, redirect checks) and a streaming byte cap are still TODO — see safeFetch.
+// This fetches an arbitrary user-supplied URL, so it's gated two ways: requireMinifluxAuth (no
+// anonymous use) and safeFetch (rejects private/loopback targets, validates every redirect hop,
+// times out, and streams with a byte cap).
 
 const MAX_BYTES = 80_000;
 
@@ -52,26 +53,32 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 
 	try {
-		const res = await fetch(parsed.toString(), {
+		const result = await safeFetch(parsed.toString(), {
 			headers: {
 				// A real UA helps avoid trivial bot blocks on the source site.
-				'User-Agent':
-					'Mozilla/5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)',
+				'User-Agent': 'Mozilla/5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)',
 				Accept: 'text/html,application/xhtml+xml'
-			}
+			},
+			// DoS guard on the raw read; clean()+slice below apply the real 80KB semantic cap.
+			maxBytes: 3_000_000
 		});
-		if (!res.ok) {
-			return new Response(JSON.stringify({ error: `Source returned ${res.status}` }), {
+		if (!result.ok) {
+			return new Response(JSON.stringify({ error: `Source returned ${result.status}` }), {
 				status: 502,
 				headers: { 'Content-Type': 'application/json' }
 			});
 		}
-		const raw = await res.text();
-		const html = clean(raw).slice(0, MAX_BYTES);
+		const html = clean(result.body).slice(0, MAX_BYTES);
 		return new Response(JSON.stringify({ html }), {
 			headers: { 'Content-Type': 'application/json' }
 		});
-	} catch {
+	} catch (e) {
+		if (e instanceof SafeFetchError) {
+			return new Response(JSON.stringify({ error: describeSafeFetchError(e) }), {
+				status: e.isPolicy ? 400 : 502,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
 		return new Response(JSON.stringify({ error: 'Failed to fetch page' }), {
 			status: 502,
 			headers: { 'Content-Type': 'application/json' }
