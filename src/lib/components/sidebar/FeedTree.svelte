@@ -65,7 +65,7 @@
 		dnd.setDropTarget(null);
 	}
 
-	function onCatDrop(e: DragEvent, catId: number) {
+	function onCatDrop(e: DragEvent) {
 		e.preventDefault();
 		if (!dnd.dropTarget || dnd.dragId === null) return;
 
@@ -149,7 +149,7 @@
 				ondragend={onCatDragEnd}
 				ondragover={(e: DragEvent) => onCatDragOver(e, node.id, treeIndex)}
 				ondragleave={onCatDragLeave}
-				ondrop={(e: DragEvent) => onCatDrop(e, node.id)}
+				ondrop={(e: DragEvent) => onCatDrop(e)}
 			>
 				<button
 					onclick={() => toggleCategory(node.id)}
