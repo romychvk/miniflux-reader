@@ -22,7 +22,7 @@
 		</div>
 
 	{:else if ui.viewMode === 'magazine'}
-		<div class="max-w-screen-sm">
+		<div class="max-w-screen-md @container/mag">
 			{#each entries.entries as entry (entry.id)}
 				<EntryRow {entry} />
 			{/each}
