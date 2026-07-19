@@ -59,6 +59,7 @@
 	];
 
 	function selectLayoutMode(mode: 'two-column' | 'three-column' | 'expanded') {
+		viewDropdownOpen = false;
 		if (ui.layoutMode === mode) return;
 		ui.setLayoutMode(mode);
 		if (mode !== 'two-column' && isArticleView) history.back();
