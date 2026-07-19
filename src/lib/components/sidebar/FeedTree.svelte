@@ -126,7 +126,7 @@
 </script>
 
 <nav class="flex flex-col gap-0.5 p-4">
-	{#each feeds.feedTree as node, treeIndex}
+	{#each feeds.feedTree as node, treeIndex (node.id)}
 		{#if node.children}
 			<!-- Category insert line (before) -->
 			{#if showCatInsertLine(treeIndex)}
@@ -181,7 +181,7 @@
 			</div>
 			{#if expandedCategories.has(node.id)}
 				<div class="ml-6 flex flex-col">
-					{#each node.children as child, childIndex}
+					{#each node.children as child, childIndex (child.id)}
 						{#if showInsertLine(node.id, childIndex)}
 							<div class="h-0.5 bg-a-500 mx-2 rounded"></div>
 						{/if}
