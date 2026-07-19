@@ -33,6 +33,18 @@
 		goto(`/article/${makeEntrySlug(e.id, e.title)}`, { replaceState: true });
 	}
 
+	// The article's scroll lives on an ancestor container (<main> in full-page mode); walk up to
+	// find it. Used both to reset the incoming article to the top and to snapshot the outgoing one
+	// from the top during the page-turn transition.
+	let rootEl = $state<HTMLElement>();
+	function scrollParent(el: HTMLElement | undefined): HTMLElement | null {
+		for (let node = el?.parentElement ?? null; node; node = node.parentElement) {
+			const oy = getComputedStyle(node).overflowY;
+			if (oy === 'auto' || oy === 'scroll') return node;
+		}
+		return null;
+	}
+
 	// "Page-turn" slide between articles via the View Transitions API. Only prev/next navigation
 	// (navDir set) animates; other navigations and unsupported browsers fall through to an instant
 	// swap. The direction class on <html> selects the slide direction (CSS lives in app.css), and
@@ -45,6 +57,15 @@
 		).startViewTransition;
 		if (!dir || !startViewTransition) return;
 
+		// Snapshot the outgoing article from the top as well. The incoming one already starts at
+		// the top (the $effect below), so if the old one keeps a scrolled-down offset,
+		// ::view-transition-group(article) has to interpolate that whole vertical gap — and the
+		// horizontal page-turn reads as a jump to the top of the page instead. Resetting here,
+		// before the transition captures the old state, keeps both edges aligned so only the
+		// sideways slide shows. (No visible jump: capture happens before the next paint.)
+		const sc = scrollParent(rootEl);
+		if (sc) sc.scrollTop = 0;
+
 		document.documentElement.classList.add(dir === 'next' ? 'va-next' : 'va-prev');
 		return new Promise<void>((resolve) => {
 			const transition = startViewTransition.call(document, async () => {
@@ -55,6 +76,16 @@
 				document.documentElement.classList.remove('va-next', 'va-prev')
 			);
 		});
+	});
+
+	// Every article starts at the top. The scroll lives on an ancestor container — <main> in
+	// full-page mode — which SvelteKit's window-scroll management never resets, so paging to a
+	// neighbour would otherwise keep the previous article's offset and drop the reader into the
+	// middle of the new one. (Panel mode remounts via {#key}, so its container is already fresh.)
+	$effect(() => {
+		entry.id; // re-run whenever the shown article changes
+		const sc = scrollParent(rootEl);
+		if (sc) sc.scrollTop = 0;
 	});
 
 	// Briefly press the matching arrow so a keyboard ←/→ gives the same visual feedback a click does.
@@ -122,7 +153,7 @@
 	}
 </script>
 
-<div class="relative">
+<div class="relative" bind:this={rootEl}>
 	<!-- Prev/next arrows (full-page mode only). Anchored to this full-width wrapper — which
 	     spans the main content area, right of the sidebar — via a sticky, zero-height bar so the
 	     arrows sit just inside the content area and stay vertically centred while scrolling. -->
