@@ -19,8 +19,9 @@ perf & maintainability). The remediation is complete; this doc is the historical
 
 ## Verification pattern (used for every change so far — keep it up)
 
-1. `pnpm build` must pass. **As of 2026-07-18 `build` runs `pnpm run check` first (deploy gate)** — a type
-   error now fails the build, so keep `check` green.
+1. `pnpm build` must pass. **The deploy gate is now `pnpm run check && pnpm test && vite build`** (check added
+   2026-07-18, tests added 2026-07-19 `9b23529`) — a type error OR a failing unit test now fails the build, so
+   keep both `check` (0 errors) and `pnpm test` (all pass) green.
 2. `pnpm check` — **baseline is now 0 errors / 39 warnings. Keep errors at 0.**
    The 39 warnings are benign Tailwind `@reference`/`@apply` noise (EntryContent.svelte + TopBar.svelte).
 3. Pure modules → a throwaway `node --experimental-strip-types test.mts` unit test (see how `safeFetch`
@@ -214,10 +215,12 @@ equivalence (same output before/after), not just that it compiles.
    reads `$env`, so it's an **integration smoke** (`pnpm test:proxy`, boots `node build` with the pin
    → 400/403/502/405, **4 pass**). Infra: `tests/hooks.mjs`+`setup.mjs` (resolve hook so Node loads
    source modules with Vite-style extensionless imports) and `allowImportingTsExtensions` in tsconfig
-   (keeps svelte-check happy with the `.ts` test imports). **Not** gated into `build`: the Dockerfile
-   uses unpinned `node:22-alpine` and native TS stripping is only default from 22.18 — a wrong minor
-   would break prod builds. Gating `build` on `pnpm test` is a safe follow-up once the image's node
-   version is confirmed ≥ 22.18.
+   (keeps svelte-check happy with the `.ts` test imports). **Now gated into `build`** (2026-07-19, `9b23529`):
+   `build` = `pnpm run check && pnpm test && vite build`, so a failing unit test aborts the prod image build.
+   This became safe once the Docker base was pinned to `node:22.23.1-alpine` (≥ 22.18, so native TS stripping
+   is default) — see the Docker hardening section above. Only the 4 pure `.test.ts` files run in the gate; the
+   proxy smoke is `.mjs` (excluded from the glob) and needs a built server, so `test:proxy` stays a separate
+   manual smoke. Verified the gate bites: a deliberately failing test aborts `pnpm build` before `vite build`.
 
 **✅ REMEDIATION COMPLETE — including the optional defense-in-depth.** Both extras shipped: the strict CSP
 via `kit.csp` (2026-07-18, `1aeab1b`) and the Docker hardening (2026-07-19, `d821d41`) — see the Optional
