@@ -107,8 +107,31 @@ you in a logged-in-but-everything-403s shell. `normalizeServerUrl` unit-tested 1
 (Stage 2's lifecycle-cleanup and scroll-tracking items already shipped in the quick-wins PR.)
 
 ## Optional — finish XSS defense-in-depth
-- **Strict CSP via `kit.csp`** (see gotcha). The sanitizer already covers the XSS threat, so this is
-  defense-in-depth and is the riskiest change — test embeds + hydration thoroughly.
+
+**Strict CSP via `kit.csp` — DONE & deployed 2026-07-18** (commit `1aeab1b`; header confirmed live on
+prod ~75s after push). Defense-in-depth on top of the DOMPurify sanitizer (which remains the primary XSS
+control — CSP is not a replacement). Two files: `svelte.config.js` (`kit.csp`) + `src/app.html` (nonce on
+the anti-FOUC theme script). Key decisions:
+- **`mode: 'nonce'`** (not hash): SvelteKit stamps a per-request nonce on its own bootstrap script AND on
+  the app.html theme script via `nonce="%sveltekit.nonce%"` — no brittle hardcoded hash to maintain. Safe
+  because nothing is prerendered (`(app)` is `ssr=false`, every page is dynamically rendered). Verified:
+  both inline scripts carry the same nonce as the header, and it differs per request.
+- **`script-src 'self'` with NO `unsafe-inline`** — the actual XSS lock. SvelteKit adds the nonce.
+- **Styles:** `style-src 'self'` + a SEPARATE `style-src-attr 'unsafe-inline'`. Inline `style=""` attrs are
+  everywhere (feed articles + several Svelte components), but SvelteKit adds the nonce to `style-src`, and a
+  nonce there would cancel `unsafe-inline` — so inline attrs get their own directive SvelteKit doesn't touch.
+  `<style>` elements stay blocked (none exist at runtime: no Svelte transitions — the app uses the native CSS
+  View-Transitions API, external CSS — and DOMPurify forbids `<style>` in articles).
+- **`frame-src`** built from a local `EMBED_HOSTS` mirror in `svelte.config.js` (`https://{h}` + `https://*.{h}`
+  per host = the sanitizer's apex-or-subdomain rule). Can't import `src/lib/embedHosts.ts` there — the config
+  loader may not strip `.ts` (Docker base can be < 22.18) — so it's a deliberate small dup with a sync comment.
+- **`img-src`/`media-src`** permissive (`data: blob: https: http:`) — article/OG images hotlink from anywhere.
+- **Enforced in production only.** Gated `process.env.NODE_ENV === 'development'` → off in dev (fail-safe: only
+  an explicit `development`, which `vite dev` always sets, disables it; a build with NODE_ENV unset still gets
+  the policy). Verified: `vite dev` serves NO CSP header, so HMR is untouched. **Test CSP against a prod build**
+  (`pnpm build` then `node build`), never `npm run dev`.
+- User browser-tested the prod build (hydration, all embed types, feed/article/OG images, inline styles, no
+  FOUC) before commit; header then confirmed live on the real domain.
 
 ## Stage 3 — perf & maintainability — DONE & deployed 2026-07-18
 
@@ -167,5 +190,5 @@ equivalence (same output before/after), not just that it compiles.
    would break prod builds. Gating `build` on `pnpm test` is a safe follow-up once the image's node
    version is confirmed ≥ 22.18.
 
-**✅ REMEDIATION COMPLETE.** Only optional defense-in-depth remains: the strict CSP via `kit.csp`
-(see gotcha above) and the deferred Docker `USER node` hardening.
+**✅ REMEDIATION COMPLETE.** The strict CSP via `kit.csp` also shipped (2026-07-18, `1aeab1b`; see the
+Optional section above). Only the deferred Docker `USER node` hardening remains as optional defense-in-depth.
