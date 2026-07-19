@@ -133,6 +133,35 @@ the anti-FOUC theme script). Key decisions:
 - User browser-tested the prod build (hydration, all embed types, feed/article/OG images, inline styles, no
   FOUC) before commit; header then confirmed live on the real domain.
 
+**Docker hardening — DONE & deployed 2026-07-19** (commit `d821d41`; validated on prod). Addresses audit §P2
+Docker. `Dockerfile` restructured to 4 stages + a new `docker-entrypoint.sh`; `docker-compose.yml` unchanged.
+- **Non-root at runtime.** No `USER` line in the Dockerfile; instead `ENTRYPOINT` runs `docker-entrypoint.sh`
+  which starts as root, `chown -R node:node /app/data`, then `exec su-exec node "$@"` → PID 1 (`node build`)
+  runs as **node (uid 1000)**. Root is used only for the startup chown. Verified on prod: `docker top` and
+  `/proc/1/status` both show the app process at uid 1000.
+- **Why the chown-then-drop entrypoint (not a plain `USER node`):** the existing prod named volume
+  `settings-data` was created while the container ran as root, so its files/dir were root-owned. A plain
+  `USER node` couldn't write there → settings save would break. The entrypoint fixes ownership on every start
+  (idempotent), covering both the pre-existing root-owned volume and a fresh one. The Dockerfile also
+  `mkdir -p /app/data && chown node:node` so a *fresh* volume inherits node ownership.
+- **⚠️ GOTCHA — don't "verify non-root" with `docker exec … id`.** `docker exec` (and Dokploy's "enter
+  container") starts a NEW process as the image's configured USER — which is root here (no `USER` line) — so
+  `id` shows **root** regardless of what PID 1 runs as. It measures the exec session, not the app. Check PID 1
+  instead: `docker top <container>` or `docker exec <c> cat /proc/1/status | grep Uid` (expect `Uid: 1000 …`).
+  Corroborating signal: files the app writes into `/app/data` after startup are **node-owned** (writeFile+rename
+  preserves the writer's uid) — if the app were root, they'd be root-owned.
+- **⚠️ Do NOT add `user: "1000:1000"` to the compose service** — it would stop the entrypoint from running as
+  root, so the volume `chown` and `su-exec` would fail. Privilege drop is the entrypoint's job.
+- **Prod-only deps.** A dedicated `prod-deps` stage (`pnpm install --prod --frozen-lockfile`) supplies the
+  runtime `node_modules` (was: the full dev tree copied from the build stage). Verified locally the app boots
+  and serves with only `dompurify/ipaddr.js/lucide-svelte` (+ transitive) — every devDep is build-time.
+- **Pinned base.** `node:22.23.1-alpine@sha256:16e22a55…` (via a global `ARG NODE_IMAGE`, reused by all
+  stages) for reproducible builds. 22.23.1 ≥ 22.18 → also satisfies the prerequisite for gating `build` on
+  `pnpm test` (Stage 3 item 6). Bump the version AND digest together; a pinned digest won't auto-pull patches.
+- **Validation was deploy-then-verify** (no Docker locally): local prod-deps boot smoke + `sh -n` on the
+  entrypoint pre-commit; then a watched Dokploy deploy (Monitor showed a steady 200 with no crash-loop) + a
+  prod save→reload / container inspection. Rollback was ready (`git revert d821d41` + push).
+
 ## Stage 3 — perf & maintainability — DONE & deployed 2026-07-18
 
 All six items shipped (10 commits `bebc08d`→`ad1897a`, one concern each). `pnpm check` stays
@@ -190,5 +219,7 @@ equivalence (same output before/after), not just that it compiles.
    would break prod builds. Gating `build` on `pnpm test` is a safe follow-up once the image's node
    version is confirmed ≥ 22.18.
 
-**✅ REMEDIATION COMPLETE.** The strict CSP via `kit.csp` also shipped (2026-07-18, `1aeab1b`; see the
-Optional section above). Only the deferred Docker `USER node` hardening remains as optional defense-in-depth.
+**✅ REMEDIATION COMPLETE — including the optional defense-in-depth.** Both extras shipped: the strict CSP
+via `kit.csp` (2026-07-18, `1aeab1b`) and the Docker hardening (2026-07-19, `d821d41`) — see the Optional
+section above. Nothing outstanding from the audit except the P3 `cookie@0.6.0` advisory (low; the app sets no
+cookies), pending a patched SvelteKit dependency tree.
