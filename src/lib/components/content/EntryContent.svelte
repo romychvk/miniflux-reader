@@ -70,17 +70,20 @@
       @apply text-xl mb-4 font-bold;
     }
     /* Top gap only between blocks — never above the article's first element */
-    :is(h2, h3, div.prose-img, figure, pre):not(:first-child) {
+    :is(h2, h3, div.prose-img, figure, pre, table, blockquote):not(:first-child) {
       @apply mt-6;
     }
     p {
       @apply mb-4;
     }
     blockquote {
-      @apply pl-5 border-l-6 border-l-n-200 text-sm mb-4;
+      @apply pl-5 border-l-6 border-l-n-200 text-sm mb-6;
       p {
         @apply mb-2;
       }
+    }
+    table {
+      @apply mb-6;
     }
     img {
       @apply mb-2 cursor-zoom-in;
