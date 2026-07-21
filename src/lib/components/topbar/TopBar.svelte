@@ -116,13 +116,18 @@
 	}
 
 	let dotMenu = $state<{ x: number; y: number } | null>(null);
+	let dotMenuBtn = $state<HTMLButtonElement | null>(null);
 	let showCatEdit = $state(false);
 
 	const showDotMenu = $derived(
 		ui.selectedFeed && ui.selectedFeed.id !== -1 && ui.selectedFeed.id !== -2
 	);
 
-	function openDotMenu(e: MouseEvent) {
+	function toggleDotMenu(e: MouseEvent) {
+		if (dotMenu) {
+			dotMenu = null;
+			return;
+		}
 		const btn = e.currentTarget as HTMLElement;
 		const rect = btn.getBoundingClientRect();
 		dotMenu = { x: rect.right, y: rect.bottom + 4 };
@@ -141,21 +146,32 @@
 		];
 	}
 
+	// On mobile the field stays collapsed behind the icon; on desktop it is always visible.
 	let searchOpen = $state(false);
 	let searchInput = $state('');
 	let searchInputEl = $state<HTMLInputElement | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	const showSearchField = $derived(!ui.isMobile || searchOpen);
 
 	function openSearch() {
 		searchOpen = true;
 		tick().then(() => searchInputEl?.focus());
 	}
 
-	function closeSearch() {
-		searchOpen = false;
+	function resetSearch() {
 		searchInput = '';
 		if (debounceTimer) clearTimeout(debounceTimer);
 		entries.clearSearch();
+	}
+
+	function onClearClick() {
+		resetSearch();
+		if (ui.isMobile) {
+			searchOpen = false;
+		} else {
+			searchInputEl?.focus();
+		}
 	}
 
 	function onSearchInput() {
@@ -167,16 +183,24 @@
 
 	function onSearchKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') {
-			closeSearch();
+			if (searchInput) {
+				resetSearch();
+			} else if (ui.isMobile) {
+				searchOpen = false;
+			} else {
+				searchInputEl?.blur();
+			}
 		}
 	}
 
 	function onGlobalKeydown(e: KeyboardEvent) {
 		if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+			if (!ui.selectedFeed) return;
 			e.preventDefault();
-			if (searchOpen) {
+			if (showSearchField) {
 				searchInputEl?.focus();
-			} else if (ui.selectedFeed) {
+				searchInputEl?.select();
+			} else {
 				openSearch();
 			}
 		}
@@ -185,8 +209,9 @@
 	let prevFeedId: number | undefined;
 	$effect(() => {
 		const id = ui.selectedFeed?.id;
-		if (prevFeedId !== undefined && id !== prevFeedId && searchOpen) {
-			closeSearch();
+		if (prevFeedId !== undefined && id !== prevFeedId) {
+			resetSearch();
+			searchOpen = false;
 		}
 		prevFeedId = id;
 	});
@@ -194,9 +219,9 @@
 
 <svelte:document onclick={viewDropdownOpen ? handleClickOutside : undefined} onkeydown={onGlobalKeydown} />
 
-<header class="h-12 border-b border-nb-200 bg-navbar text-nb-900 flex justify-between items-center px-4 gap-3 shrink-0">
+<header class="h-12 border-b border-nb-200 bg-navbar text-nb-900 flex justify-between items-center pl-4 pr-2 lg:gap-3 shrink-0">
 	{#if ui.isMobile}
-		<button onclick={() => ui.toggleSidebar()} class="text-nb-600 hover:text-nb-900">
+		<button onclick={() => ui.toggleSidebar()} class="text-nb-600 hover:text-nb-900 mr-2.5">
 			<Menu size={20} />
 		</button>
 	{/if}
@@ -222,28 +247,8 @@
 			{/if}
 		</div>
 	{:else}
-		{#if searchOpen}
-			<div class="flex items-center gap-2 flex-1 min-w-0">
-				<Search size={18} class="text-nb-700 shrink-0" />
-				<input
-					bind:this={searchInputEl}
-					bind:value={searchInput}
-					oninput={onSearchInput}
-					onkeydown={onSearchKeydown}
-					type="text"
-					placeholder="Search articles..."
-					class="flex-1 min-w-0 outline-none text-sm text-nb-900 placeholder:text-nb-500 border border-nb-300 rounded-full px-4 py-1.5"
-				/>
-				<button
-					onclick={closeSearch}
-					class="text-nb-700 p-1 rounded-full hover:bg-nb-200 shrink-0"
-					title="Close search"
-				>
-					<X size={16} />
-				</button>
-			</div>
-		{:else}
-			<div class="group text-xl font-bold flex-1 min-w-0 flex gap-3.5 items-center">
+		{#if !(ui.isMobile && searchOpen)}
+			<div class="group text-xl font-bold flex-1 min-w-5.5 flex gap-3.5 items-center">
 				{#if selectedFeedNode?.iconData}
 					<img src={selectedFeedNode.iconData} alt="" class="size-5.5 shrink-0 mt-1" />
 				{/if}
@@ -263,7 +268,30 @@
 		{/if}
 
 		{#if ui.selectedFeed}
-			{#if !searchOpen}
+			{#if showSearchField}
+				<div class="relative min-w-0 {ui.isMobile ? 'flex-1' : 'w-32 lg:w-48 xl:w-64'}">
+					<Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-nb-500 pointer-events-none" />
+					<input
+						bind:this={searchInputEl}
+						bind:value={searchInput}
+						oninput={onSearchInput}
+						onkeydown={onSearchKeydown}
+						type="text"
+						placeholder="Search"
+						title="Search (Ctrl+K)"
+						class="w-full outline-none text-sm text-nb-900 placeholder:text-nb-500 bg-transparent border border-nb-300 rounded-full pl-9 pr-8 py-1.5 focus:border-nb-500"
+					/>
+					{#if searchInput || ui.isMobile}
+						<button
+							onclick={onClearClick}
+							class="absolute right-1.5 top-1/2 -translate-y-1/2 text-nb-600 hover:text-nb-900 p-1 rounded-full hover:bg-nb-200"
+							title="Clear search"
+						>
+							<X size={14} />
+						</button>
+					{/if}
+				</div>
+			{:else}
 				<button
 					onclick={openSearch}
 					title="Search (Ctrl+K)"
@@ -291,7 +319,7 @@
 			>
 				<CheckCheck size={20} />
 			</button>
-			<div class="display-buttons flex items-center gap-1 relative">
+			<div class="display-buttons flex items-center lg:gap-1 relative">
 				{#if ui.selectedFeed.isFeed && ui.selectedFeed.id > 0}
 					<button
 						onclick={() => ui.openFiltersPanel(ui.selectedFeed!.id)}
@@ -392,7 +420,8 @@
 
 		{#if showDotMenu}
 			<button
-				onclick={openDotMenu}
+				bind:this={dotMenuBtn}
+				onclick={toggleDotMenu}
 				class="text-nb-700 hover:bg-nb-200 p-2 rounded-full shrink-0"
 				title="Menu"
 			>
@@ -409,6 +438,7 @@
 		x={dotMenu.x}
 		y={dotMenu.y}
 		items={dotMenuItems()}
+		anchor={dotMenuBtn}
 		onclose={() => { dotMenu = null; }}
 	/>
 {/if}
@@ -424,9 +454,9 @@
 <style>
   @reference "../../../app.css";
   .display-buttons {
-    @apply ml-4;
+    @apply md:ml-4;
     &::before {
-      @apply content-[''] block absolute left-[-13px] top-[12px] w-0.5 h-[16px] bg-nb-200;
+      @apply content-[''] hidden md:block absolute left-[-13px] top-[12px] w-0.5 h-[16px] bg-nb-200;
     }
   }
 

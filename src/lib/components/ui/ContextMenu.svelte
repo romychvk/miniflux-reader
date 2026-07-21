@@ -7,11 +7,13 @@
 		action: () => void;
 	}
 
-	let { x, y, items, onclose }: {
+	let { x, y, items, onclose, anchor }: {
 		x: number;
 		y: number;
 		items: MenuItem[];
 		onclose: () => void;
+		/** Trigger element, if any — clicks on it are left to the trigger's own toggle. */
+		anchor?: HTMLElement | null;
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
@@ -32,6 +34,7 @@
 			if (e.key === 'Escape') onclose();
 		}
 		function onclick(e: MouseEvent) {
+			if (anchor?.contains(e.target as Node)) return;
 			if (menuEl && !menuEl.contains(e.target as Node)) onclose();
 		}
 		function onscroll() {
