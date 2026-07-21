@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RefreshCw, CheckCheck, Search, X, ExternalLink, Filter } from 'lucide-svelte';
+	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RotateCw, CheckCheck, Search, X, ExternalLink, Filter } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -281,7 +281,7 @@
 				title={ui.selectedFeed.isFeed ? 'Refresh Feed' : 'Refresh Feeds'}
 				class="text-nb-700 hover:bg-nb-200 p-2 rounded-full disabled:opacity-50"
 			>
-				<RefreshCw size={20} class={refreshing ? 'animate-spin' : ''} />
+				<RotateCw size={20} class={refreshing ? 'animate-spin' : ''} />
 			</button>
 			<button
 				onclick={markAllAsRead}

@@ -7,7 +7,7 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { makeFeedSlug } from '$lib/slug';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
-	import { Pencil, RefreshCw } from 'lucide-svelte';
+	import { Pencil, RotateCw } from 'lucide-svelte';
 
 	let { feed, parentCatId }: { feed: FeedNode; parentCatId?: number } = $props();
 
@@ -115,7 +115,7 @@
 		y={contextMenu.y}
 		items={[
 			{ label: 'Edit Feed', icon: Pencil, action: () => { goto(`/feed/${makeFeedSlug(feed.id, feed.title)}/settings`); } },
-			{ label: 'Refresh Feed', icon: RefreshCw, action: refreshFeed }
+			{ label: 'Refresh Feed', icon: RotateCw, action: refreshFeed }
 		]}
 		onclose={() => { contextMenu = null; }}
 	/>
