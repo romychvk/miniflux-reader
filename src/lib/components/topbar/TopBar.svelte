@@ -138,6 +138,9 @@
 		if (!feed) return [];
 		if (feed.isFeed) {
 			return [
+				...(feed.id > 0
+					? [{ label: 'Filters', icon: Filter, action: () => { ui.openFiltersPanel(feed.id); } }]
+					: []),
 				{ label: 'Edit Feed', icon: Pencil, action: () => { goto(`/feed/${makeFeedSlug(feed.id, feed.title)}/settings`); } },
 			];
 		}
@@ -311,6 +314,7 @@
 			>
 				<RotateCw size={20} class={refreshing ? 'animate-spin' : ''} />
 			</button>
+
 			<button
 				onclick={markAllAsRead}
 				disabled={markingAllRead || !hasUnread}
@@ -320,15 +324,6 @@
 				<CheckCheck size={20} />
 			</button>
 			<div class="display-buttons flex items-center lg:gap-1 relative">
-				{#if ui.selectedFeed.isFeed && ui.selectedFeed.id > 0}
-					<button
-						onclick={() => ui.openFiltersPanel(ui.selectedFeed!.id)}
-						title="Filters"
-						class="text-nb-700 hover:bg-nb-200 p-2 rounded-full"
-					>
-						<Filter size={20} />
-					</button>
-				{/if}
 				<button
 					onclick={() => entries.toggleShowAll()}
 					title={entries.showAll ? 'Show unread only' : 'Show all'}
