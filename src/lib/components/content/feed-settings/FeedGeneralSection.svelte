@@ -2,6 +2,7 @@
 	import type { Feed } from '$lib/types';
 	import { AlertTriangle } from 'lucide-svelte';
 	import { relaTimestamp } from '$lib/time';
+	import { normalizeLang } from '$lib/lang';
 	import CategorySelect from '$lib/components/ui/CategorySelect.svelte';
 
 	let {
@@ -27,6 +28,16 @@
 		rssEnabled: boolean;
 		effectiveFeedUrl: string;
 	} = $props();
+
+	// Shown, not edited: Miniflux reads this from the feed itself (2.3.3+) and its API has no
+	// field to override it. It earns the row by explaining why this feed's articles do or don't
+	// carry a lang attribute — and an empty value doubles as "not re-parsed since the upgrade".
+	const language = $derived(normalizeLang(feed.language));
+	const languageHint = $derived(
+		language
+			? 'Declared by the feed. Its titles and article text are tagged with this language, so screen readers, hyphenation and translation offers follow it.'
+			: 'Not declared by the feed — or the feed has not been re-parsed since Miniflux 2.3.3, which is the first version to read it. Its text keeps the page language.'
+	);
 </script>
 
 <section class:hidden={!active} class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
@@ -36,6 +47,7 @@
 	<div class="flex gap-5 mb-4">
 	  <div><span class="font-semibold text-n-500 uppercase text-xs">Last refresh:</span> <span class="" title={feed.checked_at ?? ''}>{feed.checked_at ? `${relaTimestamp(feed.checked_at)} ago` : '—'}</span></div>
 	  <div><span class="font-semibold text-n-500 uppercase text-xs">Total entries:</span> <span class="text-n-800">{entryCount ?? '—'}</span></div>
+	  <div title={languageHint}><span class="font-semibold text-n-500 uppercase text-xs">Language:</span> <span class="text-n-800">{language ?? '—'}</span></div>
 	</div>
 	{#if feed.parsing_error_count && feed.parsing_error_count > 0}
 		<div class="text-danger mb-4 bg-danger/10 border border-danger rounded px-4 py-2">
