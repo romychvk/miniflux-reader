@@ -8,6 +8,7 @@
 	import { relaTimestamp } from '$lib/time';
 	import { makeEntrySlug } from '$lib/slug';
 	import { contentContainsImage } from '$lib/content';
+	import { entryLang } from '$lib/lang';
 	import EntryContent from './EntryContent.svelte';
 
 	let { entry, onClose }: { entry: Entry; onClose?: () => void } = $props();
@@ -208,7 +209,7 @@
 	     fixed/sticky buttons above, so they stay outside it. -->
 	<div class="@container">
 	<div class="max-w-3xl mx-auto px-6 py-4 relative" class:article-vt={!onClose}>
-	<h1 class="text-3xl leading-snug text-center font-bold mb-3 px-6">
+	<h1 class="text-3xl leading-snug text-center font-bold mb-3 px-6" lang={entryLang(entry)}>
 		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
 	</h1>
 

@@ -7,6 +7,7 @@
 	import { ui } from '$lib/stores/ui.svelte';
 	import { cardAspect } from '$lib/stores/cardAspect.svelte';
 	import { relaTimestamp } from '$lib/time';
+	import { entryLang } from '$lib/lang';
 	import { makeEntrySlug } from '$lib/slug';
 	import { autoMarkRead } from '$lib/autoMarkRead';
 	import { Ban, Bookmark, Check, Circle } from 'lucide-svelte';
@@ -16,6 +17,10 @@
 	let { entry }: { entry: Entry } = $props();
 
 	const feedIcon = $derived(feeds.findFeedNodeById(entry.feed.id, true)?.iconData);
+
+	// Carried only by the entry's own text (title + description). The feed name and the
+	// relative timestamp around them are ours and stay in the document's language.
+	const lang = $derived(entryLang(entry));
 
 	let rowEl: HTMLElement | undefined = $state();
 
@@ -142,7 +147,7 @@
 				<img src={feedIcon} alt="" class="size-5 shrink-0" />
 			{/if}
 
-			<div class="flex-1 min-w-0 truncate">
+			<div class="flex-1 min-w-0 truncate" {lang}>
 				<span class="text-sm {isRead ? '' : 'font-bold'}">{entry.title}</span>
 				{#if description}
 					<span class="text-sm text-n-500">&nbsp;-&nbsp;{description}</span>
@@ -209,7 +214,7 @@
 
 			<div class="flex-1 min-w-0">
 
-  		  <h3 class="leading-snug mb-2 font-bold @lg/mag:text-lg {isRead ? 'text-n-500' : ''}">{entry.title}</h3>
+  		  <h3 class="leading-snug mb-2 font-bold @lg/mag:text-lg {isRead ? 'text-n-500' : ''}" {lang}>{entry.title}</h3>
         <p class="text-xs @lg/mag:text-sm text-n-600 mb-2 @lg/mag:mb-3 flex items-center gap-2">
    					{#if feedIcon}
   						<img src={feedIcon} alt="" class="size-3 mt-px shrink-0 {isRead ? 'opacity-80' : ''}" />
@@ -244,7 +249,7 @@
             <div class="grow">
 
       				{#if description}
-       					<p class="text-sm @lg/mag:text-base leading-normal text-n-800 line-clamp-6">{description}</p>
+       					<p class="text-sm @lg/mag:text-base leading-normal text-n-800 line-clamp-6" {lang}>{description}</p>
       				{/if}
             </div>
 
@@ -296,9 +301,9 @@
 		{/if}
 
 		<div class="px-4 py-3">
-  			<h3 class="leading-snug line-clamp-3 mb-2 {isRead ? 'font-normal' : 'font-bold'}">{entry.title}</h3>
+  			<h3 class="leading-snug line-clamp-3 mb-2 {isRead ? 'font-normal' : 'font-bold'}" {lang}>{entry.title}</h3>
 			{#if description}
-				<p class="text-sm text-n-800 leading-snug line-clamp-3 mb-3">{description}</p>
+				<p class="text-sm text-n-800 leading-snug line-clamp-3 mb-3" {lang}>{description}</p>
 			{/if}
 			<div class="flex justify-between gap-1">
    			<p class="text-xs text-n-500 flex items-center gap-2">

@@ -9,6 +9,9 @@ export interface Feed {
 	site_url: string;
 	feed_url: string;
 	category: Category;
+	// Declared by the feed and stored by Miniflux since 2.3.3 — absent on older instances and
+	// on feeds that declare nothing. Read it through $lib/lang, never raw.
+	language?: string;
 	crawler?: boolean;
 	scraper_rules?: string;
 	rewrite_rules?: string;
@@ -63,6 +66,9 @@ export interface Entry {
 	status: 'unread' | 'read';
 	starred: boolean;
 	published_at: string;
+	// Set when the entry was inserted (Miniflux 2.3.3+), inheriting the feed's language when
+	// the entry declares none — so it stays empty on entries that predate the upgrade.
+	language?: string;
 	feed: Feed;
 	enclosures?: Enclosure[];
 	_thumbnailUrl?: string | null;
