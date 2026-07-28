@@ -7,9 +7,9 @@ import { mapPool } from '$lib/pool';
 import { applySavedOrder, persistOrder } from '$lib/feedOrder';
 import { ui } from './ui.svelte';
 
-// Cap the icon and category-refresh fan-outs so a big account (or a category with many feeds)
-// doesn't fire one request per feed at once — icon fetches hammer the proxy and refreshes make
-// Miniflux crawl every source in parallel. 6 is within the audited 4–8 band.
+// Cap the icon and refresh fan-outs (category and all-feeds) so a big account doesn't fire
+// one request per feed at once — icon fetches hammer the proxy and refreshes make Miniflux
+// crawl every source in parallel. 6 is within the audited 4–8 band.
 const FEED_REQUEST_CONCURRENCY = 6;
 
 function createFeedsStore() {
@@ -436,31 +436,34 @@ function createFeedsStore() {
 		await loadCounters();
 	}
 
-	async function refreshAllFeeds() {
-		try {
-			await apiCall('feeds/refresh', { method: 'PUT' });
-		} catch (e) {
-			ui.showError(e instanceof Error ? e.message : 'Failed to refresh feeds');
-			throw e;
-		}
-		await loadCounters();
-	}
-
-	async function refreshCategoryFeeds(catId: number) {
-		const cat = feedTree.find(n => n.id === catId);
-		if (!cat?.children) return;
+	// Fan out per-feed synchronous refreshes. The bulk PUT feeds/refresh endpoint is
+	// async server-side — it returns before crawling, so counters read right after it
+	// are stale and any "+N new" count would lie. PUT feeds/{id}/refresh blocks until
+	// the feed is crawled, so after the pool drains the counters are trustworthy.
+	async function refreshFeedList(list: { id: number; title: string }[]) {
 		const errors: string[] = [];
-		await mapPool(cat.children, FEED_REQUEST_CONCURRENCY, async (child) => {
+		await mapPool(list, FEED_REQUEST_CONCURRENCY, async (feed) => {
 			try {
-				await apiCall(`feeds/${child.id}/refresh`, { method: 'PUT' });
-			} catch (e) {
-				errors.push(child.title);
+				await apiCall(`feeds/${feed.id}/refresh`, { method: 'PUT' });
+			} catch {
+				errors.push(feed.title);
 			}
 		});
 		if (errors.length > 0) {
 			ui.showError(`Failed to refresh: ${errors.join(', ')}`);
 		}
 		await loadCounters();
+	}
+
+	async function refreshAllFeeds() {
+		// Miniflux refuses to refresh disabled feeds — skip them instead of toasting.
+		await refreshFeedList(rawFeeds.filter(f => !f.disabled));
+	}
+
+	async function refreshCategoryFeeds(catId: number) {
+		const cat = feedTree.find(n => n.id === catId);
+		if (!cat?.children) return;
+		await refreshFeedList(cat.children);
 	}
 
 	return {

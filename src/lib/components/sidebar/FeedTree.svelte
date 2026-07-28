@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { feeds } from '$lib/stores/feeds.svelte';
-	import { entries } from '$lib/stores/entries.svelte';
+	import { refresh } from '$lib/stores/refresh.svelte';
 	import { dnd } from '$lib/stores/dnd.svelte';
 	import FeedItem from './FeedItem.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
@@ -125,7 +125,7 @@
 	}
 </script>
 
-<nav class="flex flex-col gap-0.5 p-4">
+<nav class="flex flex-col gap-0.5 px-3 py-2">
 	{#each feeds.feedTree as node, treeIndex (node.id)}
 		{#if node.children}
 			<!-- Category insert line (before) -->
@@ -214,9 +214,9 @@
 		items={[
 			{ label: 'Add Feed', icon: Plus, action: () => onAddFeed(contextMenu!.catId) },
 			{ label: 'Edit Category', icon: Pencil, action: () => { editingCatId = contextMenu!.catId; } },
-			{ label: 'Refresh Feeds', icon: RotateCw, action: async () => {
-				await feeds.refreshCategoryFeeds(contextMenu!.catId);
-				if (ui.selectedFeed) entries.loadEntries(ui.selectedFeed.apiPath);
+			{ label: 'Refresh Feeds', icon: RotateCw, action: () => {
+				const cat = feeds.feedTree.find(n => n.id === contextMenu!.catId);
+				if (cat) void refresh.refreshNode(cat);
 			}}
 		]}
 		onclose={() => { contextMenu = null; }}

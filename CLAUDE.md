@@ -33,12 +33,13 @@ src/
       feeds.svelte.ts           # Feed tree, counters, icons
       entries.svelte.ts         # Entry list, mark read, fetch content
       ui.svelte.ts              # UI state (selected feed, sidebar, errors)
+      refresh.svelte.ts         # Manual refresh + background counter polling + "+N new" chip
     components/
       App.svelte                # Root shell: sidebar + topbar + content
       sidebar/                  # Sidebar, FeedTree, FeedItem
       topbar/                   # TopBar (hamburger + title + logout)
       content/                  # EntryList, EntryRow, EntryContent
-      ui/                       # Spinner, Toast
+      ui/                       # Spinner, Toast, RefreshIndicator
 ```
 
 ## Key patterns
@@ -73,6 +74,7 @@ npm run preview   # Preview production build
 | `feeds` | GET | List all feeds |
 | `feeds/counters` | GET | Unread counts per feed |
 | `feeds/{id}/icon` | GET | Feed favicon |
+| `feeds/{id}/refresh` | PUT | Refresh one feed (synchronous crawl; fanned out with bounded concurrency for category/All refresh — the bulk `feeds/refresh` endpoint is async and is deliberately not used) |
 | `feeds/{id}/entries?status=unread&order=published_at&direction=desc&limit=100` | GET | Feed entries |
 | `entries?status=unread&order=published_at&direction=desc&limit=100` | GET | All unread entries |
 | `entries/{id}/fetch-content` | GET | Re-scrape original article content |

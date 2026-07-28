@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { LogOut, Plus, Settings } from 'lucide-svelte';
+	import { LogOut, Plus, RotateCw, Settings } from 'lucide-svelte';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { refresh } from '$lib/stores/refresh.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { resizable } from '$lib/actions/resize';
 	import { makeFeedSlug } from '$lib/slug';
@@ -70,15 +71,23 @@
 		class="h-screen border-r-2 border-r-n-200 bg-sidebar flex flex-col shrink-0 relative"
 		style="width: {ui.sidebarWidth}px"
 	>
-		<div class="p-4 flex items-center justify-between">
+		<div class="px-3 pt-2 flex items-center justify-between">
 			<h2 class="text-lg text-sb-800 font-bold leading-none"><a href="/">Miniflux Reader</a></h2>
-			<div class="flex items-center gap-1">
+			<div class="flex items-center gap-px">
 				<button
 					onclick={() => openAddModal()}
 					class="text-sb-700 p-2 rounded-full hover:bg-sb-200 transition-colors"
 					title="Add feed"
 				>
 					<Plus size={20} />
+				</button>
+				<button
+					onclick={() => { void refresh.refreshCurrent(); }}
+					disabled={!ui.selectedFeed || refresh.refreshing}
+					class="text-sb-700 p-2 rounded-full hover:bg-sb-200 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+					title={ui.selectedFeed?.isFeed ? 'Refresh Feed' : 'Refresh Feeds'}
+				>
+					<RotateCw size={20} />
 				</button>
 			</div>
 		</div>
@@ -107,6 +116,14 @@
 		<div class="p-3 border-b border-sb-200 flex items-center justify-between">
 			<h2 class="text-xl text-a-600 font-medium">Miniflux Reader</h2>
 			<div class="flex items-center gap-2">
+				<button
+					onclick={() => { void refresh.refreshCurrent(); ui.toggleSidebar(); }}
+					disabled={!ui.selectedFeed || refresh.refreshing}
+					class="text-sb-700 hover:bg-sb-200 p-2 rounded-full transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
+					title={ui.selectedFeed?.isFeed ? 'Refresh Feed' : 'Refresh Feeds'}
+				>
+					<RotateCw size={20} />
+				</button>
 				<button
 					onclick={() => openAddModal()}
 					class="text-sb-700 hover:bg-sb-200 p-2 rounded-full transition-colors"

@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, RotateCw, CheckCheck, Search, X, ExternalLink, Filter } from 'lucide-svelte';
+	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, CheckCheck, Search, X, ExternalLink, Filter } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -35,9 +35,6 @@
 	);
 
 	let viewDropdownOpen = $state(false);
-	let refreshing = $state(false);
-	let refreshResult = $state('');
-	let refreshResultTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	const viewModes = [
 		{ id: 'list' as const, label: 'List view', icon: List },
@@ -69,35 +66,6 @@
 		const target = e.target as HTMLElement;
 		if (!target.closest('.view-mode-dropdown')) {
 			viewDropdownOpen = false;
-		}
-	}
-
-	async function refreshCurrentFeed() {
-		const feed = ui.selectedFeed;
-		if (!feed) return;
-		refreshing = true;
-		const countBefore = entries.entries.length;
-		try {
-			if (feed.isFeed) {
-				await feeds.refreshFeed(feed.id);
-			} else if (feed.id === -1) {
-				await feeds.refreshAllFeeds();
-			} else {
-				await feeds.refreshCategoryFeeds(feed.id);
-			}
-			await entries.loadEntries(feed.apiPath);
-			const newCount = entries.entries.length - countBefore;
-			if (newCount > 0) {
-				refreshResult = `+${newCount} new`;
-			} else {
-				refreshResult = 'No new';
-			}
-			if (refreshResultTimeout) clearTimeout(refreshResultTimeout);
-			refreshResultTimeout = setTimeout(() => { refreshResult = ''; }, 3000);
-		} catch {
-			/* errors already handled by store methods */
-		} finally {
-			refreshing = false;
 		}
 	}
 
@@ -303,18 +271,6 @@
 					<Search size={20} />
 				</button>
 			{/if}
-			{#if refreshResult}
-				<span class="text-xs text-a-600 whitespace-nowrap">{refreshResult}</span>
-			{/if}
-			<button
-				onclick={refreshCurrentFeed}
-				disabled={refreshing}
-				title={ui.selectedFeed.isFeed ? 'Refresh Feed' : 'Refresh Feeds'}
-				class="text-nb-700 hover:bg-nb-200 p-2 rounded-full disabled:opacity-50"
-			>
-				<RotateCw size={20} class={refreshing ? 'animate-spin' : ''} />
-			</button>
-
 			<button
 				onclick={markAllAsRead}
 				disabled={markingAllRead || !hasUnread}

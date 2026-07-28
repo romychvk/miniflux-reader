@@ -8,11 +8,13 @@
 	import { theme } from '$lib/stores/theme.svelte';
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
+	import { refresh } from '$lib/stores/refresh.svelte';
 	import { settingsSync } from '$lib/settingsSync.svelte';
 	import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
 	import TopBar from '$lib/components/topbar/TopBar.svelte';
 	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
 	import Toast from '$lib/components/ui/Toast.svelte';
+	import RefreshIndicator from '$lib/components/ui/RefreshIndicator.svelte';
 	import Lightbox from '$lib/components/ui/Lightbox.svelte';
 	import FilterCreateModal from '$lib/components/ui/FilterCreateModal.svelte';
 	import FeedFiltersModal from '$lib/components/ui/FeedFiltersModal.svelte';
@@ -38,7 +40,10 @@
 
 		void boot();
 
-		return () => mql.removeEventListener('change', onMediaChange);
+		return () => {
+			mql.removeEventListener('change', onMediaChange);
+			refresh.stopPolling();
+		};
 	});
 
 	async function boot() {
@@ -64,6 +69,7 @@
 		settingsSync.start();
 
 		await feeds.loadFeeds();
+		refresh.startPolling();
 		ready = true;
 	}
 </script>
@@ -73,9 +79,12 @@
 		<Sidebar />
 		<div class="flex flex-col flex-1 min-w-0">
 			<TopBar />
-			<main class="flex-1 overflow-y-auto">
-				{@render children()}
-			</main>
+			<div class="relative flex-1 min-h-0 flex flex-col">
+				<main class="flex-1 overflow-y-auto">
+					{@render children()}
+				</main>
+				<RefreshIndicator />
+			</div>
 		</div>
 		{#if showArticlePanel}
 			<ArticlePanel />

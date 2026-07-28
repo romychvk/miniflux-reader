@@ -2,9 +2,9 @@
 	import { goto } from '$app/navigation';
 	import type { FeedNode } from '$lib/types';
 	import { ui } from '$lib/stores/ui.svelte';
-	import { entries } from '$lib/stores/entries.svelte';
 	import { dnd } from '$lib/stores/dnd.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { refresh } from '$lib/stores/refresh.svelte';
 	import { makeFeedSlug } from '$lib/slug';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import { Pencil, RotateCw } from 'lucide-svelte';
@@ -73,12 +73,6 @@
 		dnd.reset();
 	}
 
-	async function refreshFeed() {
-		try {
-			await feeds.refreshFeed(feed.id);
-			if (ui.selectedFeed) entries.loadEntries(ui.selectedFeed.apiPath);
-		} catch { /* already handled */ }
-	}
 </script>
 
 <button
@@ -115,7 +109,7 @@
 		y={contextMenu.y}
 		items={[
 			{ label: 'Edit Feed', icon: Pencil, action: () => { goto(`/feed/${makeFeedSlug(feed.id, feed.title)}/settings`); } },
-			{ label: 'Refresh Feed', icon: RotateCw, action: refreshFeed }
+			{ label: 'Refresh Feed', icon: RotateCw, action: () => { void refresh.refreshNode(feed); } }
 		]}
 		onclose={() => { contextMenu = null; }}
 	/>
