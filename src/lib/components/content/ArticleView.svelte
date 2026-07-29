@@ -210,10 +210,14 @@
 	     column: inline-size containment would make this div the positioning ancestor of the
 	     fixed/sticky buttons above, so they stay outside it. -->
 	<div class="@container">
-	<div class="max-w-3xl mx-auto px-6 py-4 relative" class:article-vt={!onClose}>
-	<!-- Breadcrumbs: the article's own header, replacing the app top bar (full-page mode) and the
-	     feed line that used to sit under the H1. The leading arrow is the back action, so it only
-	     appears where there is a history to go back to — panel/expanded mode closes with the X. -->
+	<!-- Without the breadcrumbs row, panel/expanded mode starts straight on the H1 — so it has to
+	     open below the floating Close button (top-2 + its 40px box) or a long first line runs
+	     under it. The full-page route keeps the tighter top: the breadcrumbs sit there instead. -->
+	<div class="max-w-3xl mx-auto px-6 pb-4 {onClose ? 'pt-14' : 'pt-4'} relative" class:article-vt={!onClose}>
+	<!-- Breadcrumbs stand in for the app top bar, which the full-page route hides. Panel and
+	     expanded mode keep that top bar and sit right next to the feed list, so there the row
+	     would only repeat the feed the reader just clicked in. -->
+	{#if !onClose}
 	<nav class="flex justify-center items-center gap-0.5 text-sm text-n-800 mb-6 min-w-0 pr-10">
 		<!-- {#if !onClose}
 			<button
@@ -246,6 +250,7 @@
 			</a>
 		{/if} -->
 	</nav>
+	{/if}
 
 	<h1 class="text-[34px] leading-snug text-center font-semibold mb-4 px-6" lang={entryLang(entry)}>{entry.title}</h1>
 
