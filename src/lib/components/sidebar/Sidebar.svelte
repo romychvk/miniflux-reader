@@ -71,7 +71,7 @@
 		class="h-screen border-r-2 border-r-n-200 bg-sidebar flex flex-col shrink-0 relative"
 		style="width: {ui.sidebarWidth}px"
 	>
-		<div class="px-3 pt-2 flex items-center justify-between">
+		<div class="pl-3 pr-1 py-1.5 flex items-center justify-between">
 			<h2 class="text-lg text-sb-800 font-bold leading-none"><a href="/">Miniflux Reader</a></h2>
 			<div class="flex items-center gap-px">
 				<button

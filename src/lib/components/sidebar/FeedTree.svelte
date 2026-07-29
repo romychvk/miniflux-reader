@@ -125,7 +125,7 @@
 	}
 </script>
 
-<nav class="flex flex-col gap-0.5 px-3 py-2">
+<nav class="flex flex-col gap-0.5 px-3 pt-1.5 pb-3">
 	{#each feeds.feedTree as node, treeIndex (node.id)}
 		{#if node.children}
 			<!-- Category insert line (before) -->
