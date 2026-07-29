@@ -167,53 +167,43 @@
 </script>
 
 <div class="relative" bind:this={rootEl}>
-	<!-- Prev/next arrows (full-page mode only). Anchored to this full-width wrapper — which
-	     spans the main content area, right of the sidebar — via a sticky, zero-height bar so the
-	     arrows sit just inside the content area and stay vertically centred while scrolling. -->
-	{#if !onClose && (prevEntry || nextEntry)}
-		<div class="sticky top-0 h-0 z-30 pointer-events-none">
-			{#if prevEntry}
-				<button
-					onclick={() => navigate(prevEntry, 'prev')}
-					class="nav-arrow pointer-events-auto absolute left-2 md:left-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
-					class:pressed={pressed === 'prev'}
-					title="Previous article"
-				>
-					<ChevronLeft class="size-6.5" />
-				</button>
-			{/if}
-			{#if nextEntry}
-				<button
-					onclick={() => navigate(nextEntry, 'next')}
-					class="nav-arrow pointer-events-auto absolute right-2 md:right-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
-					class:pressed={pressed === 'next'}
-					title="Next article"
-				>
-					<ChevronRight class="size-6.5" />
-				</button>
-			{/if}
-		</div>
-	{/if}
-
-	<!-- Close/back lives in the outer wrapper (the UI layer), NOT inside .article-vt — otherwise
-	     it gets captured by the article view-transition snapshot and slides with the page. -->
-	{#if onClose}
+	<!-- All floating controls (close + prev/next arrows) share ONE sticky, zero-height bar so they
+	     position against the same box: this full-width wrapper, which spans the scroll container's
+	     content area. Don't use `fixed` here — it measures from the viewport, which includes the
+	     scroll container's scrollbar, so a `fixed right-4` close button lands ~a scrollbar-width
+	     further right than an `absolute right-4` arrow. Sticky + top-0 keeps them pinned to the
+	     scrollport while the article scrolls (the arrows' top-[50vh] then reads as viewport-centred).
+	     The bar lives in the outer wrapper (the UI layer), NOT inside .article-vt — otherwise it
+	     gets captured by the article view-transition snapshot and slides with the page. -->
+	<div class="sticky top-0 h-0 z-30 pointer-events-none">
+		{#if !onClose && prevEntry}
+			<button
+				onclick={() => navigate(prevEntry, 'prev')}
+				class="nav-arrow pointer-events-auto absolute left-2 md:left-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+				class:pressed={pressed === 'prev'}
+				title="Previous article"
+			>
+				<ChevronLeft class="size-6.5" />
+			</button>
+		{/if}
+		{#if !onClose && nextEntry}
+			<button
+				onclick={() => navigate(nextEntry, 'next')}
+				class="nav-arrow pointer-events-auto absolute right-2 md:right-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+				class:pressed={pressed === 'next'}
+				title="Next article"
+			>
+				<ChevronRight class="size-6.5" />
+			</button>
+		{/if}
 		<button
-			onclick={onClose}
-			class="fixed right-0 md:right-6 top-2 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+			onclick={onClose ?? goBack}
+			class="pointer-events-auto absolute right-2 md:right-4 top-2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
 			title="Close article"
 		>
 			<X class="size-6.5" />
 		</button>
-	{:else}
-		<button
-			onclick={goBack}
-			class="fixed right-2 md:right-5 top-2 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
-			title="Close article"
-		>
-			<X class="size-6.5" />
-		</button>
-	{/if}
+	</div>
 
 	<!-- The @container is the measuring block for the hero-image breakout (cqw units in
 	     .hero-breakout here and the lead-image rule in EntryContent). It wraps only the article
