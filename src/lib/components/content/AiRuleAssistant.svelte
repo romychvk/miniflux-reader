@@ -288,7 +288,7 @@
 								<div class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-n-400">
 									Before
 								</div>
-								<div class="max-h-64 overflow-y-auto px-3 pb-3">
+								<div class="max-h-64 overflow-y-auto pb-3">
 									<article class="prose prose-sm max-w-none break-words">
 										{@html sanitizeHtml(s.before)}
 									</article>
@@ -298,7 +298,7 @@
 								<div class="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-a-600">
 									After
 								</div>
-								<div class="max-h-64 overflow-y-auto px-3 pb-3">
+								<div class="max-h-64 overflow-y-auto pb-3">
 									<article class="prose prose-sm max-w-none break-words">
 										{@html sanitizeHtml(s.after)}
 									</article>

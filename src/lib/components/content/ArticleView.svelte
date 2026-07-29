@@ -1,12 +1,13 @@
 <script lang="ts">
-	import { X, RotateCw, ChevronLeft, ChevronRight, Ban, Bookmark } from 'lucide-svelte';
+	import { X, RotateCw, ChevronLeft, ChevronRight, Ban, Bookmark, ArrowLeft, ExternalLink } from 'lucide-svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import type { Entry } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { relaTimestamp } from '$lib/time';
-	import { makeEntrySlug } from '$lib/slug';
+	import { makeEntrySlug, makeFeedSlug } from '$lib/slug';
+	import { categoryDisplayTitle } from '$lib/category';
 	import { contentContainsImage } from '$lib/content';
 	import { entryLang } from '$lib/lang';
 	import EntryContent from './EntryContent.svelte';
@@ -14,6 +15,17 @@
 	let { entry, onClose }: { entry: Entry; onClose?: () => void } = $props();
 
 	const feedIcon = $derived(feeds.findFeedNodeById(entry.feed.id, true)?.iconData);
+
+	// Breadcrumbs replace the app top bar on the full-page route (and the feed line that used to
+	// sit under the H1 in panel/expanded mode). Prefer the locally-loaded feed over the copy
+	// embedded in the entry: it stays in sync after a rename or a category move.
+	const rawFeed = $derived(feeds.getRawFeed(entry.feed.id));
+	const feedTitle = $derived(rawFeed?.title || entry.feed.title);
+	const feedHref = $derived(`/feed/${makeFeedSlug(entry.feed.id, feedTitle)}`);
+	const feedSiteUrl = $derived(rawFeed?.site_url || entry.feed.site_url || '');
+	const category = $derived(rawFeed?.category ?? entry.feed.category ?? null);
+	const categoryTitle = $derived(category ? categoryDisplayTitle(category.title) : '');
+	const categoryHref = $derived(category ? `/category/${makeFeedSlug(category.id, categoryTitle)}` : '');
 
 	// Full-page mode (the /article route) has no onClose; the three-column panel passes one.
 	// Prev/next navigation only applies to the full-page route. The list is already ordered
@@ -196,7 +208,7 @@
 	{:else}
 		<button
 			onclick={goBack}
-			class="fixed right-2 md:right-5 top-14 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+			class="fixed right-2 md:right-5 top-2 z-30 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
 			title="Close article"
 		>
 			<X class="size-6.5" />
@@ -209,47 +221,83 @@
 	     fixed/sticky buttons above, so they stay outside it. -->
 	<div class="@container">
 	<div class="max-w-3xl mx-auto px-6 py-4 relative" class:article-vt={!onClose}>
-	<h1 class="text-3xl leading-snug text-center font-bold mb-3 px-6" lang={entryLang(entry)}>
-		<a href={entry.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{entry.title}</a>
-	</h1>
+	<!-- Breadcrumbs: the article's own header, replacing the app top bar (full-page mode) and the
+	     feed line that used to sit under the H1. The leading arrow is the back action, so it only
+	     appears where there is a history to go back to — panel/expanded mode closes with the X. -->
+	<nav class="flex justify-center items-center gap-0.5 text-sm text-n-800 mb-6 min-w-0 pr-10">
+		<!-- {#if !onClose}
+			<button
+				onclick={goBack}
+				title="Back"
+				class="shrink-0 -ml-1.5 p-1 rounded-md hover:bg-n-200 bg-n-100 hover:text-n-800 transition-colors"
+			>
+				<ArrowLeft size={18} />
+			</button>
+		{/if} -->
+		{#if category}
+			<a href={categoryHref} class="shrink-0 truncate hover:text-n-800 underline transition-colors hover:bg-n-200 rounded px-2 py-1 hover:no-underline">{categoryTitle}</a>
+			<ChevronRight size={14} class="shrink-0 text-n-600" />
+		{/if}
+		<a href={feedHref} class="flex items-center gap-1.5 min-w-0 hover:text-n-800 underline transition-colors rounded px-2 py-1 hover:bg-n-200 hover:no-underline">
+			{#if feedIcon}
+				<img src={feedIcon} alt="" class="size-3.5 shrink-0" />
+			{/if}
+			<span class="truncate">{feedTitle}</span>
+		</a>
+		<!-- {#if feedSiteUrl}
+			<a
+				href={feedSiteUrl}
+				target="_blank"
+				rel="noopener noreferrer"
+				title="Open site"
+				class="shrink-0 text-n-600 hover:text-n-800 hover:bg-n-200 transition-colors bg-n-100 rounded-full size-7 flex items-center justify-center"
+			>
+				<ExternalLink size={16} />
+			</a>
+		{/if} -->
+	</nav>
 
-	<div class="flex flex-col items-center gap-3 text-sm text-n-500 mb-3">
-    <div class="flex items-center gap-2">
-  		{#if feedIcon}
-  			<img src={feedIcon} alt="" class="size-3 mt-1 shrink-0" />
-  		{/if}
-  		<span>{entry.feed.title}</span>
-      <span>&middot;</span>
-  		<span>{relaTimestamp(entry.published_at)}</span>
-  		{#if entry.author}
-  			<span>&middot;</span>
-  			<span>{entry.author}</span>
-  		{/if}
-    </div>
-    <div class="flex items-center gap-2">
-  		<button
-  			onclick={() => ui.openFilterModal({ feedId: entry.feed.id, feedTitle: entry.feed.title, seedTitle: entry.title })}
-  			title="Ignore posts like this"
-  			class="ml-auto shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors"
-  		>
-  			<Ban size={14} />
-  		</button>
-  		<button
-  			onclick={() => entries.toggleBookmark(entry.id)}
-  			title={(entry.starred ?? false) ? 'Remove bookmark' : 'Bookmark'}
-  			class="shrink-0 p-1 rounded-md transition-colors {(entry.starred ?? false) ? 'text-a-600 hover:bg-n-100' : 'text-n-400 hover:text-n-700 hover:bg-n-100'}"
-  		>
-  			<Bookmark size={14} fill={(entry.starred ?? false) ? 'currentColor' : 'none'} />
-  		</button>
-  		<button
-  			onclick={refetch}
-  			disabled={refetching}
-  			title="Re-fetch original content (applies the feed's rules)"
-  			class="shrink-0 p-1 rounded-md text-n-400 hover:text-n-700 hover:bg-n-100 transition-colors disabled:opacity-50"
-  		>
-  			<RotateCw size={14} class={refetching ? 'animate-spin' : ''} />
-  		</button>
-    </div>
+	<h1 class="text-[34px] leading-snug text-center font-semibold mb-4 px-6" lang={entryLang(entry)}>{entry.title}</h1>
+
+	<div class="flex flex-wrap items-center justify-center gap-1 text-sm text-n-600 mb-8">
+		<span>{relaTimestamp(entry.published_at)}</span>
+		{#if entry.author}
+		  <span class="mx-1 h-4 w-px bg-n-200"></span>
+			<span>{entry.author}</span>
+		{/if}
+		<span class="mx-1 h-4 w-px bg-n-200"></span>
+		<a
+			href={entry.url}
+			target="_blank"
+			rel="noopener noreferrer"
+			title="Open the original article"
+			class="underline transition-colors rounded px-1.5 py-0.5 hover:text-n-800 hover:bg-n-200 hover:no-underline"
+		>
+			Source
+		</a>
+		<span class="ml-1 mr-0.5 h-4 w-px bg-n-200"></span>
+		<button
+			onclick={() => entries.toggleBookmark(entry.id)}
+			title={(entry.starred ?? false) ? 'Remove bookmark' : 'Bookmark'}
+			class="shrink-0 flex justify-center items-center size-7 rounded-full transition-colors {(entry.starred ?? false) ? 'text-a-600 hover:bg-n-200' : 'text-n-400 hover:text-n-600 hover:bg-n-200'}"
+		>
+			<Bookmark size={16} fill={(entry.starred ?? false) ? 'currentColor' : 'none'} />
+		</button>
+		<button
+			onclick={() => ui.openFilterModal({ feedId: entry.feed.id, feedTitle: entry.feed.title, seedTitle: entry.title })}
+			title="Ignore posts like this"
+			class="shrink-0 rounded-full size-7 flex items-center justify-center text-n-400 hover:text-n-700 hover:bg-n-200 transition-colors"
+		>
+			<Ban size={16} />
+		</button>
+		<button
+			onclick={refetch}
+			disabled={refetching}
+			title="Re-fetch original content (applies the feed's rules)"
+			class="shrink-0 flex justify-center items-center size-7 rounded-full text-n-400 hover:text-n-700 hover:bg-n-200 transition-colors disabled:opacity-50"
+		>
+			<RotateCw size={16} class={refetching ? 'animate-spin' : ''} />
+		</button>
 	</div>
 
 	{#if showCover}

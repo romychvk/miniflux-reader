@@ -54,7 +54,7 @@
 	}
 </script>
 
-<div class="py-3 px-1">
+<div class="">
 	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions, a11y_no_noninteractive_element_interactions -->
 	<article
 		class="prose prose-sm max-w-none break-words"

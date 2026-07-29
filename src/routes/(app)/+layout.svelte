@@ -22,9 +22,11 @@
 	let { children } = $props();
 	let ready = $state(false);
 
-	const isFullView = $derived(
-		(page.route.id?.includes('/article/') || page.route.id?.includes('/settings')) ?? false
-	);
+	// The full-page article route carries its own header (a breadcrumbs row above the H1 plus a
+	// floating Close button), so the app top bar is hidden there and the article gets the full
+	// viewport height. Settings keeps the top bar — it still uses it to navigate back.
+	const isArticleView = $derived(page.route.id?.includes('/article/') ?? false);
+	const isFullView = $derived(isArticleView || (page.route.id?.includes('/settings') ?? false));
 	const showArticlePanel = $derived(
 		ui.layoutMode === 'three-column' && !ui.isMobile && !isFullView
 	);
@@ -78,7 +80,9 @@
 	<div class="flex h-screen bg-n-50">
 		<Sidebar />
 		<div class="flex flex-col flex-1 min-w-0">
-			<TopBar />
+			{#if !isArticleView}
+				<TopBar />
+			{/if}
 			<div class="relative flex-1 min-h-0 flex flex-col">
 				<main class="flex-1 overflow-y-auto">
 					{@render children()}
