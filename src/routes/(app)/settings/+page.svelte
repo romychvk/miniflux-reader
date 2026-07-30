@@ -9,6 +9,13 @@
 
 	const ANTHROPIC_MODELS = ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'];
 
+	const navItems = [
+		{ id: 'appearance', label: 'Appearance' },
+		{ id: 'ai', label: 'AI Assistant' },
+		{ id: 'backup', label: 'Backup & Restore' }
+	];
+	let activeSection = $state('appearance');
+
 	// aiConfig is initialised in the (app) layout, which gates rendering on `ready`,
 	// so the store values are populated by the time this page mounts.
 	// svelte-ignore state_referenced_locally
@@ -117,192 +124,228 @@
 	}
 </script>
 
-<!-- Close button, fixed to the top-right corner of the main scroll region -->
-<button
-	type="button"
-	onclick={goBack}
-	title="Close"
-	aria-label="Close"
-	class="fixed right-4 md:right-6 top-14 z-30 rounded-full p-1.5 text-n-700 bg-surface hover:text-n-900"
->
-	<X class="size-7.5" />
-</button>
+<!-- Close button on a sticky, zero-height bar: it measures against the scroll container's content
+     area, so it can't drift under the scrollbar the way a `fixed right-4` would. This route hides
+     the app top bar, so the button sits at the very top of the scrollport. -->
+<div class="sticky top-0 z-30 h-0">
+	<button
+		type="button"
+		onclick={goBack}
+		title="Close"
+		aria-label="Close"
+		class="absolute right-2 md:right-4 top-2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+	>
+		<X class="size-6.5" />
+	</button>
+</div>
 
-<div class="w-full max-w-3xl px-4 py-6 sm:px-6">
-	<h2 class="mb-6 px-1 text-lg font-semibold text-n-800">Settings</h2>
-
-	<AppearanceSection />
-
-	<section class="mt-6 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
-		<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">AI Assistant</h3>
-		<p class="mb-4 text-sm text-n-500">
-			Used to suggest Scraper &amp; Rewrite rules from a feed's settings screen. Your API key is
-			stored only in this browser and forwarded per request — never saved on the server.
-		</p>
-
-		<div class="space-y-4">
-			<div>
-				<div class="mb-1 block text-sm font-medium text-n-700">Provider</div>
-				<div class="flex gap-2">
-					{#each [{ id: 'anthropic', label: 'Anthropic (Claude)' }, { id: 'openai', label: 'OpenAI' }] as opt (opt.id)}
+<div class="flex flex-col md:flex-row w-full max-w-5xl gap-6 py-6 sm:px-6">
+	<!-- Section navigation: sidebar on desktop, horizontal tabs on mobile -->
+	<nav class="w-full shrink-0 md:w-44">
+		<div class="md:sticky md:top-4">
+			<h2 class="mb-4 px-3 text-lg font-semibold text-n-800 max-md:hidden">Settings</h2>
+			<!-- The mobile tabs share their row with the floating Close button — keep clear of it. -->
+			<ul class="flex gap-1 overflow-x-auto md:flex-col max-md:pb-1 max-md:pr-11">
+				{#each navItems as item (item.id)}
+					<li class="shrink-0">
 						<button
 							type="button"
-							onclick={() => selectProvider(opt.id as AiProvider)}
-							class={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-								provider === opt.id
-									? 'border-a-600 bg-a-50 font-medium text-a-700'
-									: 'border-n-300 text-n-700 hover:bg-n-100'
+							onclick={() => (activeSection = item.id)}
+							class={`w-full whitespace-nowrap rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
+								activeSection === item.id
+									? 'bg-n-100 font-medium text-a-700'
+									: 'text-n-600 hover:bg-n-100'
 							}`}
 						>
-							{opt.label}
+							{item.label}
 						</button>
-					{/each}
-				</div>
-			</div>
+					</li>
+				{/each}
+			</ul>
+		</div>
+	</nav>
 
-			<div>
-				<label for="ai-model" class="mb-1 block text-sm font-medium text-n-700">Model</label>
-				{#if provider === 'anthropic'}
-					<select
-						id="ai-model"
-						bind:value={model}
-						class="w-full max-w-md rounded-md border border-n-300 bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					>
-						{#each ANTHROPIC_MODELS as m (m)}
-							<option value={m}>{m}</option>
+	<!-- Sections: only the active one is shown -->
+	<div class="min-w-0 flex-1 max-w-170 max-md:px-2">
+		<AppearanceSection active={activeSection === 'appearance'} />
+
+		<section
+			class:hidden={activeSection !== 'ai'}
+			class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl"
+		>
+			<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">AI Assistant</h3>
+			<p class="mb-4 text-sm text-n-500">
+				Used to suggest Scraper &amp; Rewrite rules from a feed's settings screen. Your API key is
+				stored only in this browser and forwarded per request — never saved on the server.
+			</p>
+
+			<div class="space-y-4">
+				<div>
+					<div class="mb-1 block text-sm font-medium text-n-700">Provider</div>
+					<div class="flex gap-2">
+						{#each [{ id: 'anthropic', label: 'Anthropic (Claude)' }, { id: 'openai', label: 'OpenAI' }] as opt (opt.id)}
+							<button
+								type="button"
+								onclick={() => selectProvider(opt.id as AiProvider)}
+								class={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
+									provider === opt.id
+										? 'border-a-600 bg-a-50 font-medium text-a-700'
+										: 'border-n-300 text-n-700 hover:bg-n-100'
+								}`}
+							>
+								{opt.label}
+							</button>
 						{/each}
-						{#if model && !ANTHROPIC_MODELS.includes(model)}
-							<option value={model}>{model}</option>
-						{/if}
-					</select>
-				{:else}
+					</div>
+				</div>
+
+				<div>
+					<label for="ai-model" class="mb-1 block text-sm font-medium text-n-700">Model</label>
+					{#if provider === 'anthropic'}
+						<select
+							id="ai-model"
+							bind:value={model}
+							class="w-full max-w-md rounded-md border border-n-300 bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+						>
+							{#each ANTHROPIC_MODELS as m (m)}
+								<option value={m}>{m}</option>
+							{/each}
+							{#if model && !ANTHROPIC_MODELS.includes(model)}
+								<option value={model}>{model}</option>
+							{/if}
+						</select>
+					{:else}
+						<input
+							id="ai-model"
+							type="text"
+							bind:value={model}
+							spellcheck="false"
+							placeholder="gpt-4o"
+							class="w-full max-w-md rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+						/>
+					{/if}
+				</div>
+
+				<div>
+					<label for="ai-key" class="mb-1 block text-sm font-medium text-n-700">API key</label>
 					<input
-						id="ai-model"
-						type="text"
-						bind:value={model}
+						id="ai-key"
+						type="password"
+						bind:value={apiKey}
+						autocomplete="off"
 						spellcheck="false"
-						placeholder="gpt-4o"
+						placeholder={provider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
 						class="w-full max-w-md rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 					/>
-				{/if}
-			</div>
+				</div>
 
-			<div>
-				<label for="ai-key" class="mb-1 block text-sm font-medium text-n-700">API key</label>
-				<input
-					id="ai-key"
-					type="password"
-					bind:value={apiKey}
-					autocomplete="off"
-					spellcheck="false"
-					placeholder={provider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
-					class="w-full max-w-md rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-				/>
-			</div>
-
-			<div class="flex flex-wrap items-center gap-3 pt-1">
-				<button
-					type="button"
-					onclick={handleSave}
-					disabled={saving}
-					class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
-				>
-					{saving ? 'Saving…' : 'Save'}
-				</button>
-				<button
-					type="button"
-					onclick={testConnection}
-					disabled={testing}
-					class="rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100 disabled:opacity-50"
-				>
-					{testing ? 'Testing…' : 'Test connection'}
-				</button>
-				{#if aiConfig.isConfigured}
+				<div class="flex flex-wrap items-center gap-3 pt-1">
 					<button
 						type="button"
-						onclick={handleClear}
-						class="rounded-md px-3 py-2 text-sm text-danger hover:bg-danger/10"
+						onclick={handleSave}
+						disabled={saving}
+						class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 					>
-						Clear
+						{saving ? 'Saving…' : 'Save'}
 					</button>
-				{/if}
-				{#if savedAt}
-					<span class="text-sm text-n-500">Saved</span>
-				{/if}
-			</div>
-
-			{#if status}
-				<div
-					class={`rounded-md border px-3 py-2 text-sm ${
-						status.ok
-							? 'border-success/30 bg-success/10 text-success'
-							: 'border-danger/30 bg-danger/10 text-danger'
-					}`}
-				>
-					{status.text}
+					<button
+						type="button"
+						onclick={testConnection}
+						disabled={testing}
+						class="rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100 disabled:opacity-50"
+					>
+						{testing ? 'Testing…' : 'Test connection'}
+					</button>
+					{#if aiConfig.isConfigured}
+						<button
+							type="button"
+							onclick={handleClear}
+							class="rounded-md px-3 py-2 text-sm text-danger hover:bg-danger/10"
+						>
+							Clear
+						</button>
+					{/if}
+					{#if savedAt}
+						<span class="text-sm text-n-500">Saved</span>
+					{/if}
 				</div>
-			{/if}
-		</div>
-	</section>
 
-	<section class="mt-6 rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
-		<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">Backup &amp; Restore</h3>
-		<p class="mb-2 text-sm text-n-500">
-			Your settings (feed RSS-Bridge / duplicate / cover rules, layout &amp; view preferences,
-			feed order, themes) sync to your server automatically and follow you across browsers
-			and devices. Export remains as a manual backup or to move settings between accounts.
-		</p>
-		<p class="mb-4 text-xs">
-			{#if settingsSync.syncError}
-				<span class="text-danger">{settingsSync.syncError} — settings are kept in this browser and will sync when the server is reachable.</span>
-			{:else if settingsSync.lastSyncAt}
-				<span class="text-success">Synced with server at {new Date(settingsSync.lastSyncAt).toLocaleTimeString()}.</span>
-			{:else}
-				<span class="text-n-500">Not synced yet in this session.</span>
-			{/if}
-		</p>
-
-		<div class="space-y-4">
-			<div class="flex flex-wrap items-center gap-3">
-				<button
-					type="button"
-					onclick={doExport}
-					class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700"
-				>
-					<Download class="h-4 w-4" />
-					Export settings
-				</button>
-				<label class="flex items-center gap-2 text-sm text-n-700">
-					<input type="checkbox" bind:checked={includeSecrets} class="rounded border-n-300" />
-					Include API tokens
-				</label>
+				{#if status}
+					<div
+						class={`rounded-md border px-3 py-2 text-sm ${
+							status.ok
+								? 'border-success/30 bg-success/10 text-success'
+								: 'border-danger/30 bg-danger/10 text-danger'
+						}`}
+					>
+						{status.text}
+					</div>
+				{/if}
 			</div>
-			{#if includeSecrets}
-				<p class="-mt-1 text-xs text-warning">
-					The exported file will contain your Miniflux token and AI key — keep it private.
-				</p>
-			{/if}
+		</section>
 
-			<div>
-				<button
-					type="button"
-					onclick={() => fileInput?.click()}
-					class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100"
-				>
-					<Upload class="h-4 w-4" />
-					Import settings…
-				</button>
-				<input
-					bind:this={fileInput}
-					type="file"
-					accept="application/json,.json"
-					class="hidden"
-					onchange={onImportFile}
-				/>
-				<p class="mt-1 text-xs text-n-500">
-					Overwrites matching settings in this browser, then reloads. Other data (caches) is kept.
-				</p>
+		<section
+			class:hidden={activeSection !== 'backup'}
+			class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl"
+		>
+			<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">Backup &amp; Restore</h3>
+			<p class="mb-2 text-sm text-n-500">
+				Your settings (feed RSS-Bridge / duplicate / cover rules, layout &amp; view preferences,
+				feed order, themes) sync to your server automatically and follow you across browsers
+				and devices. Export remains as a manual backup or to move settings between accounts.
+			</p>
+			<p class="mb-4 text-xs">
+				{#if settingsSync.syncError}
+					<span class="text-danger">{settingsSync.syncError} — settings are kept in this browser and will sync when the server is reachable.</span>
+				{:else if settingsSync.lastSyncAt}
+					<span class="text-success">Synced with server at {new Date(settingsSync.lastSyncAt).toLocaleTimeString()}.</span>
+				{:else}
+					<span class="text-n-500">Not synced yet in this session.</span>
+				{/if}
+			</p>
+
+			<div class="space-y-4">
+				<div class="flex flex-wrap items-center gap-3">
+					<button
+						type="button"
+						onclick={doExport}
+						class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700"
+					>
+						<Download class="h-4 w-4" />
+						Export settings
+					</button>
+					<label class="flex items-center gap-2 text-sm text-n-700">
+						<input type="checkbox" bind:checked={includeSecrets} class="rounded border-n-300" />
+						Include API tokens
+					</label>
+				</div>
+				{#if includeSecrets}
+					<p class="-mt-1 text-xs text-warning">
+						The exported file will contain your Miniflux token and AI key — keep it private.
+					</p>
+				{/if}
+
+				<div>
+					<button
+						type="button"
+						onclick={() => fileInput?.click()}
+						class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100"
+					>
+						<Upload class="h-4 w-4" />
+						Import settings…
+					</button>
+					<input
+						bind:this={fileInput}
+						type="file"
+						accept="application/json,.json"
+						class="hidden"
+						onchange={onImportFile}
+					/>
+					<p class="mt-1 text-xs text-n-500">
+						Overwrites matching settings in this browser, then reloads. Other data (caches) is kept.
+					</p>
+				</div>
 			</div>
-		</div>
-	</section>
+		</section>
+	</div>
 </div>

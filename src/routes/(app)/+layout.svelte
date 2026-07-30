@@ -24,8 +24,11 @@
 
 	// The full-page article route carries its own header (a breadcrumbs row above the H1 plus a
 	// floating Close button), so the app top bar is hidden there and the article gets the full
-	// viewport height. Settings keeps the top bar — it still uses it to navigate back.
+	// viewport height. App settings does the same: its own section nav titles the screen, and the
+	// top bar would only show whichever feed the reader happened to leave behind. The feed-edit
+	// screen keeps the top bar — there it names the feed being edited.
 	const isArticleView = $derived(page.route.id?.includes('/article/') ?? false);
+	const isAppSettings = $derived(page.route.id === '/(app)/settings');
 	const isFullView = $derived(isArticleView || (page.route.id?.includes('/settings') ?? false));
 	const showArticlePanel = $derived(
 		ui.layoutMode === 'three-column' && !ui.isMobile && !isFullView
@@ -80,7 +83,7 @@
 	<div class="flex h-screen bg-n-50">
 		<Sidebar />
 		<div class="flex flex-col flex-1 min-w-0">
-			{#if !isArticleView}
+			{#if !isArticleView && !isAppSettings}
 				<TopBar />
 			{/if}
 			<div class="relative flex-1 min-h-0 flex flex-col">

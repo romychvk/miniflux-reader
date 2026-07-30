@@ -4,6 +4,8 @@
 	import { resolveTheme, isPreset, type Theme } from '$lib/themes';
 	import ThemeEditor from './ThemeEditor.svelte';
 
+	let { active = true }: { active?: boolean } = $props();
+
 	let editing = $state<{ theme: Theme; isNew: boolean } | null>(null);
 
 	const activeTheme = $derived(theme.all.find((t) => t.id === theme.current));
@@ -56,7 +58,7 @@
 	}
 </script>
 
-<section class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
+<section class:hidden={!active} class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
 	<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">Appearance</h3>
 	<p class="mb-4 text-sm text-n-500">
 		Pick a theme, or build your own: start from a preset with “Customize”, adjust the accent and
