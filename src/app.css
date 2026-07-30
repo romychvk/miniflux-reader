@@ -133,14 +133,20 @@
 }
 
 /*
-  Hero-image breakout width: lead article images (the cover in ArticleView, the first image
-  block in EntryContent) may extend past the text column — up to 64rem, clamped to the
+  Hero-image breakout width: article images (the cover in ArticleView, the standalone image
+  blocks in EntryContent) may extend past the text column — up to 64rem, clamped to the
   nearest @container (the article content area) minus a 3rem gutter, and never narrower
-  than the column itself. One knob for both usage sites; the % and cqw units resolve at
+  than the column itself. One knob for every usage site; the % and cqw units resolve at
   the element that uses the token, not here.
+
+  --text-col-w mirrors the reading column those blocks break out of, so content that should
+  stay measured against the text (figure captions) can pull it back in. It restates
+  ArticleView's own `max-w-3xl mx-auto px-6` in the same terms the breakout uses — keep the
+  two in step if that wrapper's width or padding changes.
 */
 :root {
 	--hero-breakout-w: max(100%, min(100cqw - 3rem, 64rem));
+	--text-col-w: calc(min(48rem, 100cqw) - 3rem);
 }
 
 /* 

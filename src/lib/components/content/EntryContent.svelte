@@ -198,6 +198,12 @@
     figcaption {
       @apply text-center text-sm mt-3;
     }
+    /* A caption reads as text, so it stays on the text measure even when its <figure> has
+       broken out — otherwise a 1024px-wide caption line sits under a 720px article. */
+    & > figure > figcaption {
+      max-width: var(--text-col-w);
+      @apply mx-auto;
+    }
     /* Standalone images are wrapped in .prose-img (see processArticleHtml) so each sits as
        its own spaced block; list-item images and top-level <i> keep their own top spacing. */
     .prose-img {
@@ -206,13 +212,13 @@
     .prose-img img {
       @apply block mx-auto;
     }
-    /* The lead image breaks out of the text column — up to --hero-breakout-w (app.css),
+    /* Standalone images break out of the text column — up to --hero-breakout-w (app.css),
        measured against ArticleView's @container, centred via symmetric negative margins.
-       Only the article's first block qualifies; mid-article images keep the text width.
-       Images narrower than the column don't stretch: the wider block merely raises their
-       max-width cap, and mx-auto keeps them centred. */
-    .prose-img:first-child,
-    figure:first-child:has(img) {
+       Every top-level image block qualifies, not just the lead one; images that sit inside
+       a paragraph stay inline at text width. Images narrower than the column don't stretch:
+       the wider block merely raises their max-width cap, and mx-auto keeps them centred. */
+    & > .prose-img,
+    & > figure:has(img) {
       width: var(--hero-breakout-w);
       margin-inline: calc((100% - var(--hero-breakout-w)) / 2);
     }
