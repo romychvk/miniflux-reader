@@ -47,7 +47,7 @@
 </script>
 
 {#snippet logoutButton()}
-	<div class="border-t border-sb-200 p-3 mt-auto flex flex-col gap-2.5">
+	<div class="border-t border-sb-200 p-3 mt-auto flex justify-between gap-2.5">
 		<a
 			href="/settings"
 			class="flex items-center gap-2 text-sm text-sb-500 hover:text-sb-700 transition-colors w-full cursor-pointer"
@@ -57,7 +57,7 @@
 		</a>
 		<button
 			onclick={handleLogout}
-			class="flex items-center gap-2 text-sm text-sb-500 hover:text-sb-700 transition-colors w-full cursor-pointer"
+			class="flex items-center justify-end gap-2 text-sm text-sb-500 hover:text-sb-700 transition-colors w-full cursor-pointer"
 		>
 			<LogOut size={16} />
 			Logout
