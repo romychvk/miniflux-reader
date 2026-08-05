@@ -1,7 +1,11 @@
 {
   "name": "miniflux-reader",
   "version": "0.1.0",
-  "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/romychvk/miniflux-reader"
+  },
   "scripts": {
     "dev": "node node_modules/vite/bin/vite.js dev",
     "build": "pnpm run check && pnpm test && vite build",
