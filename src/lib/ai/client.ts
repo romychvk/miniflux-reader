@@ -1,5 +1,6 @@
 import type { AiMessage, RuleSuggestion } from '$lib/types';
 import { aiConfig } from '$lib/stores/aiConfig.svelte';
+import { authedFetch } from '$lib/api';
 import { SYSTEM_PROMPT } from './prompt';
 
 // Pull the JSON object out of the model's reply, tolerating ``` fences or stray
@@ -33,7 +34,9 @@ export async function requestAi(system: string, messages: AiMessage[]): Promise<
 		throw new Error('AI assistant is not configured. Set it up in Settings.');
 	}
 
-	const res = await fetch('/api/ai', {
+	// authedFetch adds the Miniflux credential headers — /api/ai is gated like the other
+	// helper endpoints so it can't be driven anonymously as an open relay.
+	const res = await authedFetch('/api/ai', {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',

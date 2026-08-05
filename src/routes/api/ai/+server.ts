@@ -1,10 +1,15 @@
 import type { RequestHandler } from './$types';
 import type { AiMessage, AiProvider } from '$lib/types';
+import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 
 // Server-side proxy to an LLM provider. Mirrors the Miniflux proxy model: the
 // user's API key never lives on the server — it is sent per-request in the
 // X-AI-Key header and forwarded to the provider. This also sidesteps CORS
 // (Anthropic blocks direct browser calls) and keeps the key out of page JS logs.
+//
+// Gated by requireMinifluxAuth like the other helper endpoints: the caller brings their own
+// AI key, but without the gate this would still be an anonymous open relay to the provider
+// APIs (arbitrary model/maxTokens on someone else's traffic path).
 
 interface AiRequest {
 	provider: AiProvider;
@@ -66,6 +71,9 @@ async function callOpenAI(key: string, req: AiRequest): Promise<string> {
 }
 
 export const POST: RequestHandler = async ({ request }) => {
+	const auth = await requireMinifluxAuth(request);
+	if (auth instanceof Response) return auth;
+
 	const key = request.headers.get('x-ai-key');
 	if (!key) {
 		return new Response(JSON.stringify({ error: 'Missing AI API key' }), {

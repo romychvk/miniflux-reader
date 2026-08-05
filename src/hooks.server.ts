@@ -1,4 +1,5 @@
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, RequestEvent } from '@sveltejs/kit';
+import { createRateLimiter } from '$lib/server/rateLimit';
 
 // Baseline response hardening applied to every route.
 //
@@ -13,7 +14,45 @@ import type { Handle } from '@sveltejs/kit';
 // path), so a shared CDN/proxy must never cache them.
 const NO_STORE_PREFIXES = ['/api/settings', '/api/proxy', '/api/ai'];
 
+// Per-IP limits on the API surface (single-process in-memory buckets — see rateLimit.ts).
+// Budgets track real client behavior: the proxy takes an icon fan-out + entry pages on boot,
+// og-image fires per card but is cached client-side, the AI proxy is slow/expensive upstream.
+// First match wins — specific prefixes before broad ones.
+const limiter = createRateLimiter([
+	{ prefix: '/api/ai', capacity: 20, refillPerMinute: 10 },
+	{ prefix: '/api/fetch-page', capacity: 30, refillPerMinute: 20 },
+	{ prefix: '/api/og-image', capacity: 120, refillPerMinute: 60 },
+	{ prefix: '/api/rss-bridge', capacity: 30, refillPerMinute: 20 },
+	{ prefix: '/api/settings', capacity: 30, refillPerMinute: 30 },
+	{ prefix: '/api/proxy', capacity: 300, refillPerMinute: 300 }
+]);
+
+// Client IP for bucketing. Cloudflare's header when fronted by it, else the first XFF hop, else
+// the socket peer. These headers are spoofable when the app is exposed directly — the limiter is
+// abuse damping for a demo deployment, not an auth boundary.
+function clientIp(event: RequestEvent): string {
+	return (
+		event.request.headers.get('cf-connecting-ip') ||
+		event.request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+		event.getClientAddress()
+	);
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
+	if (event.url.pathname.startsWith('/api/')) {
+		const verdict = limiter.check(event.url.pathname, clientIp(event));
+		if (!verdict.allowed) {
+			return new Response(JSON.stringify({ error: 'Too many requests' }), {
+				status: 429,
+				headers: {
+					'Content-Type': 'application/json',
+					'Retry-After': String(verdict.retryAfterSeconds),
+					'Cache-Control': 'no-store'
+				}
+			});
+		}
+	}
+
 	const response = await resolve(event);
 
 	response.headers.set('X-Content-Type-Options', 'nosniff');
