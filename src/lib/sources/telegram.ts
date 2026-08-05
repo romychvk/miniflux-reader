@@ -4,7 +4,7 @@ import { hostOf } from "./host";
 import { storageGet, storageSet } from "$lib/storage";
 import { authedFetch } from "$lib/api";
 
-// Telegram feeds (via RSS-Bridge) have a generic rssbridge.de feed_url, but every post links to
+// Telegram feeds (via RSS-Bridge) have a generic bridge-instance feed_url, but every post links to
 // t.me — so the post URL host is the reliable "this is a Telegram post" signal.
 function isTelegramPost(entry: Entry): boolean {
   return hostOf(entry.url) === "t.me";

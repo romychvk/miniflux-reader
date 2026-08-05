@@ -4,7 +4,7 @@
 // Pure and server-safe on purpose: the /api/rss-bridge route imports this, so nothing here may
 // touch localStorage or the stores (that's $lib/rssbridge, which is browser-only).
 //
-// The upstream payload is third-party and large (~1.2MB / 520 bridges on rssbridge.de), so every
+// The upstream payload is third-party and large (~1.2MB / 500+ bridges on a full instance), so every
 // field is treated as untrusted and unknown shapes are skipped rather than thrown on.
 
 export interface BridgeParamOption {

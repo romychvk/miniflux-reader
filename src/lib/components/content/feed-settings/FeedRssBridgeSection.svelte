@@ -52,7 +52,7 @@
 					type="url"
 					bind:value={rssInstance}
 					disabled={!rssEnabled}
-					placeholder="https://rssbridge.de/"
+					placeholder="https://your-rssbridge-instance/"
 					class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
 				/>
 			</div>

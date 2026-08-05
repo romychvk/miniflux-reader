@@ -4,7 +4,8 @@
 // Some sites (notably reddit.com) rate-limit that default with HTTP 429, so a
 // browser-like or otherwise distinct UA is often needed. These presets give
 // one-click common values while the field itself stays freely editable for
-// anything custom.
+// anything custom — e.g. an identified bot UA pointing at YOUR deployment:
+//   Mozilla/5.0 (compatible; my-reader/1.0; +https://reader.example.com)
 
 export interface UserAgentPreset {
 	label: string;
@@ -16,11 +17,6 @@ export const CUSTOM_UA = '__custom__';
 
 export const USER_AGENT_PRESETS: UserAgentPreset[] = [
 	{ label: 'Default (Miniflux)', value: '' },
-	{
-		// The exact string confirmed to get past Reddit's 429 on this deployment.
-		label: 'Miniflux Reader (recommended)',
-		value: 'Mozilla/5.0 (compatible; miniflux-reader/1.0; +https://miniflux-reader.romych.pp.ua)'
-	},
 	{
 		label: 'Chrome on Windows',
 		value:

@@ -1,5 +1,5 @@
 // Helpers for decomposing/recomposing an RSS-Bridge feed URL, e.g.
-//   https://rssbridge.de/?action=display&bridge=FilterBridge&url=<feed>&filter=…&format=Atom
+//   https://bridge.example.com/?action=display&bridge=FilterBridge&url=<feed>&filter=…&format=Atom
 // The settings UI lets the user edit the parts and toggle the bridge on/off; when off, the
 // feed_url becomes the bare `url` param (direct feed) and the bridge config is kept in
 // localStorage (Miniflux has no field to hold it). See FeedSettings.svelte.
@@ -20,7 +20,7 @@ export interface RssBridgeParam {
 export type RssBridgeSourceKey = 'url' | 'home_page';
 
 export interface RssBridgeConfig {
-	instance: string; // origin + path, e.g. "https://rssbridge.de/"
+	instance: string; // origin + path, e.g. "https://bridge.example.com/"
 	bridge: string; // e.g. "FilterBridge"
 	sourceUrl: string; // the source param — the underlying feed or scraped page
 	sourceKey?: RssBridgeSourceKey; // defaults to 'url' (saved configs predate this field)
@@ -84,8 +84,11 @@ export function parseRssBridgeUrl(url: string): RssBridgeConfig | null {
 }
 
 export function buildRssBridgeUrl(cfg: RssBridgeConfig): string {
-	// Fall back to the user's own instance if the field was cleared, so the result stays valid.
-	const base = cfg.instance.trim() || 'https://rssbridge.de/';
+	// Fall back to the user's remembered/derived instance if the field was cleared. There is
+	// deliberately no hardcoded public-instance default: public RSS-Bridge hosts are volunteer
+	// boxes with no SLA, so the instance is always an explicit user choice.
+	const base = cfg.instance.trim() || defaultInstance();
+	if (!base) throw new Error('RSS-Bridge instance is not set');
 	const u = new URL(base);
 	u.search = ''; // drop any stray query on the instance URL
 	u.searchParams.set('action', 'display');

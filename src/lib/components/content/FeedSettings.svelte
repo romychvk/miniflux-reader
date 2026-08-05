@@ -11,6 +11,7 @@
 		isRssBridgeUrl,
 		parseRssBridgeUrl,
 		buildRssBridgeUrl,
+		defaultInstance,
 		RSS_BRIDGE_STORAGE_PREFIX,
 		type RssBridgeConfig,
 		type RssBridgeParam
@@ -83,7 +84,7 @@
 		const saved = storageGet<RssBridgeConfig | null>(rssKey, null);
 		return {
 			enabled: false,
-			instance: saved?.instance || 'https://rssbridge.de/',
+			instance: saved?.instance || defaultInstance(),
 			bridge: saved?.bridge || '',
 			sourceUrl: feed.feed_url,
 			params: saved?.params ?? []
@@ -99,17 +100,22 @@
 	let rssParams = $state<RssBridgeParam[]>(rss0.params);
 
 	// The feed_url actually sent to Miniflux: the assembled bridge URL when on, else direct.
-	const effectiveFeedUrl = $derived(
-		rssEnabled
-			? buildRssBridgeUrl({
-					instance: rssInstance,
-					bridge: rssBridge,
-					sourceUrl: rssSourceUrl,
-					sourceKey: rssSourceKey,
-					params: rssParams
-				})
-			: rssSourceUrl
-	);
+	// buildRssBridgeUrl throws when no instance is known (neither the field nor a remembered
+	// one); '' then means "not buildable" — Save stays disabled until an instance is entered.
+	const effectiveFeedUrl = $derived.by(() => {
+		if (!rssEnabled) return rssSourceUrl;
+		try {
+			return buildRssBridgeUrl({
+				instance: rssInstance,
+				bridge: rssBridge,
+				sourceUrl: rssSourceUrl,
+				sourceKey: rssSourceKey,
+				params: rssParams
+			});
+		} catch {
+			return '';
+		}
+	});
 
 	// Disabled-state edits to params/instance/bridge don't change effectiveFeedUrl, so track a
 	// serialized signature to still flag them dirty and persist them to localStorage.
@@ -128,7 +134,7 @@
 
 	// --- Cover image rule (client-side, per feed, localStorage) ------------------------
 	// CSS selector (+ optional attribute) to extract the cover from the source page when the
-	// generic og:image heuristic misses it (e.g. rutracker: selector "var.postImg", attr "title").
+	// generic og:image heuristic misses it (e.g. a forum feed: selector "var.postImg", attr "title").
 	// svelte-ignore state_referenced_locally
 	const coverKey = COVER_STORAGE_PREFIX + feed.id;
 	const cover0 = asCoverRule(storageGet<unknown>(coverKey, null));
@@ -176,7 +182,7 @@
 		const changes: FeedUpdate = {};
 		if (title !== initial.title) changes.title = title;
 		if (siteUrl !== initial.site_url) changes.site_url = siteUrl;
-		if (effectiveFeedUrl !== initial.feed_url) changes.feed_url = effectiveFeedUrl;
+		if (effectiveFeedUrl && effectiveFeedUrl !== initial.feed_url) changes.feed_url = effectiveFeedUrl;
 		if (categoryId !== initial.category_id && categoryId !== NEW_CATEGORY_SENTINEL)
 			changes.category_id = categoryId;
 		if (crawler !== initial.crawler) changes.crawler = crawler;
@@ -206,7 +212,7 @@
 		Object.assign(initial, {
 			title,
 			site_url: siteUrl,
-			feed_url: effectiveFeedUrl,
+			feed_url: effectiveFeedUrl || initial.feed_url,
 			category_id: categoryId,
 			crawler,
 			scraper_rules: scraperRules,
@@ -386,7 +392,10 @@
 			<button
 				type="button"
 				onclick={handleSave}
-				disabled={saving || !dirty || (categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
+				disabled={saving ||
+					!dirty ||
+					(rssEnabled && !effectiveFeedUrl) ||
+					(categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
 				class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 			>
 				{saving ? 'Saving…' : 'Save'}

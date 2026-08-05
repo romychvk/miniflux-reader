@@ -15,7 +15,7 @@
 	<p class="mb-4 text-xs text-n-500">
 		Where to find the card/article cover when the source has no <code>og:image</code>. Leave empty
 		to use the default (the page's Open Graph image). Set a CSS selector to pull it from specific
-		markup — e.g. rutracker keeps the cover in <code>&lt;var class="postImg" title="…"&gt;</code>,
+		markup — some forum engines keep the cover in <code>&lt;var class="postImg" title="…"&gt;</code>,
 		so use selector <code>var.postImg</code> with attribute <code>title</code>.
 	</p>
 	<div class="flex flex-wrap gap-4">

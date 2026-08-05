@@ -125,7 +125,7 @@ function imageEnclosure(entry: Entry): string | null {
 // Best thumbnail without any extra network request: first real content image, else the
 // RSS image enclosure. When the feed has a custom cover rule we skip this entirely and let
 // ensureThumbnail() resolve the cover from the source page (the rule is authoritative for
-// such feeds, e.g. rutracker, whose scraped content holds only UI chrome). The og:image
+// such feeds — typically scraped forums whose content holds only UI chrome). The og:image
 // fallback (a network call) is handled lazily by ensureThumbnail() when this returns null.
 export function pickThumbnail(
   entry: Entry,

@@ -135,7 +135,7 @@
 		};
 	});
 
-	// Show the resolved cover (rutracker's postImg / a feed's og:image) at the top when the
+	// Show the resolved cover (a cover-rule match / a feed's og:image) at the top when the
 	// article body doesn't already contain that image — some sources keep the cover out of the
 	// post HTML, so the article would otherwise be imageless even though the card has a thumb.
 	const coverUrl = $derived(entry._thumbnailUrl ?? null);

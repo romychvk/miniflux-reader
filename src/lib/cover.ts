@@ -1,6 +1,6 @@
 // Per-feed cover/thumbnail extraction rule. Some sources expose the cover only in non-standard
-// markup the generic heuristics (content <img>, enclosure, og:image) miss — e.g. rutracker keeps
-// it in `<var class="postImg" title="URL">`, rendered to an <img> only by client JS. Rather than
+// markup the generic heuristics (content <img>, enclosure, og:image) miss — e.g. some forum
+// engines keep it in `<var class="postImg" title="URL">`, rendered to an <img> only by client JS. Rather than
 // hardcoding such sites in shared code, each feed can carry its own CSS-selector rule (stored in
 // localStorage; Miniflux has no field for it). Extraction runs client-side over the page HTML
 // fetched via /api/fetch-page, so any CSS selector works through DOMParser.querySelector.
@@ -13,7 +13,7 @@ export interface CoverRule {
 export const COVER_STORAGE_PREFIX = 'cover:';
 
 // Attributes tried (in order) when the rule's attr is empty — covers <img>, lazy-load variants,
-// links, <meta content>, and rutracker's <var title>.
+// links, <meta content>, and forum-style <var title>.
 const ATTR_FALLBACKS = ['src', 'data-src', 'data-original', 'data-lazy-src', 'href', 'content', 'title'];
 
 export function asCoverRule(raw: unknown): CoverRule {
