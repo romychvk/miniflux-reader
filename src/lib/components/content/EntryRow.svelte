@@ -89,7 +89,9 @@
 	}
 
 	async function openArticle() {
-		if (ui.isMobile || ui.layoutMode === 'two-column') {
+		// Zen mode overrides the pane placement rather than replacing it: articles always open
+		// full-page while it's on, and switching it off restores three-column/expanded untouched.
+		if (ui.isMobile || ui.layoutMode === 'two-column' || ui.zenMode) {
 			goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
 			return;
 		}

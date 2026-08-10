@@ -14,6 +14,7 @@ const DEFAULT_ARTICLE_PANEL_WIDTH = 550;
 const MIN_ARTICLE_PANEL_WIDTH = 300;
 const MIN_ENTRY_LIST_WIDTH = 320;
 const AUTO_MARK_READ_KEY = 'autoMarkReadOnScroll';
+const ZEN_MODE_KEY = 'zenMode';
 
 // Seed for the "Ignore posts like this" quick-filter modal, opened from an article/list entry.
 export interface FilterSeed {
@@ -41,6 +42,7 @@ function createUI() {
 	let viewModesMap = $state<Record<string, ViewMode>>({});
 	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
 	let autoMarkReadOnScroll = $state(true);
+	let zenMode = $state(false);
 	let markReadSuppressedUntil = 0;
 	let lightboxImages = $state<string[]>([]);
 	let lightboxIndex = $state(0);
@@ -55,6 +57,18 @@ function createUI() {
 	function toggleAutoMarkRead() {
 		autoMarkReadOnScroll = !autoMarkReadOnScroll;
 		storageSet(AUTO_MARK_READ_KEY, String(autoMarkReadOnScroll));
+	}
+
+	// Zen mode: while reading a full-page article, slide the sidebar away and let the article have
+	// the whole window. It layers on top of layoutMode rather than replacing it — the reader's
+	// "Reading pane" choice is preserved and restored the moment Zen is switched off.
+	function initZenMode() {
+		if (storageGetString(ZEN_MODE_KEY) === 'true') zenMode = true;
+	}
+
+	function toggleZenMode() {
+		zenMode = !zenMode;
+		storageSet(ZEN_MODE_KEY, String(zenMode));
 	}
 
 	function initSidebarWidth() {
@@ -212,6 +226,7 @@ function createUI() {
 		get viewKey() { return selectedFeed ? feedStorageKey(selectedFeed) : 'all'; },
 		get articlePanelWidth() { return articlePanelWidth; },
 		get autoMarkReadOnScroll() { return autoMarkReadOnScroll; },
+		get zenMode() { return zenMode; },
 		get lightboxImage() { return lightboxImages[lightboxIndex] ?? null; },
 		get lightboxIndex() { return lightboxIndex; },
 		get lightboxCount() { return lightboxImages.length; },
@@ -242,6 +257,8 @@ function createUI() {
 		setViewMode,
 		initAutoMarkRead,
 		toggleAutoMarkRead,
+		initZenMode,
+		toggleZenMode,
 		initArticlePanelWidth,
 		setArticlePanelWidth
 	};

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, RotateCw, ChevronLeft, ChevronRight, Ban, Bookmark, ArrowLeft, ExternalLink } from 'lucide-svelte';
+	import { X, RotateCw, ChevronLeft, ChevronRight, Ban, Bookmark, ArrowLeft, ExternalLink, Expand, Shrink } from 'lucide-svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import type { Entry } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -101,6 +101,32 @@
 		if (sc) sc.scrollTop = 0;
 	});
 
+	// Zen mode. Only the full-page route can be zen (onClose ⇒ panel/expanded), and EntryRow routes
+	// every click there while it's on, so this is the one place the mode is visible.
+	// The prev/next arrows fade out and come back when the pointer nears either screen edge —
+	// tracked in JS rather than with a CSS hover strip so no invisible band steals clicks or text
+	// selection from the article. EDGE_REVEAL_PX is the knob worth trying out in the browser.
+	const EDGE_REVEAL_PX = 80;
+	const zen = $derived(ui.zenMode && !onClose && !ui.isMobile);
+	let nearEdge = $state(false);
+	// Derived rather than reset in the effect's teardown: teardown observes the *previous* run's
+	// state, so leaving zen this way hides nothing stale — arrowsHidden simply goes false at once.
+	const arrowsHidden = $derived(zen && !nearEdge);
+
+	$effect(() => {
+		if (!zen) return;
+		let last = false; // plain closure var — reading nearEdge here would re-subscribe the effect
+		function onMove(ev: MouseEvent) {
+			const near = ev.clientX <= EDGE_REVEAL_PX || ev.clientX >= window.innerWidth - EDGE_REVEAL_PX;
+			if (near !== last) {
+				last = near;
+				nearEdge = near;
+			}
+		}
+		window.addEventListener('mousemove', onMove);
+		return () => window.removeEventListener('mousemove', onMove);
+	});
+
 	// Briefly press the matching arrow so a keyboard ←/→ gives the same visual feedback a click does.
 	let pressed = $state<'prev' | 'next' | null>(null);
 	let pressTimer: ReturnType<typeof setTimeout> | undefined;
@@ -181,6 +207,7 @@
 				onclick={() => navigate(prevEntry, 'prev')}
 				class="nav-arrow pointer-events-auto absolute left-2 md:left-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
 				class:pressed={pressed === 'prev'}
+				class:zen-hidden={arrowsHidden}
 				title="Previous article"
 			>
 				<ChevronLeft class="size-6.5" />
@@ -191,6 +218,7 @@
 				onclick={() => navigate(nextEntry, 'next')}
 				class="nav-arrow pointer-events-auto absolute right-2 md:right-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
 				class:pressed={pressed === 'next'}
+				class:zen-hidden={arrowsHidden}
 				title="Next article"
 			>
 				<ChevronRight class="size-6.5" />
@@ -218,7 +246,15 @@
 	     expanded mode keep that top bar and sit right next to the feed list, so there the row
 	     would only repeat the feed the reader just clicked in. -->
 	{#if !onClose}
-	<nav class="flex justify-center items-center gap-0.5 text-sm text-n-800 mb-6 min-w-0 pr-10">
+	<!-- The floating Close button overlaps this row's right end, but only while the column is narrow
+	     enough to reach it: below ~52rem of container width the column fills <main> and the button
+	     sits ~32px inside its right edge; above that the column stops at max-w-3xl and the button
+	     clears it entirely. Reserving that room with padding-right would shift the centred crumbs
+	     left of the H1 by half the padding — visibly off-centre at every width. Two flex spacers do
+	     the centring instead, and only the right one carries a floor, so the crumbs stay centred
+	     until they would actually run under the button and give way just then. The floor lifts past
+	     the threshold; @container measures <main>, so this tracks the sidebar, not the viewport. -->
+	<nav class="flex items-center gap-0.5 text-sm text-n-800 mb-6 min-w-0 before:flex-1 before:content-[''] after:flex-1 after:content-[''] after:min-w-5 sm:after:min-w-8 @[52rem]:after:min-w-0">
 		<!-- {#if !onClose}
 			<button
 				onclick={goBack}
@@ -294,6 +330,19 @@
 		>
 			<RotateCw size={16} class={refetching ? 'animate-spin' : ''} />
 		</button>
+		{#if !onClose && !ui.isMobile}
+			<button
+				onclick={() => ui.toggleZenMode()}
+				title={ui.zenMode ? 'Exit Zen mode' : 'Zen mode'}
+				class="shrink-0 flex justify-center items-center size-7 rounded-full transition-colors {ui.zenMode ? 'text-a-600 hover:bg-n-200' : 'text-n-400 hover:text-n-700 hover:bg-n-200'}"
+			>
+				{#if ui.zenMode}
+					<Shrink size={16} />
+				{:else}
+					<Expand size={16} />
+				{/if}
+			</button>
+		{/if}
 	</div>
 
 	{#if showCover}
@@ -316,11 +365,18 @@
 	   keyboard ←/→ (.pressed). Uses the standalone `scale` property so it composes with the
 	   button's Tailwind translate-based vertical centring instead of overriding it. */
 	.nav-arrow {
-		transition: scale 150ms ease;
+		transition: scale 150ms ease, opacity 200ms ease;
 	}
 	.nav-arrow:active,
 	.nav-arrow.pressed {
 		scale: 0.85;
+	}
+
+	/* Zen mode parks the arrows out of sight until the pointer nears a screen edge. They keep
+	   their pointer events: while invisible the cursor is by definition away from the edge, so
+	   there is nothing under it to click by accident. */
+	.nav-arrow.zen-hidden {
+		opacity: 0;
 	}
 
 	/* Wider than the text column, centred via symmetric negative margins; --hero-breakout-w

@@ -32,6 +32,7 @@ test('isSyncableKey includes ordinary settings', () => {
 		'categoryOrder',
 		'showAll',
 		'autoMarkReadOnScroll',
+		'zenMode',
 		'dedup:42',
 		'coverRule:7',
 		'filterAction:12'

@@ -330,6 +330,20 @@
 											<img src={mode.img} alt="" class="w-18" />
 										</button>
 									{/each}
+									<!-- A checkbox, not a fourth placement radio: Zen layers on top of whichever
+									     pane mode is selected and hands it back when switched off. -->
+									<button
+										onclick={() => ui.toggleZenMode()}
+										title="Open articles full-window, without the sidebar"
+										class="w-full text-left px-4 py-2 mt-1 text-sm hover:bg-n-100 text-n-700 flex items-center gap-2"
+									>
+										{#if ui.zenMode}
+											<SquareCheck size={18} class="shrink-0 text-a-600" />
+										{:else}
+											<Square size={18} class="shrink-0 text-n-500" />
+										{/if}
+										Zen mode
+									</button>
 								</div>
 							{/if}
 

@@ -34,6 +34,11 @@
 		ui.layoutMode === 'three-column' && !ui.isMobile && !isFullView
 	);
 
+	// Zen mode only bites while a full-page article is open — the feed list still needs its sidebar
+	// to navigate. Mobile is excluded outright: there is no desktop sidebar to hide there, and the
+	// preference can arrive on a phone through settings sync.
+	const zenActive = $derived(ui.zenMode && isArticleView && !ui.isMobile);
+
 	// onMount stays synchronous so the matchMedia cleanup is actually registered: a cleanup
 	// returned after an `await` runs in a detached microtask that Svelte never sees, leaking
 	// the listener. The async boot sequence runs alongside via boot().
@@ -67,6 +72,7 @@
 		ui.initViewMode();
 		ui.initArticlePanelWidth();
 		ui.initAutoMarkRead();
+		ui.initZenMode();
 		entries.initShowAll();
 		theme.init();
 		aiConfig.init();
@@ -81,7 +87,7 @@
 
 {#if ready}
 	<div class="flex h-screen bg-n-50">
-		<Sidebar />
+		<Sidebar collapsed={zenActive} />
 		<div class="flex flex-col flex-1 min-w-0">
 			{#if !isArticleView && !isAppSettings}
 				<TopBar />

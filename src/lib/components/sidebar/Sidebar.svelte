@@ -14,6 +14,11 @@
 	import BridgeFeedWizard from '$lib/components/ui/BridgeFeedWizard.svelte';
 	import type { BridgeChoice } from '$lib/bridgeFinder';
 
+	// Zen mode slides the desktop sidebar off the left edge instead of unmounting it: the feed
+	// tree's scroll container has to survive, or every article open/close would snap it back to
+	// the top. Margins take part in flex layout, so <main> reclaims the width either way.
+	let { collapsed = false }: { collapsed?: boolean } = $props();
+
 	let showAddModal = $state(false);
 	let showWizard = $state(false);
 	// Handed to the wizard when Add Feed found nothing for a URL, so it isn't retyped.
@@ -68,8 +73,8 @@
 <!-- Desktop sidebar -->
 {#if !ui.isMobile}
 	<aside
-		class="h-screen border-r-2 border-r-n-200 bg-sidebar flex flex-col shrink-0 relative"
-		style="width: {ui.sidebarWidth}px"
+		class="h-screen border-r-2 border-r-n-200 bg-sidebar flex flex-col shrink-0 relative transition-[margin-left] duration-200 ease-out motion-reduce:transition-none"
+		style="width: {ui.sidebarWidth}px; margin-left: {collapsed ? -ui.sidebarWidth : 0}px"
 	>
 		<div class="pl-3 pr-1 py-1.5 flex items-center justify-between">
 			<h2 class="text-lg text-sb-800 font-bold leading-none"><a href="/">Miniflux Reader</a></h2>
