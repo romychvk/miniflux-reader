@@ -266,9 +266,10 @@
 			target="_blank"
 			rel="noopener noreferrer"
 			title="Open the original article"
-			class="underline transition-colors rounded px-1.5 py-0.5 hover:text-n-800 hover:bg-n-200 hover:no-underline"
+			class="group underline gap-1 transition-colors rounded px-1.5 py-0.5 hover:text-n-800 hover:bg-n-200 hover:no-underline flex items-center justify-center"
 		>
 			Source
+			<ExternalLink class="text-n-400 group-hover:text-n-600" size={15} />
 		</a>
 		<span class="ml-1 mr-0.5 h-4 w-px bg-n-200"></span>
 		<button
