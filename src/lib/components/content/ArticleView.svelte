@@ -108,6 +108,26 @@
 	// selection from the article. EDGE_REVEAL_PX is the knob worth trying out in the browser.
 	const EDGE_REVEAL_PX = 80;
 	const zen = $derived(ui.zenMode && !onClose && !ui.isMobile);
+
+	function toggleZen() {
+		// Zen is the full-window view, and only the /article route provides it — so from the panel
+		// and inline placements entering it is a navigation. Push (not replace) so leaving lands the
+		// reader back on the list with the panel still open on this entry: ui.selectedEntry survives
+		// navigation and ArticlePanel remounts from it.
+		if (onClose) {
+			ui.enterZenFromPane();
+			goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
+			return;
+		}
+		// Same jump, seen from the other end: this instance is the full-page route, but the reader's
+		// pane is a split one, so un-hiding the sidebar would strand them in a "No split" they never
+		// chose. Travel back to the pane instead — the layout effect clears the override on the way.
+		if (ui.zenCameFromPane) {
+			goBack();
+			return;
+		}
+		ui.toggleZen();
+	}
 	let nearEdge = $state(false);
 	// Derived rather than reset in the effect's teardown: teardown observes the *previous* run's
 	// state, so leaving zen this way hides nothing stale — arrowsHidden simply goes false at once.
@@ -330,9 +350,9 @@
 		>
 			<RotateCw size={16} class={refetching ? 'animate-spin' : ''} />
 		</button>
-		{#if !onClose && !ui.isMobile}
+		{#if !ui.isMobile}
 			<button
-				onclick={() => ui.toggleZenMode()}
+				onclick={toggleZen}
 				title={ui.zenMode ? 'Exit Zen mode' : 'Zen mode'}
 				class="shrink-0 flex justify-center items-center size-7 rounded-full transition-colors {ui.zenMode ? 'text-a-600 hover:bg-n-200' : 'text-n-400 hover:text-n-700 hover:bg-n-200'}"
 			>

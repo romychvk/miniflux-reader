@@ -89,9 +89,10 @@
 	}
 
 	async function openArticle() {
-		// Zen mode overrides the pane placement rather than replacing it: articles always open
-		// full-page while it's on, and switching it off restores three-column/expanded untouched.
-		if (ui.isMobile || ui.layoutMode === 'two-column' || ui.zenMode) {
+		// Zen is a placement of its own, so it routes full-page exactly like two-column. A split
+		// pane mode always opens its own placement — reaching Zen from there is the reader's
+		// explicit call, via the button in the article's action row.
+		if (ui.isMobile || ui.layoutMode === 'two-column' || ui.layoutMode === 'zen') {
 			goto(`/article/${makeEntrySlug(entry.id, entry.title)}`);
 			return;
 		}

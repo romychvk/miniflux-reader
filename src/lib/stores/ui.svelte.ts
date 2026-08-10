@@ -1,5 +1,6 @@
 import type { Entry, FeedNode } from '$lib/types';
 import { storageGet, storageGetString, storageSet } from '$lib/storage';
+import { migrateLegacyZen, parseLayoutMode, type LayoutMode } from '$lib/layoutMode';
 
 const SIDEBAR_WIDTH_KEY = 'sidebarWidth';
 const DEFAULT_SIDEBAR_WIDTH = 256;
@@ -14,6 +15,7 @@ const DEFAULT_ARTICLE_PANEL_WIDTH = 550;
 const MIN_ARTICLE_PANEL_WIDTH = 300;
 const MIN_ENTRY_LIST_WIDTH = 320;
 const AUTO_MARK_READ_KEY = 'autoMarkReadOnScroll';
+// Legacy: Zen used to be its own persisted boolean. Read once by initLayoutMode() to migrate.
 const ZEN_MODE_KEY = 'zenMode';
 
 // Seed for the "Ignore posts like this" quick-filter modal, opened from an article/list entry.
@@ -23,8 +25,6 @@ export interface FilterSeed {
 	seedTitle: string;
 }
 
-type LayoutMode = 'two-column' | 'three-column' | 'expanded';
-const LAYOUT_MODES: LayoutMode[] = ['two-column', 'three-column', 'expanded'];
 type ViewMode = 'list' | 'magazine' | 'cards';
 const VIEW_MODES: ViewMode[] = ['list', 'magazine', 'cards'];
 
@@ -42,7 +42,15 @@ function createUI() {
 	let viewModesMap = $state<Record<string, ViewMode>>({});
 	let articlePanelWidth = $state(DEFAULT_ARTICLE_PANEL_WIDTH);
 	let autoMarkReadOnScroll = $state(true);
-	let zenMode = $state(false);
+	// Transient, per-visit override of the Zen placement, set by the button in the article's action
+	// row: null follows layoutMode, true/false wins over it until the reader leaves the article view.
+	// Deliberately never persisted — unlike layoutMode it is not a preference (see clearZenOverride).
+	let zenOverride = $state<boolean | null>(null);
+	// Set when Zen was entered by navigating away from a split pane. Leaving Zen then has to travel
+	// back to that pane rather than just un-hide the sidebar, or the reader is left stranded on the
+	// full-page route — which is the "No split" placement they did not choose. Read only at click
+	// time, so a plain value like markReadSuppressedUntil rather than $state.
+	let zenFromPane = false;
 	let markReadSuppressedUntil = 0;
 	let lightboxImages = $state<string[]>([]);
 	let lightboxIndex = $state(0);
@@ -59,16 +67,26 @@ function createUI() {
 		storageSet(AUTO_MARK_READ_KEY, String(autoMarkReadOnScroll));
 	}
 
-	// Zen mode: while reading a full-page article, slide the sidebar away and let the article have
-	// the whole window. It layers on top of layoutMode rather than replacing it — the reader's
-	// "Reading pane" choice is preserved and restored the moment Zen is switched off.
-	function initZenMode() {
-		if (storageGetString(ZEN_MODE_KEY) === 'true') zenMode = true;
+	// Zen mode: the article alone in the window, sidebar slid away. It is a layoutMode of its own —
+	// the reader's standing answer to "where do articles open" — and the button in the article's
+	// action row is a transient override of that answer, in either direction, for this visit only.
+	const zenActive = () => zenOverride ?? layoutMode === 'zen';
+
+	function toggleZen() {
+		zenOverride = !zenActive();
 	}
 
-	function toggleZenMode() {
-		zenMode = !zenMode;
-		storageSet(ZEN_MODE_KEY, String(zenMode));
+	// Entering Zen from the panel/inline placements, which the /article route has to provide.
+	function enterZenFromPane() {
+		zenOverride = true;
+		zenFromPane = true;
+	}
+
+	// Called when the reader leaves the article view, so an override never leaks into the next
+	// article opened from the list — that one follows the saved pane mode again.
+	function clearZenOverride() {
+		zenOverride = null;
+		zenFromPane = false;
 	}
 
 	function initSidebarWidth() {
@@ -167,8 +185,18 @@ function createUI() {
 	}
 
 	function initLayoutMode() {
-		const saved = storageGetString(LAYOUT_MODE_KEY);
-		if (saved && LAYOUT_MODES.includes(saved as LayoutMode)) layoutMode = saved as LayoutMode;
+		layoutMode = parseLayoutMode(storageGetString(LAYOUT_MODE_KEY)) ?? layoutMode;
+
+		// One-shot migration off the old standalone `zenMode` boolean, then neutralise the key so it
+		// can never re-fire. This runs before settingsSync.start() installs its change listener, so
+		// it doesn't push on boot — the next real preference change carries it, since the sync
+		// payload is re-collected from all of localStorage anyway.
+		const legacyZen = storageGetString(ZEN_MODE_KEY);
+		if (legacyZen === 'true') {
+			layoutMode = migrateLegacyZen(layoutMode, legacyZen);
+			storageSet(LAYOUT_MODE_KEY, layoutMode);
+			storageSet(ZEN_MODE_KEY, 'false');
+		}
 	}
 
 	function setLayoutMode(mode: LayoutMode) {
@@ -226,7 +254,8 @@ function createUI() {
 		get viewKey() { return selectedFeed ? feedStorageKey(selectedFeed) : 'all'; },
 		get articlePanelWidth() { return articlePanelWidth; },
 		get autoMarkReadOnScroll() { return autoMarkReadOnScroll; },
-		get zenMode() { return zenMode; },
+		get zenMode() { return zenActive(); },
+		get zenCameFromPane() { return zenFromPane; },
 		get lightboxImage() { return lightboxImages[lightboxIndex] ?? null; },
 		get lightboxIndex() { return lightboxIndex; },
 		get lightboxCount() { return lightboxImages.length; },
@@ -257,8 +286,9 @@ function createUI() {
 		setViewMode,
 		initAutoMarkRead,
 		toggleAutoMarkRead,
-		initZenMode,
-		toggleZenMode,
+		toggleZen,
+		enterZenFromPane,
+		clearZenOverride,
 		initArticlePanelWidth,
 		setArticlePanelWidth
 	};

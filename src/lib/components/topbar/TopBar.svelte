@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { Menu, Circle, Square, SquareCheck, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, CheckCheck, Search, X, ExternalLink, Filter } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
+	import type { LayoutMode } from '$lib/layoutMode';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
@@ -50,16 +51,20 @@
 	}
 
 	const layoutModes = [
-		{ id: 'two-column' as const, label: 'No split', img: '/previewpaneoff.png' },
 		{ id: 'three-column' as const, label: 'Right of feeds', img: '/previewpaneright.png' },
 		{ id: 'expanded' as const, label: 'Expanded', img: '/previewpaneexpanded.png' },
+		{ id: 'two-column' as const, label: 'No split', img: '/previewpaneoff.png' },
+		{ id: 'zen' as const, label: 'Zen', img: '/previewpanezen.png' },
 	];
 
-	function selectLayoutMode(mode: 'two-column' | 'three-column' | 'expanded') {
+	function selectLayoutMode(mode: LayoutMode) {
 		viewDropdownOpen = false;
 		if (ui.layoutMode === mode) return;
 		ui.setLayoutMode(mode);
-		if (mode !== 'two-column' && isArticleView) history.back();
+		// Switching to a split pane while reading pops back to the list, where that pane is what
+		// shows the article. Full-page placements (two-column, zen) are already correct — stay put.
+		// NOTE: dead today, the top bar isn't rendered on the article route; kept honest.
+		if (mode !== 'two-column' && mode !== 'zen' && isArticleView) history.back();
 	}
 
 	function handleClickOutside(e: MouseEvent) {
@@ -330,20 +335,6 @@
 											<img src={mode.img} alt="" class="w-18" />
 										</button>
 									{/each}
-									<!-- A checkbox, not a fourth placement radio: Zen layers on top of whichever
-									     pane mode is selected and hands it back when switched off. -->
-									<button
-										onclick={() => ui.toggleZenMode()}
-										title="Open articles full-window, without the sidebar"
-										class="w-full text-left px-4 py-2 mt-1 text-sm hover:bg-n-100 text-n-700 flex items-center gap-2"
-									>
-										{#if ui.zenMode}
-											<SquareCheck size={18} class="shrink-0 text-a-600" />
-										{:else}
-											<Square size={18} class="shrink-0 text-n-500" />
-										{/if}
-										Zen mode
-									</button>
 								</div>
 							{/if}
 

@@ -39,6 +39,13 @@
 	// preference can arrive on a phone through settings sync.
 	const zenActive = $derived(ui.zenMode && isArticleView && !ui.isMobile);
 
+	// A Zen override belongs to one visit to the article view. This effect tracks ONLY isArticleView,
+	// so toggling Zen from a panel — which happens while the route is still the list — cannot cancel
+	// itself: the effect does not re-run until the route actually changes.
+	$effect(() => {
+		if (!isArticleView) ui.clearZenOverride();
+	});
+
 	// onMount stays synchronous so the matchMedia cleanup is actually registered: a cleanup
 	// returned after an `await` runs in a detached microtask that Svelte never sees, leaking
 	// the listener. The async boot sequence runs alongside via boot().
@@ -72,7 +79,6 @@
 		ui.initViewMode();
 		ui.initArticlePanelWidth();
 		ui.initAutoMarkRead();
-		ui.initZenMode();
 		entries.initShowAll();
 		theme.init();
 		aiConfig.init();
