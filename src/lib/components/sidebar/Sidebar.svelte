@@ -17,6 +17,10 @@
 	// Zen mode slides the desktop sidebar off the left edge instead of unmounting it: the feed
 	// tree's scroll container has to survive, or every article open/close would snap it back to
 	// the top. Margins take part in flex layout, so <main> reclaims the width either way.
+	//
+	// Staying mounted means browser page translation would still walk the whole feed tree — dozens
+	// of feed and category names nobody can see — so while it is parked off-screen the sidebar
+	// opts out via translate="no" (with the legacy .notranslate class Google Translate also honours).
 	let { collapsed = false }: { collapsed?: boolean } = $props();
 
 	let showAddModal = $state(false);
@@ -73,6 +77,8 @@
 <!-- Desktop sidebar -->
 {#if !ui.isMobile}
 	<aside
+		translate={collapsed ? 'no' : 'yes'}
+		class:notranslate={collapsed}
 		class="h-screen border-r-2 border-r-n-200 bg-sidebar flex flex-col shrink-0 relative transition-[margin-left] duration-200 ease-out motion-reduce:transition-none"
 		style="width: {ui.sidebarWidth}px; margin-left: {collapsed ? -ui.sidebarWidth : 0}px"
 	>
