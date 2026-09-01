@@ -128,6 +128,7 @@
 	const PAD_X = 16; // the body's resting px-4 …
 	const PAD_B = 12; // … and the bottom half of its py-3
 	const GROW_MS = 180;
+	const HOVER_MS = 300; // hover-intent: how long the pointer has to settle before a card grows
 
 	let cardEl: HTMLElement | undefined = $state();
 	let bodyEl: HTMLElement | undefined = $state();
@@ -266,8 +267,9 @@
 		if (!canExpand) return;
 		clearTimeout(hoverTimer);
 		clearTimeout(settleTimer);
-		// Short hover-intent delay, so cards don't pop while the pointer crosses the grid.
-		hoverTimer = setTimeout(grow, 120);
+		// A card only grows once the pointer has actually stopped on it — sweeping across the grid
+		// leaves every card it passes over untouched.
+		hoverTimer = setTimeout(grow, HOVER_MS);
 	}
 
 	function hoverLeave() {
