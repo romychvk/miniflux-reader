@@ -10,7 +10,7 @@
 	import { entryLang } from '$lib/lang';
 	import { makeEntrySlug } from '$lib/slug';
 	import { autoMarkRead } from '$lib/autoMarkRead';
-	import { Ban, Bookmark, Check, Circle } from 'lucide-svelte';
+	import { Ban, Bookmark, Check, Circle, SquareArrowOutUpRight } from 'lucide-svelte';
 	import ArticleView from './ArticleView.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 
@@ -36,6 +36,17 @@
 	}
 
 	const menuItems = $derived([
+		{
+			// Right-clicking a row opens this menu instead of the browser's, so the entry it would
+			// have offered — open link in a new tab — has to be here too. Same destination as the
+			// middle click: the article alone, in Zen.
+			label: 'Open in new tab',
+			icon: SquareArrowOutUpRight,
+			action: () => {
+				window.open(articleHref, '_blank', 'noopener');
+				openedElsewhere();
+			}
+		},
 		{
 			label: 'Ignore posts like this…',
 			icon: Ban,
@@ -79,11 +90,13 @@
 	});
 
 	function toggleRead(e: MouseEvent) {
+		e.preventDefault(); // the row is a link now — the button's click must not follow it
 		e.stopPropagation();
 		entries.markRead([entry.id], !isRead);
 	}
 
 	function toggleBookmark(e: MouseEvent) {
+		e.preventDefault();
 		e.stopPropagation();
 		entries.toggleBookmark(entry.id);
 	}
@@ -110,6 +123,42 @@
 			await tick();
 			rowEl?.scrollIntoView({ block: 'start', behavior: 'smooth' });
 		}
+	}
+
+	// The row is a real link, so the browser's own open-in-a-new-tab gestures work on it: middle
+	// click, Ctrl/⌘+click, dragging it to the tab bar. Such a tab has no app around the article —
+	// no list to come back to, no pane to sit beside — so the link asks for Zen, which is exactly
+	// that reading: the article alone. A plain left click never travels through this href; it is
+	// ours, and openArticle() places the article the reader's pane mode says it goes.
+	const articleHref = $derived(`/article/${makeEntrySlug(entry.id, entry.title)}?zen=1`);
+
+	function openInPlace(e: MouseEvent) {
+		// A modified click belongs to the browser: new tab, new window, download. Only the first two
+		// actually open the article — alt+click downloads the page and never reads it.
+		if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+			if (e.metaKey || e.ctrlKey || e.shiftKey) openedElsewhere();
+			return;
+		}
+		e.preventDefault();
+		openArticle();
+	}
+
+	function onAuxClick(e: MouseEvent) {
+		if (e.button !== 1) return;
+		// Middle-clicking one of the row's own buttons must not also open the article in a tab: the
+		// auxclick bubbles to the link, and cancelling it here is what stops the link activating.
+		if ((e.target as HTMLElement).closest('button')) {
+			e.preventDefault();
+			return;
+		}
+		openedElsewhere();
+	}
+
+	// The tab we just handed the article to marks it read as it loads. Mark it here as well, or
+	// this list sits on a card that still reads unread — opening an article is what marks it read
+	// in this reader, and which window it opened in doesn't change that.
+	function openedElsewhere() {
+		if (entry.status === 'unread') entries.markRead([entry.id], true);
 	}
 
 	// Cards hover-expand: the hovered card grows out of its cell in every direction — a little
@@ -314,13 +363,12 @@
 		bind:this={rowEl}
 		use:autoMarkRead={entry}
 	>
-		<div
+		<a
+			href={articleHref}
 			class="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-n-200 {isSelected ? 'bg-a-50' : ''}"
-			onclick={openArticle}
+			onclick={openInPlace}
+			onauxclick={onAuxClick}
 			oncontextmenu={openContextMenu}
-			role="button"
-			tabindex="0"
-			onkeydown={(e) => e.key === 'Enter' && openArticle()}
 		>
 			<button
 				type="button"
@@ -362,7 +410,7 @@
 			>
 				<Bookmark size={16} fill={isStarred ? 'currentColor' : 'none'} />
 			</button>
-		</div>
+		</a>
 	</div>
 
 {:else if viewMode === 'magazine'}
@@ -372,13 +420,12 @@
 		bind:this={rowEl}
 		use:autoMarkRead={entry}
 	>
-		<div
+		<a
+			href={articleHref}
 			class="flex items-start gap-4 px-4 py-3 @lg/mag:py-5 cursor-pointer hover:bg-n-50 transition-colors {isSelected ? 'bg-a-50' : ''}"
-			onclick={openArticle}
+			onclick={openInPlace}
+			onauxclick={onAuxClick}
 			oncontextmenu={openContextMenu}
-			role="button"
-			tabindex="0"
-			onkeydown={(e) => e.key === 'Enter' && openArticle()}
 		>
 			<div class="shrink-0 flex flex-col items-center gap-2 mt-1">
 				<button
@@ -455,7 +502,7 @@
 
 
 
-		</div>
+		</a>
 	</div>
 
 {:else}
@@ -466,16 +513,15 @@
 		class="relative"
 		style={expanded ? `height: ${frozenHeight}px` : ''}
 	>
-	<div
+	<a
 		bind:this={cardEl}
+		href={articleHref}
 		onmouseenter={hoverEnter}
 		onmouseleave={hoverLeave}
-		class="rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 bg-n-100 hover:bg-surface hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''} {expanded ? 'absolute z-20 shadow-xl' : ''}"
-		onclick={openArticle}
+		class="block rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 bg-n-100 hover:bg-surface hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''} {expanded ? 'absolute z-20 shadow-xl' : ''}"
+		onclick={openInPlace}
+		onauxclick={onAuxClick}
 		oncontextmenu={openContextMenu}
-		role="button"
-		tabindex="0"
-		onkeydown={(e) => e.key === 'Enter' && openArticle()}
 	>
 
 
@@ -545,7 +591,7 @@
 				</div>
 			</div>
 		</div>
-	</div>
+	</a>
 	{#if bottomReach > 0}
 		<!-- A scroll container's own bottom padding does not reach under content that hangs out of
 		     the flow: scrollable overflow counts descendant border boxes, and <main>'s padding sits

@@ -211,7 +211,11 @@
 	}
 
 	function goBack() {
-		history.back();
+		// An article opened in its own tab — a middle-clicked card — is that tab's first page, so
+		// back() is a no-op and the reader would be stuck on it with a Close button that does
+		// nothing. Land them in the article's feed instead, which turns the tab into a full reader.
+		if (history.length > 1) history.back();
+		else goto(feedHref);
 	}
 </script>
 

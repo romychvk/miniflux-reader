@@ -82,6 +82,12 @@ function createUI() {
 		zenFromPane = true;
 	}
 
+	// Asked for by the link itself: a card opened in its own tab (middle click) carries ?zen=1.
+	// Not enterZenFromPane — a fresh tab has no split pane behind it to travel back to.
+	function forceZen() {
+		zenOverride = true;
+	}
+
 	// Called when the reader leaves the article view, so an override never leaks into the next
 	// article opened from the list — that one follows the saved pane mode again.
 	function clearZenOverride() {
@@ -288,6 +294,7 @@ function createUI() {
 		toggleAutoMarkRead,
 		toggleZen,
 		enterZenFromPane,
+		forceZen,
 		clearZenOverride,
 		initArticlePanelWidth,
 		setArticlePanelWidth

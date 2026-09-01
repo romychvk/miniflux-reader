@@ -79,6 +79,10 @@
 		ui.initViewMode();
 		ui.initArticlePanelWidth();
 		ui.initAutoMarkRead();
+		// A card opened in its own tab (middle click, Ctrl/⌘+click) links to ?zen=1 — the article
+		// alone, no sidebar. Applied here, before the first render: set later, from the article
+		// page's onMount, the sidebar would be painted first and then slide away in front of the reader.
+		if (page.url.searchParams.get('zen') === '1') ui.forceZen();
 		entries.initShowAll();
 		theme.init();
 		aiConfig.init();
