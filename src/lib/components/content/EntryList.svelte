@@ -5,7 +5,12 @@
 	import Spinner from '../ui/Spinner.svelte';
 </script>
 
-<div class="flex-1 overflow-y-auto">
+<!-- No scrolling here: <main> is the list's scroll container (autoMarkRead roots its observer
+     there too). A second `overflow-y-auto` on this wrapper looks inert — the box is height-auto,
+     so it never scrolls on its own — right up until a hovered card grows out of the bottom row:
+     the absolute card counts as scrollable overflow, the wrapper turns into a real scroll
+     container, and its scrollbar appears and shoves the whole grid sideways. -->
+<div>
 	{#if entries.loading}
 		<div class="flex items-center justify-center py-12">
 			<Spinner />

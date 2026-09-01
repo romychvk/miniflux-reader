@@ -125,6 +125,7 @@
 	// nothing to gain, so it stays put at the top.
 	const GROW_X = 10; // px the card bleeds past its cell to the left and right
 	const GROW_B = 6; // px of extra room below the text
+	const BOTTOM_AIR = 16; // px of scroll room kept under a grown card in the last row
 	const PAD_X = 16; // the body's resting px-4 …
 	const PAD_B = 12; // … and the bottom half of its py-3
 	const GROW_MS = 180;
@@ -136,6 +137,7 @@
 	let expanded = $state(false);
 	let frozenHeight = $state(0);
 	let frozenImageHeight = 0;
+	let bottomReach = $state(0);
 	let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 	let settleTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -222,7 +224,11 @@
 		const grown = { left: `${-GROW_X}px`, right: `${-GROW_X}px`, top: `${-rise}px` };
 		// An auto height can't animate either, so measure the one the grown card wants, padding and all…
 		setRect(el, { ...grown, height: 'auto' });
-		const toRect = { ...grown, height: `${el.getBoundingClientRect().height}px` };
+		const grownHeight = el.getBoundingClientRect().height;
+		const toRect = { ...grown, height: `${grownHeight}px` };
+		// How far below the cell the grown card will reach, plus the air we want under it (see the
+		// spacer in the markup).
+		bottomReach = grownHeight - rise + BOTTOM_AIR;
 		// …then play it from where we are.
 		setRect(el, fromRect);
 		setPad(body, fromPad);
@@ -237,6 +243,16 @@
 			body.style.transition = '';
 			el.style.height = 'auto';
 		}, GROW_MS + 30);
+	}
+
+	// How tall the spacer has to stay, measured from the cell's top down to the bottom edge of
+	// the scrolled view. Zero (no spacer) once the view no longer reaches past the cell.
+	function keptReach(el: HTMLElement): number {
+		const cell = el.parentElement;
+		const sc = cell?.closest('main');
+		if (!cell || !sc) return 0;
+		const cellTop = cell.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+		return Math.max(0, sc.scrollTop + sc.clientHeight - cellTop);
 	}
 
 	function shrink() {
@@ -258,6 +274,12 @@
 		// The card ends the shrink exactly on its cell rect, so dropping back into the flow there
 		// is invisible.
 		settleTimer = setTimeout(() => {
+			// Losing the card's overflow shortens the scroll, and a reader who had scrolled down into
+			// that room would be yanked back up. Leave the spacer standing exactly as far as the
+			// bottom of the view, in the same update that puts the card back: that holds the current
+			// position, and costs nothing when the view had not gone past the list's own end — there
+			// the spacer stops short of content that is already there.
+			bottomReach = keptReach(el);
 			expanded = false;
 			resetCardStyle();
 		}, GROW_MS + 20);
@@ -524,6 +546,18 @@
 			</div>
 		</div>
 	</div>
+	{#if bottomReach > 0}
+		<!-- A scroll container's own bottom padding does not reach under content that hangs out of
+		     the flow: scrollable overflow counts descendant border boxes, and <main>'s padding sits
+		     inside its own box. So a grown card in the last row scrolls up flush against the window
+		     edge. This empty box is that border box — it reaches BOTTOM_AIR past the card's bottom,
+		     and outlives the expansion by however much of that room the reader is standing on. -->
+		<div
+			class="pointer-events-none absolute inset-x-0 top-0"
+			style="height: {bottomReach}px"
+			aria-hidden="true"
+		></div>
+	{/if}
 	</div>
 {/if}
 

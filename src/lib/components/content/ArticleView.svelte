@@ -95,8 +95,11 @@
 	// full-page mode — which SvelteKit's window-scroll management never resets, so paging to a
 	// neighbour would otherwise keep the previous article's offset and drop the reader into the
 	// middle of the new one. (Panel mode remounts via {#key}, so its container is already fresh.)
+	// Full-page only: expanded mode shares <main> with the list it is opened inside, and that
+	// scroll belongs to the list — EntryRow brings the open row into view itself.
 	$effect(() => {
 		entry.id; // re-run whenever the shown article changes
+		if (onClose) return;
 		const sc = scrollParent(rootEl);
 		if (sc) sc.scrollTop = 0;
 	});

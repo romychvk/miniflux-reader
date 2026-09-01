@@ -99,7 +99,13 @@
 				<TopBar />
 			{/if}
 			<div class="relative flex-1 min-h-0 flex flex-col">
-				<main class="flex-1 overflow-y-auto">
+				<!-- Reserve the scrollbar gutter whether or not a scrollbar is showing, so content never
+				     jumps sideways when one appears — a short list that a hover-grown card pushes past
+				     the viewport bottom would otherwise shift under the pointer. The bottom padding
+				     belongs on the scroller rather than on the list inside it: a hover-grown card in the
+				     last row hangs out of the grid entirely, and only the scroll container's own end
+				     padding still sits below it at full scroll. -->
+				<main class="flex-1 overflow-y-auto [scrollbar-gutter:stable] pb-4">
 					{@render children()}
 				</main>
 				<RefreshIndicator />
