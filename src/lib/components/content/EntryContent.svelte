@@ -4,11 +4,21 @@
 	import { sanitizeHtml } from '$lib/sanitize';
 	import { entryLang } from '$lib/lang';
 	import { ui } from '$lib/stores/ui.svelte';
+	import { originalFromArchivedSrc, rewriteContentImages } from '$lib/imageArchive';
 
 	let { entry }: { entry: Entry } = $props();
 
+	const domParser = new DOMParser();
+
 	// Sanitize last — after processArticleHtml's reshaping — so exactly what reaches {@html} is vetted.
-	const content = $derived(entry.content ? sanitizeHtml(processArticleHtml(entry.content)) : '');
+	// The archive rewrite runs after that on purpose: it only swaps each src for a same-origin path
+	// the sanitizer has nothing to say about, and doing it earlier would hand the sanitizer URLs
+	// that no longer match what the reshaping passes reasoned about.
+	const content = $derived.by(() => {
+		if (!entry.content) return '';
+		const html = sanitizeHtml(processArticleHtml(entry.content));
+		return entry._archiveImages ? rewriteContentImages(html, domParser) : html;
+	});
 
 	// The lightbox URL for an image, or null if it shouldn't open one. Gallery images
 	// (`<a href="full.jpg"><img>`) use their full-size href; a plain <img> uses its own
@@ -62,6 +72,16 @@
 	function onImageError(e: Event) {
 		const img = e.target;
 		if (!(img instanceof HTMLImageElement)) return;
+
+		// An archived src that misses simply means we haven't downloaded that picture yet — fall
+		// back to the source it was built from before giving up on it. The source URL is decoded
+		// out of the archive URL itself, so nothing extra had to survive the sanitizer.
+		const source = originalFromArchivedSrc(img.getAttribute('src') ?? '');
+		if (source) {
+			img.setAttribute('src', source);
+			return;
+		}
+
 		const block = img.closest('.prose-img, figure') ?? img;
 		(block as HTMLElement).style.display = 'none';
 	}

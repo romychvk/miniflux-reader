@@ -9,6 +9,7 @@
 	import { makeEntrySlug, makeFeedSlug } from '$lib/slug';
 	import { categoryDisplayTitle } from '$lib/category';
 	import { contentContainsImage } from '$lib/content';
+	import { archivedSrc } from '$lib/imageArchive';
 	import { entryLang } from '$lib/lang';
 	import EntryContent from './EntryContent.svelte';
 
@@ -188,19 +189,37 @@
 	// article body doesn't already contain that image — some sources keep the cover out of the
 	// post HTML, so the article would otherwise be imageless even though the card has a thumb.
 	const coverUrl = $derived(entry._thumbnailUrl ?? null);
-	// A source that refuses to serve its images to a third-party page (hotlink protection, a bot
-	// challenge) leaves a broken-image glyph where the hero should be. Drop the cover block instead.
-	let brokenCover = $state<string | null>(null);
+	// Our archived copy first when the feed has archiving on, the source as the fallback for
+	// anything not downloaded yet. A source that refuses to serve its images to a third-party page
+	// (hotlink protection, a bot challenge) leaves a broken-image glyph where the hero should be,
+	// so once the whole chain has failed the cover block is dropped instead.
+	const coverChain = $derived.by(() => {
+		if (!coverUrl) return [] as string[];
+		return entry._archiveImages ? [archivedSrc(coverUrl), coverUrl] : [coverUrl];
+	});
+	let coverFailed = $state({ key: '', count: 0 });
+	const coverSrc = $derived.by(() => {
+		const chain = coverChain;
+		if (chain.length === 0) return null;
+		return chain[coverFailed.key === chain[0] ? coverFailed.count : 0] ?? null;
+	});
 	const showCover = $derived(
-		!!coverUrl && coverUrl !== brokenCover && !contentContainsImage(entry.content ?? '', coverUrl)
+		!!coverUrl && !!coverSrc && !contentContainsImage(entry.content ?? '', coverUrl)
 	);
+
+	function coverLoadFailed() {
+		const key = coverChain[0] ?? '';
+		coverFailed = { key, count: (coverFailed.key === key ? coverFailed.count : 0) + 1 };
+	}
 
 	$effect(() => {
 		if (!entry._thumbnailUrl && entry.url) entries.ensureThumbnail(entry);
 	});
 
 	function openCover() {
-		if (coverUrl) ui.openLightbox([coverUrl], 0);
+		// whatever the hero actually resolved to — showing the source in the lightbox would fail
+		// for exactly the feeds the archive exists for
+		if (coverSrc) ui.openLightbox([coverSrc], 0);
 	}
 
 	let refetching = $state(false);
@@ -383,10 +402,10 @@
 		<div class="hero-breakout mb-5">
 			<button type="button" onclick={openCover} class="block mx-auto" title="Open image">
 				<img
-					src={coverUrl}
+					src={coverSrc}
 					alt={entry.title}
 					class="max-w-full h-auto rounded-lg cursor-zoom-in"
-					onerror={() => (brokenCover = coverUrl)}
+					onerror={coverLoadFailed}
 				/>
 			</button>
 		</div>

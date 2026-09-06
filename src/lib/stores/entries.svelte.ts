@@ -9,6 +9,8 @@ import {
   type DedupMode,
 } from "$lib/dedup";
 import { hasCoverRule, extractCover } from "$lib/cover";
+import { requestArchive } from "$lib/imageArchiveClient";
+import { collectImageUrls } from "$lib/imageArchive";
 import {
   decodeContent,
   parseContent,
@@ -177,6 +179,12 @@ function createEntriesStore() {
       deduped.sort(
         (a, b) => Date.parse(b.published_at) - Date.parse(a.published_at),
       );
+
+      // Hand the archived feeds' images to the server while the source still serves them. Runs
+      // after dedupe so a collapsed duplicate isn't downloaded, and is fire-and-forget — nothing
+      // in this load waits on it.
+      const toArchive = deduped.flatMap((e) => e._imageUrls ?? []);
+      if (toArchive.length > 0) requestArchive(toArchive);
 
       // For a single feed set to "hide (mark read)", reconcile the *whole* unread backlog so the
       // rules apply even when they were imported (Backup & Restore) or the backlog is larger than
@@ -420,6 +428,14 @@ function createEntriesStore() {
         doc,
         hasCoverRule(loadCoverRule(entry.feed.id)),
       );
+      // A re-scrape usually swaps the feed's summary images for the article's real ones, so the
+      // archive has to be told about the new set — collected before extractDescription, which
+      // mutates the shared doc and strips images out of it.
+      if (entry._archiveImages) {
+        const urls = collectImageUrls(doc, entry._thumbnailUrl);
+        entry._imageUrls = urls;
+        requestArchive(urls);
+      }
       entry._description = doc ? extractDescription(doc) : "";
     }
     return content;

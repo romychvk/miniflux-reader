@@ -7,6 +7,7 @@ import {
   type CoverRule,
 } from "$lib/cover";
 import { storageGet } from "$lib/storage";
+import { collectImageUrls, loadArchiveEnabled } from "$lib/imageArchive";
 
 // Entry enrichment: derives everything a card needs from an entry's raw content — the thumbnail,
 // the text preview, and (for scraped CssSelectorBridge feeds) the real publication date — in a
@@ -142,7 +143,17 @@ export function pickThumbnail(
 export function enrichEntries(
   entries: Entry[],
   coverRuleFor: (feedId: number) => CoverRule,
+  archiveFor: (feedId: number) => boolean = loadArchiveEnabled,
 ): Entry[] {
+  // One localStorage read per feed, not per entry — a page holds up to 100 entries drawn from a
+  // handful of feeds.
+  const archiveCache = new Map<number, boolean>();
+  const archived = (feedId: number): boolean => {
+    let on = archiveCache.get(feedId);
+    if (on === undefined) archiveCache.set(feedId, (on = archiveFor(feedId)));
+    return on;
+  };
+
   for (const entry of entries) {
     if (entry.content) entry.content = decodeContent(entry.content);
     // Parse the (decoded) content ONCE and share the Document across all three DOM readers.
@@ -160,6 +171,12 @@ export function enrichEntries(
       doc,
       hasCoverRule(coverRuleFor(entry.feed.id)),
     );
+    // Collect the source image URLs before extractDescription runs — it mutates the shared doc,
+    // and images are among the things it strips out on its way to a text summary.
+    entry._archiveImages = archived(entry.feed.id);
+    if (entry._archiveImages)
+      entry._imageUrls = collectImageUrls(doc, entry._thumbnailUrl);
+
     entry._description = doc ? extractDescription(doc) : "";
   }
   return entries;

@@ -13,6 +13,11 @@ services:
     volumes:
       # Per-user settings blobs written by /api/settings — must survive rebuilds.
       - settings-data:/app/data
+      # Archived feed images written by /api/images. A volume of its own, nested inside the one
+      # above: these are bulk binaries on a size budget, and keeping them out of settings-data
+      # leaves that one small enough to copy around as a backup.
+      - image-archive:/app/data/images
 
 volumes:
   settings-data:
+  image-archive:

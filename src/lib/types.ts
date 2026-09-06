@@ -73,6 +73,10 @@ export interface Entry {
 	enclosures?: Enclosure[];
 	_thumbnailUrl?: string | null;
 	_description?: string;
+	// Set when the entry's feed has image archiving on: the images below are served from our own
+	// archive rather than hotlinked, and _imageUrls is what the archiver was asked to download.
+	_archiveImages?: boolean;
+	_imageUrls?: string[];
 }
 
 export type AiProvider = 'anthropic' | 'openai';

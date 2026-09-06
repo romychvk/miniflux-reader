@@ -10,6 +10,7 @@
 	import { entryLang } from '$lib/lang';
 	import { makeEntrySlug } from '$lib/slug';
 	import { autoMarkRead } from '$lib/autoMarkRead';
+	import { archivedSrc } from '$lib/imageArchive';
 	import { Ban, Bookmark, Check, Circle, SquareArrowOutUpRight } from 'lucide-svelte';
 	import ArticleView from './ArticleView.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
@@ -67,21 +68,32 @@
 
 	const viewMode = $derived(ui.viewMode);
 
+	// Where the card's picture comes from, in order of preference. With archiving on for the feed
+	// we ask our own copy first and keep the source as the fallback for anything not downloaded
+	// yet; otherwise the source is all there is.
+	const thumbnailChain = $derived.by(() => {
+		const url = entry._thumbnailUrl ?? null;
+		if (!url) return [] as string[];
+		return entry._archiveImages ? [archivedSrc(url), url] : [url];
+	});
+
 	// A source can refuse to serve its images to a third-party page — hotlink protection, or a bot
 	// challenge answering a cross-origin <img> with a 403 challenge page (mezha.ua's CDN does this).
-	// The browser then paints its broken-image glyph inside an otherwise finished card. Treat a
-	// failed load as "no thumbnail" so the card falls back to the text-only layout it already has.
-	// Keyed by URL rather than a bare flag, so a later thumbnail gets its own fair attempt.
-	let brokenThumbnail = $state<string | null>(null);
+	// The browser then paints its broken-image glyph inside an otherwise finished card. When the
+	// whole chain has failed, treat it as "no thumbnail" so the card falls back to the text-only
+	// layout it already has. The tally is keyed by the chain's head, so a thumbnail that arrives
+	// later (ensureThumbnail's og:image) starts its own attempts rather than inheriting a verdict.
+	let failed = $state({ key: '', count: 0 });
 	const thumbnailUrl = $derived.by(() => {
-		const url = entry._thumbnailUrl ?? null;
-		return url && url === brokenThumbnail ? null : url;
+		const chain = thumbnailChain;
+		if (chain.length === 0) return null;
+		return chain[failed.key === chain[0] ? failed.count : 0] ?? null;
 	});
 	const description = $derived(entry._description ?? '');
 
-	function thumbnailFailed(e: Event) {
-		// the attribute, not .src — that one is resolved to an absolute URL and wouldn't compare equal
-		brokenThumbnail = (e.currentTarget as HTMLImageElement).getAttribute('src');
+	function thumbnailFailed() {
+		const key = thumbnailChain[0] ?? '';
+		failed = { key, count: (failed.key === key ? failed.count : 0) + 1 };
 	}
 
 	// Cards: size the image box to the current view's median thumbnail ratio, so a feed of

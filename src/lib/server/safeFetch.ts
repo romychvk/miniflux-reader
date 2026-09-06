@@ -62,6 +62,9 @@ export interface SafeFetchResult {
 	ok: boolean;
 	contentType: string | null;
 	body: string;
+	// Set only when asBytes was requested: the raw (decompressed, capped) body. `body` stays ''
+	// in that mode — decoding megabytes of binary as utf-8 would only waste the memory.
+	bytes?: Buffer;
 	// Set only when followRedirects is false and the response was a redirect: the resolved (absolute)
 	// Location, handed back instead of being followed. See followRedirects below.
 	location?: string | null;
@@ -77,6 +80,9 @@ export interface SafeFetchOptions {
 	// is returned as `location` and its destination is never fetched. Each hop is still address-
 	// validated before this point, so a false value never skips an SSRF check.
 	followRedirects?: boolean;
+	// Default false (the body is decoded as utf-8 text). Set true for binary payloads — images
+	// for the archive — and read `bytes` instead of `body`. The byte cap applies identically.
+	asBytes?: boolean;
 }
 
 // Public-unicast only. ipaddr.js classifies everything else (loopback, private, CGNAT, linkLocal,
@@ -156,7 +162,7 @@ function decompress(res: IncomingMessage): Readable {
 
 // Reads (and decompresses) the response body up to maxBytes, then stops — a cap on the DECODED
 // size, so a decompression bomb is bounded too. Destroys the socket so the connection is freed.
-async function readCappedText(res: IncomingMessage, maxBytes: number): Promise<string> {
+async function readCappedBytes(res: IncomingMessage, maxBytes: number): Promise<Buffer> {
 	const stream = decompress(res);
 	const chunks: Buffer[] = [];
 	let total = 0;
@@ -176,11 +182,18 @@ async function readCappedText(res: IncomingMessage, maxBytes: number): Promise<s
 		res.destroy();
 		if (stream !== res) stream.destroy();
 	}
-	return Buffer.concat(chunks).toString('utf-8');
+	return Buffer.concat(chunks);
 }
 
 export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise<SafeFetchResult> {
-	const { headers = {}, maxBytes, timeoutMs = 12_000, maxRedirects = 4, followRedirects = true } = opts;
+	const {
+		headers = {},
+		maxBytes,
+		timeoutMs = 12_000,
+		maxRedirects = 4,
+		followRedirects = true,
+		asBytes = false
+	} = opts;
 
 	let url: URL;
 	try {
@@ -221,9 +234,9 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
 			continue;
 		}
 
-		let body: string;
+		let bytes: Buffer;
 		try {
-			body = await readCappedText(res, maxBytes);
+			bytes = await readCappedBytes(res, maxBytes);
 		} catch (e) {
 			throw classifyError(e);
 		}
@@ -232,7 +245,8 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
 			status,
 			ok: status >= 200 && status < 300,
 			contentType: (Array.isArray(ct) ? ct[0] : ct) ?? null,
-			body
+			body: asBytes ? '' : bytes.toString('utf-8'),
+			...(asBytes ? { bytes } : {})
 		};
 	}
 }

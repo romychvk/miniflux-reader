@@ -17,12 +17,14 @@
 		type RssBridgeParam
 	} from '$lib/rssbridge';
 	import { COVER_STORAGE_PREFIX, asCoverRule } from '$lib/cover';
+	import { ARCHIVE_STORAGE_PREFIX } from '$lib/imageArchive';
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
 	import FeedGeneralSection from './feed-settings/FeedGeneralSection.svelte';
 	import FeedNetworkSection from './feed-settings/FeedNetworkSection.svelte';
 	import FeedRssBridgeSection from './feed-settings/FeedRssBridgeSection.svelte';
 	import FeedOriginalContentSection from './feed-settings/FeedOriginalContentSection.svelte';
 	import FeedCoverImageSection from './feed-settings/FeedCoverImageSection.svelte';
+	import FeedImageArchiveSection from './feed-settings/FeedImageArchiveSection.svelte';
 	import FeedDangerZoneSection from './feed-settings/FeedDangerZoneSection.svelte';
 
 	let { feed }: { feed: Feed } = $props();
@@ -35,6 +37,7 @@
 		{ id: 'rss-bridge', label: 'RSS-Bridge' },
 		{ id: 'original-content', label: 'Original Content' },
 		{ id: 'cover-image', label: 'Cover Image' },
+		{ id: 'image-archive', label: 'Image Archive' },
 		{ id: 'danger-zone', label: 'Danger Zone' }
 	];
 	let activeSection = $state('general');
@@ -143,6 +146,15 @@
 	let initialCoverSelector = $state(cover0.selector);
 	let initialCoverAttr = $state(cover0.attr);
 
+	// --- Image archive (client-side, per feed, localStorage) --------------------------
+	// Whether this feed's images are downloaded to our own server as entries arrive, instead of
+	// being hotlinked from the source on every view. See $lib/imageArchive.
+	// svelte-ignore state_referenced_locally
+	const archiveKey = ARCHIVE_STORAGE_PREFIX + feed.id;
+	const archive0 = storageGet<boolean>(archiveKey, false) === true;
+	let archiveImages = $state(archive0);
+	let initialArchiveImages = $state(archive0);
+
 	let saving = $state(false);
 	let savedAt = $state(0);
 	let refetching = $state(false);
@@ -169,6 +181,7 @@
 		rssSignature !== initialRssSignature ||
 		coverSelector !== initialCoverSelector ||
 		coverAttr !== initialCoverAttr ||
+		archiveImages !== initialArchiveImages ||
 		categoryId !== initial.category_id ||
 		crawler !== initial.crawler ||
 		scraperRules !== initial.scraper_rules ||
@@ -207,8 +220,10 @@
 		};
 		storageSet(rssKey, rssConfig);
 		storageSet(coverKey, { selector: coverSelector, attr: coverAttr });
+		storageSet(archiveKey, archiveImages);
 		initialCoverSelector = coverSelector;
 		initialCoverAttr = coverAttr;
+		initialArchiveImages = archiveImages;
 		Object.assign(initial, {
 			title,
 			site_url: siteUrl,
@@ -380,6 +395,8 @@
 			bind:coverSelector
 			bind:coverAttr
 		/>
+
+		<FeedImageArchiveSection active={activeSection === 'image-archive'} bind:archiveImages />
 
 		<FeedDangerZoneSection active={activeSection === 'danger-zone'} {feed} />
 

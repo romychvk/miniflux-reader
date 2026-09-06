@@ -23,6 +23,11 @@ const limiter = createRateLimiter([
 	{ prefix: '/api/fetch-page', capacity: 30, refillPerMinute: 20 },
 	{ prefix: '/api/og-image', capacity: 120, refillPerMinute: 60 },
 	{ prefix: '/api/rss-bridge', capacity: 30, refillPerMinute: 20 },
+	// The archive's GET is the one endpoint an <img> reaches, so it can't carry an auth header and
+	// is open by design (it only ever reads the store — see the route). A page of cards asks for
+	// ~100 images at once, and scrolling a feed asks for more, so the budget is wide; it exists to
+	// bound a stranger hammering it, not to police normal reading.
+	{ prefix: '/api/images', capacity: 600, refillPerMinute: 600 },
 	{ prefix: '/api/settings', capacity: 30, refillPerMinute: 30 },
 	{ prefix: '/api/proxy', capacity: 300, refillPerMinute: 300 }
 ]);
