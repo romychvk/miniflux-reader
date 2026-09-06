@@ -67,8 +67,22 @@
 
 	const viewMode = $derived(ui.viewMode);
 
-	const thumbnailUrl = $derived(entry._thumbnailUrl ?? null);
+	// A source can refuse to serve its images to a third-party page — hotlink protection, or a bot
+	// challenge answering a cross-origin <img> with a 403 challenge page (mezha.ua's CDN does this).
+	// The browser then paints its broken-image glyph inside an otherwise finished card. Treat a
+	// failed load as "no thumbnail" so the card falls back to the text-only layout it already has.
+	// Keyed by URL rather than a bare flag, so a later thumbnail gets its own fair attempt.
+	let brokenThumbnail = $state<string | null>(null);
+	const thumbnailUrl = $derived.by(() => {
+		const url = entry._thumbnailUrl ?? null;
+		return url && url === brokenThumbnail ? null : url;
+	});
 	const description = $derived(entry._description ?? '');
+
+	function thumbnailFailed(e: Event) {
+		// the attribute, not .src — that one is resolved to an absolute URL and wouldn't compare equal
+		brokenThumbnail = (e.currentTarget as HTMLImageElement).getAttribute('src');
+	}
 
 	// Cards: size the image box to the current view's median thumbnail ratio, so a feed of
 	// uniform images fills the box without bars or crop. Each loaded image feeds the median.
@@ -84,7 +98,9 @@
 	// In image-bearing views, fall back to the article's og:image when content + enclosure
 	// gave us nothing. Lazy + cached in the store, so this is a no-op once resolved.
 	$effect(() => {
-		if ((viewMode === 'magazine' || viewMode === 'cards') && !thumbnailUrl) {
+		// the raw value, not the broken-filtered one: a blocked image means the whole host is
+		// unreachable to us, so chasing its og:image would only add another failing request
+		if ((viewMode === 'magazine' || viewMode === 'cards') && !entry._thumbnailUrl) {
 			entries.ensureThumbnail(entry);
 		}
 	});
@@ -486,6 +502,7 @@
         						alt=""
         						class="relative block max-h-[150px] @lg/mag:max-h-[240px] max-w-full w-auto"
         						loading="lazy"
+        						onerror={thumbnailFailed}
        					/>
       				</div>
        			{/if}
@@ -546,6 +563,7 @@
 					class="relative w-full h-full object-contain"
 					loading="lazy"
 					onload={recordAspect}
+					onerror={thumbnailFailed}
 				/>
 			</div>
 		{/if}

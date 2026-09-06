@@ -188,7 +188,12 @@
 	// article body doesn't already contain that image — some sources keep the cover out of the
 	// post HTML, so the article would otherwise be imageless even though the card has a thumb.
 	const coverUrl = $derived(entry._thumbnailUrl ?? null);
-	const showCover = $derived(!!coverUrl && !contentContainsImage(entry.content ?? '', coverUrl));
+	// A source that refuses to serve its images to a third-party page (hotlink protection, a bot
+	// challenge) leaves a broken-image glyph where the hero should be. Drop the cover block instead.
+	let brokenCover = $state<string | null>(null);
+	const showCover = $derived(
+		!!coverUrl && coverUrl !== brokenCover && !contentContainsImage(entry.content ?? '', coverUrl)
+	);
 
 	$effect(() => {
 		if (!entry._thumbnailUrl && entry.url) entries.ensureThumbnail(entry);
@@ -377,7 +382,12 @@
 		     image itself: the button shrink-wraps its img and centres inside the wider block. -->
 		<div class="hero-breakout mb-5">
 			<button type="button" onclick={openCover} class="block mx-auto" title="Open image">
-				<img src={coverUrl} alt={entry.title} class="max-w-full h-auto rounded-lg cursor-zoom-in" />
+				<img
+					src={coverUrl}
+					alt={entry.title}
+					class="max-w-full h-auto rounded-lg cursor-zoom-in"
+					onerror={() => (brokenCover = coverUrl)}
+				/>
 			</button>
 		</div>
 	{/if}

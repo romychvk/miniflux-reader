@@ -52,6 +52,19 @@
 		e.preventDefault();
 		ui.openLightbox(gallery, seen.get(clickedUrl) ?? 0);
 	}
+
+	// A source can refuse to serve its images to a third-party page — hotlink protection, or a bot
+	// challenge answering a cross-origin <img> with a 403 challenge page (mezha.ua's CDN does this).
+	// Left alone, each one becomes a broken-image glyph mid-article. Hide the failed image, and with
+	// it the wrapper that exists only to frame and space it — a <figcaption> with no picture above it
+	// reads as noise. `error` does not bubble, hence the capture phase; {@html} rules out per-tag
+	// handlers. Inline `display` (not [hidden]) because .prose-img img's `display: block` outranks it.
+	function onImageError(e: Event) {
+		const img = e.target;
+		if (!(img instanceof HTMLImageElement)) return;
+		const block = img.closest('.prose-img, figure') ?? img;
+		(block as HTMLElement).style.display = 'none';
+	}
 </script>
 
 <div class="">
@@ -60,6 +73,7 @@
 		class="prose prose-sm max-w-none break-words"
 		lang={entryLang(entry)}
 		onclick={onContentClick}
+		onerrorcapture={onImageError}
 	>
 		{@html content}
 	</article>
