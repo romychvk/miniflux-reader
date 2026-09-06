@@ -14,7 +14,10 @@ import { sniffImageType } from '$lib/server/imageTypes';
 // the endpoint is not an open proxy; the worst it leaks is whether a given URL was archived.
 
 const MAX_IMAGE_BYTES = Number(env.IMAGE_ARCHIVE_MAX_IMAGE_BYTES || 8 * 1024 * 1024);
-const MAX_TOTAL_BYTES = Number(env.IMAGE_ARCHIVE_MAX_TOTAL_BYTES || 1024 * 1024 * 1024);
+// 50 GB. The point of the cap is that a runaway archive can never fill the disk, not to be
+// frugal — the host it runs on has terabytes free, and evicting a picture the reader might still
+// want defeats the whole feature. Raise or lower it with IMAGE_ARCHIVE_MAX_TOTAL_BYTES.
+const MAX_TOTAL_BYTES = Number(env.IMAGE_ARCHIVE_MAX_TOTAL_BYTES || 50 * 1024 * 1024 * 1024);
 const MAX_URLS_PER_BATCH = 100;
 const DOWNLOAD_CONCURRENCY = 4;
 

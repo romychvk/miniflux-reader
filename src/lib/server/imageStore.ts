@@ -78,12 +78,24 @@ export async function writeImage(
 	await rename(tmp, blob);
 	const record: ImageMeta = { url, contentType, size: bytes.length, storedAt: Date.now() };
 	await writeFile(meta, JSON.stringify(record));
+	if (knownTotal !== null) knownTotal += bytes.length;
 }
+
+// Running total of what the archive holds, so the usual "still well under budget" answer costs no
+// I/O at all. Null until something establishes it; a full scan sets it, and each write adds to it.
+// It can drift (an overwrite double-counts, another process could write), but only ever upward,
+// and the next scan replaces it with the truth — so drift makes pruning eager, never lax.
+let knownTotal: number | null = null;
 
 // Oldest-first eviction once the archive outgrows its budget. Called after a batch rather than on
 // a timer: the archive only grows when something was just written, so that is the only moment the
 // cap can be crossed. Best-effort — a failure to prune must never fail the archiving request.
+//
+// The early return matters at a realistic budget: a scan reads a metadata sidecar for every image
+// held, which at tens of thousands of files is far too much work to repeat after each batch.
 export async function pruneArchive(maxBytes: number): Promise<number> {
+	if (knownTotal !== null && knownTotal <= maxBytes) return 0;
+
 	const entries: { key: string; size: number; storedAt: number }[] = [];
 	let total = 0;
 	let shards: string[];
@@ -111,6 +123,7 @@ export async function pruneArchive(maxBytes: number): Promise<number> {
 			}
 		}
 	}
+	knownTotal = total;
 	if (total <= maxBytes) return 0;
 
 	entries.sort((a, b) => a.storedAt - b.storedAt);
@@ -126,5 +139,6 @@ export async function pruneArchive(maxBytes: number): Promise<number> {
 			// already gone, or held open — either way it isn't ours to worry about
 		}
 	}
+	knownTotal = total - freed;
 	return freed;
 }

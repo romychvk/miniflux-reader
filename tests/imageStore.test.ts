@@ -94,6 +94,25 @@ test('prune keeps the archive under budget, evicting oldest first', async () => 
 	process.env.IMAGE_ARCHIVE_DIR = dir;
 });
 
+// The scan reads a sidecar per archived image, so repeating it after every batch would be crippling
+// at a realistic budget. Once a scan has established the total, being under budget must cost no I/O.
+test('prune skips the directory scan while the archive is under budget', async () => {
+	const fresh = await mkdtemp(join(tmpdir(), 'mfr-cheap-'));
+	process.env.IMAGE_ARCHIVE_DIR = fresh;
+	const store = await import(`../src/lib/server/imageStore.ts?cheap=${Date.now()}`);
+
+	const url = 'https://e.com/only.jpg';
+	await store.writeImage(store.archiveKey(url), JPEG(1000), 'image/jpeg', url);
+	assert.equal(await store.pruneArchive(10_000), 0); // first call scans and learns the total
+
+	// Take the directory away. A call that still scanned would now see an empty archive; one that
+	// trusts its running total doesn't look at all — and the image is still there afterwards.
+	await rm(fresh, { recursive: true, force: true });
+	assert.equal(await store.pruneArchive(10_000), 0);
+
+	process.env.IMAGE_ARCHIVE_DIR = dir;
+});
+
 test('prune on an empty archive is a no-op', async () => {
 	const empty = await mkdtemp(join(tmpdir(), 'mfr-empty-'));
 	process.env.IMAGE_ARCHIVE_DIR = empty;
