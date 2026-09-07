@@ -1,4 +1,4 @@
-// Page feeds: RSS that MicroRSS itself generates from an HTML listing page (a tag page, a
+// Page feeds: RSS that Miniflux Reader itself generates from an HTML listing page (a tag page, a
 // "latest" section — anything with repeated item cards but no usable feed). Miniflux subscribes
 // to a URL on our own origin; the server fetches the page, extracts the cards with a CSS selector
 // and answers with RSS 2.0 (see src/lib/server/pageFeed/* and /api/page-feed/*).

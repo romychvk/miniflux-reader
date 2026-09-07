@@ -38,7 +38,7 @@
 
 	let newCategoryName = $state('');
 
-	// --- Page feed (MicroRSS-generated from a listing page; the signed URL *is* the config) ----
+	// --- Page feed (Miniflux Reader-generated from a listing page; the signed URL *is* the config) ----
 	// Constant per instance: the screen is keyed by feed id upstream. A page feed shows its own
 	// tab in place of RSS-Bridge — the two don't convert into each other.
 	// svelte-ignore state_referenced_locally

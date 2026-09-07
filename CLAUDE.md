@@ -8,7 +8,7 @@ It connects to a Miniflux instance via API token through a server-side proxy.
 ### Page feeds (HTML listing page → RSS, no RSS-Bridge)
 
 For pages with no usable feed (a tag page whose advertised feed is site-wide, a "latest" section).
-MicroRSS fetches the page itself, extracts the item cards with a CSS selector and serves RSS 2.0;
+Miniflux Reader fetches the page itself, extracts the item cards with a CSS selector and serves RSS 2.0;
 Miniflux subscribes to that URL. **The signed URL is the config** — nothing is stored server-side
 and nothing goes to localStorage (settingsSync would sync it).
 

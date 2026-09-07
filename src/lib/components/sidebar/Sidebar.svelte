@@ -25,7 +25,7 @@
 	let { collapsed = false }: { collapsed?: boolean } = $props();
 
 	let showAddModal = $state(false);
-	// The two "feed from a page" wizards: MicroRSS's own page feed (default) and the RSS-Bridge
+	// The two "feed from a page" wizards: Miniflux Reader's own page feed (default) and the RSS-Bridge
 	// CssSelectorBridge one (offered only when the user has an instance).
 	let showPageFeedWizard = $state(false);
 	let showWizard = $state(false);

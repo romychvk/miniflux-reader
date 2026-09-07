@@ -13,7 +13,7 @@
 	let { onclose, onsave, onpagefeed, onwizard, onbridge, initialCategoryId }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
-		// "Build a feed from the page": MicroRSS's own page-feed wizard, always offered — discovery
+		// "Build a feed from the page": Miniflux Reader's own page-feed wizard, always offered — discovery
 		// can succeed with the wrong feed (a site-wide feed advertised on a tag page). The category
 		// picked here travels along (undefined when it's the still-unnamed "new category" row).
 		onpagefeed?: (url: string, categoryId: number | undefined) => void;

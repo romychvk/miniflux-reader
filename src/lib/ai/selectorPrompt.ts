@@ -22,7 +22,7 @@ Respond with STRICT JSON ONLY — no markdown, no code fences, no prose outside 
 Shape:
 {"url_selectors": ["<best selector>", "<alternative>"], "explanation": "<1-2 concise sentences>"}`;
 
-// Same task for MicroRSS's own page feeds, where the extractor resolves the link itself and reads
+// Same task for Miniflux Reader's own page feeds, where the extractor resolves the link itself and reads
 // the date/summary/image off the surrounding card — so the model should point at the repeated
 // item *container*, not the anchor.
 export const PAGE_FEED_SELECTOR_SYSTEM_PROMPT = `You are given the HTML of a web page that lists many items (news, articles, posts)
