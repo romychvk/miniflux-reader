@@ -2,3 +2,8 @@ node_modules
 .svelte-kit
 build
 data
+
+# Local secrets (Miniflux token for scripts/verification) — never commit
+.env
+.env.*
+!.env.example
