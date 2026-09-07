@@ -1,7 +1,6 @@
 import type { RequestHandler } from './$types';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 import { SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
-import { jsonResponse } from '$lib/server/research/validate';
 import { clean } from '$lib/server/htmlClean';
 import { fetchPageCached } from '$lib/server/pageFeed/pageCache';
 import { parsePreviewRequest } from '$lib/server/pageFeed/validate';
@@ -28,12 +27,19 @@ const PAGE_MAX_AGE_MS = 5 * 60_000; // selector iteration shouldn't re-download 
 const ITEMS_MAX = 50;
 const SAMPLE_MAX = 50_000; // what the AI selector prompt reads (buildSelectorUserMessage's cap)
 
+function json(status: number, body: unknown): Response {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: { 'Content-Type': 'application/json' }
+	});
+}
+
 export const POST: RequestHandler = async ({ request, url }) => {
 	const auth = await requireMinifluxAuth(request);
 	if (auth instanceof Response) return auth;
 
 	const parsed = parsePreviewRequest(await request.json().catch(() => null));
-	if ('error' in parsed) return jsonResponse(400, { error: parsed.error });
+	if ('error' in parsed) return json(400, { error: parsed.error });
 	const { config, candidates } = parsed;
 
 	let page;
@@ -41,11 +47,11 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		page = await fetchPageCached(config.pageUrl, PAGE_MAX_AGE_MS);
 	} catch (e) {
 		if (e instanceof SafeFetchError) {
-			return jsonResponse(e.isPolicy ? 400 : 502, { error: describeSafeFetchError(e) });
+			return json(e.isPolicy ? 400 : 502, { error: describeSafeFetchError(e) });
 		}
-		return jsonResponse(502, { error: 'Failed to fetch the page' });
+		return json(502, { error: 'Failed to fetch the page' });
 	}
-	if (!page.ok) return jsonResponse(502, { error: `Source returned ${page.status}` });
+	if (!page.ok) return json(502, { error: `Source returned ${page.status}` });
 
 	const $ = parsePage(page.html);
 	// Suggestions cost a dozen extractions over the whole page, so only on the first call
@@ -59,21 +65,21 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		htmlSample: sample.slice(0, SAMPLE_MAX),
 		truncated: sample.length > SAMPLE_MAX
 	};
-	if (!config.itemSelector) return jsonResponse(200, body);
+	if (!config.itemSelector) return json(200, body);
 
 	try {
 		const result = extractItems($, config.pageUrl, config);
 		const feedUrl = pageFeedPublicOrigin(url) + buildSignedPageFeedPath(config, getPageFeedSecret());
-		return jsonResponse(200, {
+		return json(200, {
 			...body,
 			items: result.items.slice(0, ITEMS_MAX),
 			matched: result.matched,
 			feedUrl
 		});
 	} catch (e) {
-		if (e instanceof InvalidSelectorError) return jsonResponse(400, { error: 'Invalid CSS selector' });
+		if (e instanceof InvalidSelectorError) return json(400, { error: 'Invalid CSS selector' });
 		if (e instanceof InvalidPatternError) {
-			return jsonResponse(400, { error: 'Link pattern is not a valid regular expression' });
+			return json(400, { error: 'Link pattern is not a valid regular expression' });
 		}
 		throw e;
 	}
