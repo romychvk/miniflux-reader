@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm run build
 
-# Production dependencies only — the runtime needs just dompurify/ipaddr.js/lucide-svelte (+ their
+# Production dependencies only — the runtime needs just cheerio/dompurify/ipaddr.js/lucide-svelte (+ their
 # transitive deps); every devDependency is build-time. Verified the app boots with this set alone.
 FROM base AS prod-deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

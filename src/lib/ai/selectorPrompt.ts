@@ -22,6 +22,29 @@ Respond with STRICT JSON ONLY — no markdown, no code fences, no prose outside 
 Shape:
 {"url_selectors": ["<best selector>", "<alternative>"], "explanation": "<1-2 concise sentences>"}`;
 
+// Same task for MicroRSS's own page feeds, where the extractor resolves the link itself and reads
+// the date/summary/image off the surrounding card — so the model should point at the repeated
+// item *container*, not the anchor.
+export const PAGE_FEED_SELECTOR_SYSTEM_PROMPT = `You are given the HTML of a web page that lists many items (news, articles, posts)
+but has no RSS feed. Propose CSS selectors that match the repeated per-item CONTAINER — the
+element that wraps one listed item (its title link, date, standfirst, thumbnail) — so an
+HTML-to-RSS extractor can build a feed from them.
+
+Rules for the selectors you propose:
+- Each selector should match exactly one element per listed item: the card/row/entry element
+  (e.g. "article", "li.post", ".newsCard"), not the site header, navigation, sidebar or footer.
+- If the page has no clear card element, a selector for the item's TITLE LINK is acceptable
+  (e.g. "h2.entry-title a").
+- Use stable, semantic class names; avoid positional selectors (nth-child), generated/hashed
+  class names, and :has().
+- In attribute selectors use SINGLE quotes: a[href*='/news/'].
+- Propose 2-4 alternative candidates, best first.
+- The HTML may be truncated at the end — that is fine, judge from what is present.
+
+Respond with STRICT JSON ONLY — no markdown, no code fences, no prose outside the JSON.
+Shape:
+{"item_selectors": ["<best selector>", "<alternative>"], "explanation": "<1-2 concise sentences>"}`;
+
 export interface SelectorSuggestion {
 	url_selectors: string[];
 	explanation: string;
@@ -58,8 +81,10 @@ export function parseSelectorSuggestion(text: string): SelectorSuggestion {
 	} catch {
 		throw new Error('Could not parse the AI response.');
 	}
-	const selectors = Array.isArray(obj.url_selectors)
-		? obj.url_selectors.filter((s): s is string => typeof s === 'string' && s.trim() !== '')
+	// `item_selectors` from the page-feed prompt, `url_selectors` from the RSS-Bridge one.
+	const raw_list = Array.isArray(obj.item_selectors) ? obj.item_selectors : obj.url_selectors;
+	const selectors = Array.isArray(raw_list)
+		? raw_list.filter((s): s is string => typeof s === 'string' && s.trim() !== '')
 		: [];
 	if (selectors.length === 0) {
 		throw new Error('AI did not return selector suggestions.');

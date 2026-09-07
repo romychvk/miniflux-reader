@@ -5,6 +5,30 @@
 Miniflux Reader is a lightweight frontend for Miniflux RSS reader, built with SvelteKit + Svelte 5 + Tailwind 4.
 It connects to a Miniflux instance via API token through a server-side proxy.
 
+### Page feeds (HTML listing page → RSS, no RSS-Bridge)
+
+For pages with no usable feed (a tag page whose advertised feed is site-wide, a "latest" section).
+MicroRSS fetches the page itself, extracts the item cards with a CSS selector and serves RSS 2.0;
+Miniflux subscribes to that URL. **The signed URL is the config** — nothing is stored server-side
+and nothing goes to localStorage (settingsSync would sync it).
+
+- Shared pure module: `src/lib/pageFeed.ts` (config type, query keys `u s p n t d x i`, canonical
+  query, `isPageFeedUrl`/`parsePageFeedUrl`, `pageFeedConfigKey` for dirty-tracking, wire types).
+  Browser calls go through `src/lib/pageFeedClient.ts`.
+- Server: `src/lib/server/pageFeed/{extract,rss,sign,validate}.ts` are pure (node:test-covered);
+  `secret.ts` (HMAC key: `PAGE_FEED_SECRET` env, else auto-generated `data/page-feed.key` on the
+  settings volume — rotating it 403s every page feed; Preview → Save in Feed Settings re-signs) and
+  `pageCache.ts` (safeFetch + short in-memory cache) are the only impure ones. Extraction uses
+  cheerio (parse5 tree = browser DOM); a match that contains other matches is a wrapper, not an item.
+- Routes: `POST /api/page-feed/preview` (auth'd; suggestions, items, signed `feedUrl`) and
+  `GET /api/page-feed/rss` (**public** — Miniflux's crawler can't send our headers; the signature is
+  the gate; ETag/304, `Cache-Control: no-cache`). Both rate-limited in `hooks.server.ts`.
+  `PAGE_FEED_PUBLIC_ORIGIN` overrides the origin signed URLs point at (dev tunnels).
+- UI: `PageFeedWizard` (from Add Feed — the "build one from the page" link is always offered,
+  discovery can succeed with the wrong feed), shared `PageFeedFields`/`PageFeedPreviewList`, and
+  `FeedPageFeedSection` in Feed Settings (replaces the RSS-Bridge tab for page feeds).
+- Tests: `tests/pageFeed{Url,Sign,Extract,Rss}.test.ts`.
+
 ## Tech stack
 
 - **SvelteKit** with `adapter-node`

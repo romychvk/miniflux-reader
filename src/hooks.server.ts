@@ -12,7 +12,8 @@ import { createRateLimiter } from '$lib/server/rateLimit';
 
 // Authenticated, per-user responses share a URL across users (the token is a header, not the
 // path), so a shared CDN/proxy must never cache them.
-const NO_STORE_PREFIXES = ['/api/settings', '/api/proxy', '/api/ai'];
+// /api/page-feed/rss is deliberately absent: it is public and sets its own ETag + no-cache.
+const NO_STORE_PREFIXES = ['/api/settings', '/api/proxy', '/api/ai', '/api/page-feed/preview'];
 
 // Per-IP limits on the API surface (single-process in-memory buckets — see rateLimit.ts).
 // Budgets track real client behavior: the proxy takes an icon fan-out + entry pages on boot,
@@ -23,6 +24,10 @@ const limiter = createRateLimiter([
 	{ prefix: '/api/fetch-page', capacity: 30, refillPerMinute: 20 },
 	{ prefix: '/api/og-image', capacity: 120, refillPerMinute: 60 },
 	{ prefix: '/api/rss-bridge', capacity: 30, refillPerMinute: 20 },
+	{ prefix: '/api/page-feed/preview', capacity: 30, refillPerMinute: 20 },
+	// Every page feed Miniflux polls arrives from its one IP, so this has to absorb a
+	// "refresh all" burst across all of them.
+	{ prefix: '/api/page-feed/rss', capacity: 60, refillPerMinute: 60 },
 	// The archive's GET is the one endpoint an <img> reaches, so it can't carry an auth header and
 	// is open by design (it only ever reads the store — see the route). A page of cards asks for
 	// ~100 images at once, and scrolling a feed asks for more, so the budget is wide; it exists to

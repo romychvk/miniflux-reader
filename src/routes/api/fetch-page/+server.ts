@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 import { safeFetch, SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
+import { clean } from '$lib/server/htmlClean';
 
 // Fetches the raw HTML of an article page server-side so the rule assistant can
 // see the original DOM structure (needed to propose scraper_rules for the
@@ -11,17 +12,6 @@ import { safeFetch, SafeFetchError, describeSafeFetchError } from '$lib/server/s
 // times out, and streams with a byte cap).
 
 const MAX_BYTES = 80_000;
-
-function clean(html: string): string {
-	return html
-		.replace(/<!--[\s\S]*?-->/g, '')
-		.replace(/<script\b[\s\S]*?<\/script>/gi, '')
-		.replace(/<style\b[\s\S]*?<\/style>/gi, '')
-		.replace(/<svg\b[\s\S]*?<\/svg>/gi, '')
-		.replace(/<noscript\b[\s\S]*?<\/noscript>/gi, '')
-		.replace(/\s+\n/g, '\n')
-		.trim();
-}
 
 export const GET: RequestHandler = async ({ request, url }) => {
 	const auth = await requireMinifluxAuth(request);

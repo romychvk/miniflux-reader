@@ -19,9 +19,16 @@
 	import { COVER_STORAGE_PREFIX, asCoverRule } from '$lib/cover';
 	import { ARCHIVE_STORAGE_PREFIX } from '$lib/imageArchive';
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
+	import {
+		parsePageFeedUrl,
+		pageFeedConfigKey,
+		type PageFeedConfig,
+		type PageFeedSigned
+	} from '$lib/pageFeed';
 	import FeedGeneralSection from './feed-settings/FeedGeneralSection.svelte';
 	import FeedNetworkSection from './feed-settings/FeedNetworkSection.svelte';
 	import FeedRssBridgeSection from './feed-settings/FeedRssBridgeSection.svelte';
+	import FeedPageFeedSection from './feed-settings/FeedPageFeedSection.svelte';
 	import FeedOriginalContentSection from './feed-settings/FeedOriginalContentSection.svelte';
 	import FeedCoverImageSection from './feed-settings/FeedCoverImageSection.svelte';
 	import FeedImageArchiveSection from './feed-settings/FeedImageArchiveSection.svelte';
@@ -31,10 +38,17 @@
 
 	let newCategoryName = $state('');
 
+	// --- Page feed (MicroRSS-generated from a listing page; the signed URL *is* the config) ----
+	// Constant per instance: the screen is keyed by feed id upstream. A page feed shows its own
+	// tab in place of RSS-Bridge — the two don't convert into each other.
+	// svelte-ignore state_referenced_locally
+	const pageFeed0 = parsePageFeedUrl(feed.feed_url);
+	const isPageFeed = pageFeed0 !== null;
+
 	const navItems = [
 		{ id: 'general', label: 'General' },
 		{ id: 'network', label: 'Network Settings' },
-		{ id: 'rss-bridge', label: 'RSS-Bridge' },
+		isPageFeed ? { id: 'page-feed', label: 'Page Feed' } : { id: 'rss-bridge', label: 'RSS-Bridge' },
 		{ id: 'original-content', label: 'Original Content' },
 		{ id: 'cover-image', label: 'Cover Image' },
 		{ id: 'image-archive', label: 'Image Archive' },
@@ -102,10 +116,23 @@
 	const rssSourceKey = rss0.sourceKey ?? 'url';
 	let rssParams = $state<RssBridgeParam[]>(rss0.params);
 
+	let pageFeedConfig = $state<PageFeedConfig>(pageFeed0 ?? { pageUrl: '', itemSelector: '' });
+	let initialPageFeedKey = $state(pageFeedConfigKey(pageFeed0));
+	// Set by FeedPageFeedSection after a successful server preview: the signed URL for that config.
+	let pageFeedSigned = $state<PageFeedSigned | null>(null);
+
 	// The feed_url actually sent to Miniflux: the assembled bridge URL when on, else direct.
 	// buildRssBridgeUrl throws when no instance is known (neither the field nor a remembered
 	// one); '' then means "not buildable" — Save stays disabled until an instance is entered.
+	// Page feeds: a fresh signature wins (it also re-signs after a key rotation), an untouched
+	// config keeps the stored URL, and an edited-but-not-previewed one isn't buildable yet.
 	const effectiveFeedUrl = $derived.by(() => {
+		if (isPageFeed) {
+			const key = pageFeedConfigKey(pageFeedConfig);
+			if (pageFeedSigned?.key === key) return pageFeedSigned.feedUrl;
+			if (key === initialPageFeedKey) return initial.feed_url;
+			return '';
+		}
 		if (!rssEnabled) return rssSourceUrl;
 		try {
 			return buildRssBridgeUrl({
@@ -211,14 +238,17 @@
 	async function persistChanges(changes: FeedUpdate) {
 		if (Object.keys(changes).length > 0) await feeds.updateFeed(feed.id, changes);
 		// Always save the RSS-Bridge config — disabled-state param edits don't touch feed_url.
-		const rssConfig: RssBridgeConfig = {
-			instance: rssInstance,
-			bridge: rssBridge,
-			sourceUrl: rssSourceUrl,
-			sourceKey: rssSourceKey,
-			params: rssParams
-		};
-		storageSet(rssKey, rssConfig);
+		// (Not for page feeds: their URL is the config, and a bridge entry would be bogus.)
+		if (!isPageFeed) {
+			const rssConfig: RssBridgeConfig = {
+				instance: rssInstance,
+				bridge: rssBridge,
+				sourceUrl: rssSourceUrl,
+				sourceKey: rssSourceKey,
+				params: rssParams
+			};
+			storageSet(rssKey, rssConfig);
+		}
 		storageSet(coverKey, { selector: coverSelector, attr: coverAttr });
 		storageSet(archiveKey, archiveImages);
 		initialCoverSelector = coverSelector;
@@ -237,6 +267,8 @@
 			user_agent: userAgent
 		});
 		initialRssSignature = rssSignature;
+		initialPageFeedKey = pageFeedConfigKey(pageFeedConfig);
+		pageFeedSigned = null;
 	}
 
 	// The assistant persists its rules to the feed itself (so it can preview them),
@@ -355,7 +387,7 @@
 			bind:newCategoryName
 			bind:siteUrl
 			bind:rssSourceUrl
-			{rssEnabled}
+			feedUrlManagedBy={isPageFeed ? 'page-feed' : rssEnabled ? 'rss-bridge' : null}
 			{effectiveFeedUrl}
 		/>
 
@@ -366,15 +398,25 @@
 			bind:ignoreHttpCache
 		/>
 
-		<FeedRssBridgeSection
-			active={activeSection === 'rss-bridge'}
-			bind:rssEnabled
-			bind:rssInstance
-			bind:rssBridge
-			bind:rssSourceUrl
-			bind:rssParams
-			{rssSourceKey}
-		/>
+		{#if isPageFeed}
+			<FeedPageFeedSection
+				active={activeSection === 'page-feed'}
+				bind:config={pageFeedConfig}
+				bind:signed={pageFeedSigned}
+				initialKey={initialPageFeedKey}
+				storedFeedUrl={initial.feed_url}
+			/>
+		{:else}
+			<FeedRssBridgeSection
+				active={activeSection === 'rss-bridge'}
+				bind:rssEnabled
+				bind:rssInstance
+				bind:rssBridge
+				bind:rssSourceUrl
+				bind:rssParams
+				{rssSourceKey}
+			/>
+		{/if}
 
 		<FeedOriginalContentSection
 			active={activeSection === 'original-content'}
@@ -411,7 +453,7 @@
 				onclick={handleSave}
 				disabled={saving ||
 					!dirty ||
-					(rssEnabled && !effectiveFeedUrl) ||
+					((rssEnabled || isPageFeed) && !effectiveFeedUrl) ||
 					(categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
 				class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
 			>

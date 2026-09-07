@@ -12,6 +12,7 @@
 	import FeedAddModal from '$lib/components/ui/FeedAddModal.svelte';
 	import ScrapedFeedWizard from '$lib/components/ui/ScrapedFeedWizard.svelte';
 	import BridgeFeedWizard from '$lib/components/ui/BridgeFeedWizard.svelte';
+	import PageFeedWizard from '$lib/components/ui/PageFeedWizard.svelte';
 	import type { BridgeChoice } from '$lib/bridgeFinder';
 
 	// Zen mode slides the desktop sidebar off the left edge instead of unmounting it: the feed
@@ -24,9 +25,14 @@
 	let { collapsed = false }: { collapsed?: boolean } = $props();
 
 	let showAddModal = $state(false);
+	// The two "feed from a page" wizards: MicroRSS's own page feed (default) and the RSS-Bridge
+	// CssSelectorBridge one (offered only when the user has an instance).
+	let showPageFeedWizard = $state(false);
 	let showWizard = $state(false);
-	// Handed to the wizard when Add Feed found nothing for a URL, so it isn't retyped.
+	// Handed to either wizard from Add Feed, so the URL (and the category already picked there)
+	// isn't chosen twice.
 	let wizardPageUrl = $state('');
+	let wizardCategoryId = $state<number | undefined>(undefined);
 	// Set when Add Feed offered a ready-made bridge and the user picked one.
 	let showBridgeWizard = $state(false);
 	let bridgeChoice = $state.raw<BridgeChoice | null>(null);
@@ -156,8 +162,23 @@
 		initialCategoryId={addFeedCategoryId}
 		onclose={() => showAddModal = false}
 		onsave={handleCreateFeed}
+		onpagefeed={(url, categoryId) => {
+			wizardPageUrl = url;
+			wizardCategoryId = categoryId ?? addFeedCategoryId;
+			showAddModal = false;
+			showPageFeedWizard = true;
+		}}
 		onwizard={(url) => { wizardPageUrl = url; showAddModal = false; showWizard = true; }}
 		onbridge={(choice) => { bridgeChoice = choice; showAddModal = false; showBridgeWizard = true; }}
+	/>
+{/if}
+
+{#if showPageFeedWizard}
+	<PageFeedWizard
+		initialCategoryId={wizardCategoryId}
+		initialPageUrl={wizardPageUrl}
+		onclose={() => showPageFeedWizard = false}
+		onsave={handleCreateFeed}
 	/>
 {/if}
 

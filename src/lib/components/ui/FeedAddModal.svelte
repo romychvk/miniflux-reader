@@ -10,9 +10,14 @@
 	import { defaultInstance } from '$lib/rssbridge';
 	import type { BridgeMatch } from '$lib/rssbridgeCatalog';
 
-	let { onclose, onsave, onwizard, onbridge, initialCategoryId }: {
+	let { onclose, onsave, onpagefeed, onwizard, onbridge, initialCategoryId }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
+		// "Build a feed from the page": MicroRSS's own page-feed wizard, always offered — discovery
+		// can succeed with the wrong feed (a site-wide feed advertised on a tag page). The category
+		// picked here travels along (undefined when it's the still-unnamed "new category" row).
+		onpagefeed?: (url: string, categoryId: number | undefined) => void;
+		// The RSS-Bridge CssSelectorBridge wizard, offered only when an instance is known.
 		onwizard?: (url: string) => void;
 		onbridge?: (choice: BridgeChoice) => void;
 		initialCategoryId?: number;
@@ -202,17 +207,33 @@
 			{/if}
 
 			<div class="flex items-center justify-between gap-2 pt-2">
-				{#if noneFound && onwizard}
-					<button
-						type="button"
-						onclick={() => onwizard(feedUrl.trim())}
-						class="text-xs text-a-600 underline hover:text-a-700"
-					>
-						Build one with RSS-Bridge
-					</button>
-				{:else}
-					<span></span>
-				{/if}
+				<div class="flex min-w-0 flex-col items-start gap-1">
+					{#if onpagefeed && feedUrl.trim()}
+						<button
+							type="button"
+							onclick={() =>
+								onpagefeed(feedUrl.trim(), categoryId === NEW_CATEGORY_SENTINEL ? undefined : categoryId)}
+							class="text-left text-xs text-a-600 underline hover:text-a-700"
+						>
+							{#if noneFound}
+								Build a feed from the page instead
+							{:else if results}
+								Not the right feed? Build one from the page
+							{:else}
+								Or build a feed from a listing page
+							{/if}
+						</button>
+					{/if}
+					{#if instance && onwizard && results}
+						<button
+							type="button"
+							onclick={() => onwizard(feedUrl.trim())}
+							class="text-left text-xs text-n-500 underline hover:text-n-700"
+						>
+							…with RSS-Bridge instead
+						</button>
+					{/if}
+				</div>
 				<div class="flex gap-2">
 					<button
 						type="button"

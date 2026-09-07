@@ -8,6 +8,10 @@ services:
       # Settings; it reaches the container via ${...} interpolation from Dokploy's .env.
       # Empty = unset → gate stays permissive (no breakage), so this is safe before you set it.
       - ALLOWED_MINIFLUX_SERVER=${ALLOWED_MINIFLUX_SERVER:-}
+      # HMAC key for page-feed URLs (/api/page-feed/rss). Optional: when empty the app generates
+      # one into /app/data/page-feed.key on the settings volume. Set it only if you want the key to
+      # survive a volume recreation — changing it invalidates every page feed Miniflux has.
+      - PAGE_FEED_SECRET=${PAGE_FEED_SECRET:-}
     expose:
       - "3000"
     volumes:
