@@ -1,13 +1,14 @@
-import { safeFetch } from '../safeFetch';
+import { fetchSourcePage } from '../sourcePage';
 
 // One fetch per listing page per short window, shared by the wizard preview (which re-runs on
 // every selector edit) and the public rss route (which Miniflux may hit for several feeds built
 // on the same page, or a user may refresh repeatedly). Module state — adapter-node is one
 // long-lived process; `vite dev` resets it on HMR.
 //
-// Fetching goes through safeFetch: private/loopback targets and unsafe redirects are refused,
-// the read is time- and size-capped. The URL is untrusted (it comes signed from a logged-in user
-// or as a JSON body from one), hence the crude clear-when-full eviction like /api/rss-bridge.
+// Fetching goes through fetchSourcePage: private/loopback targets and unsafe redirects are
+// refused, the read is time- and size-capped, and a bot-blocked 403 is retried once. The URL is
+// untrusted (it comes signed from a logged-in user or as a JSON body from one), hence the crude
+// clear-when-full eviction like /api/rss-bridge.
 
 export interface CachedPage {
 	html: string;
@@ -18,9 +19,6 @@ export interface CachedPage {
 
 const MAX_ENTRIES = 16;
 const MAX_BYTES = 3_000_000; // listing pages run 1–2 MB on media sites
-const TIMEOUT_MS = 12_000; // Miniflux gives a feed 20 s in total — leave room to parse
-// Same UA as /api/fetch-page: a real-looking one avoids trivial bot blocks on the source site.
-const USER_AGENT = 'Mozilla/5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)';
 
 const cache = new Map<string, CachedPage>();
 const inflight = new Map<string, Promise<CachedPage>>();
@@ -32,11 +30,7 @@ export async function fetchPageCached(url: string, maxAgeMs: number): Promise<Ca
 	const pending = inflight.get(url);
 	if (pending) return pending;
 
-	const task = safeFetch(url, {
-		headers: { 'User-Agent': USER_AGENT, Accept: 'text/html,application/xhtml+xml' },
-		maxBytes: MAX_BYTES,
-		timeoutMs: TIMEOUT_MS
-	})
+	const task = fetchSourcePage(url, { maxBytes: MAX_BYTES })
 		.then((result) => {
 			const page: CachedPage = {
 				html: result.body,

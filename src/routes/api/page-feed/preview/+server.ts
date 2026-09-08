@@ -3,6 +3,7 @@ import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 import { SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
 import { clean } from '$lib/server/htmlClean';
 import { fetchPageCached } from '$lib/server/pageFeed/pageCache';
+import { UPSTREAM_FAILED } from '$lib/server/sourcePage';
 import { parsePreviewRequest } from '$lib/server/pageFeed/validate';
 import {
 	InvalidPatternError,
@@ -47,11 +48,11 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		page = await fetchPageCached(config.pageUrl, PAGE_MAX_AGE_MS);
 	} catch (e) {
 		if (e instanceof SafeFetchError) {
-			return json(e.isPolicy ? 400 : 502, { error: describeSafeFetchError(e) });
+			return json(e.isPolicy ? 400 : UPSTREAM_FAILED, { error: describeSafeFetchError(e) });
 		}
-		return json(502, { error: 'Failed to fetch the page' });
+		return json(UPSTREAM_FAILED, { error: 'Failed to fetch the page' });
 	}
-	if (!page.ok) return json(502, { error: `Source returned ${page.status}` });
+	if (!page.ok) return json(UPSTREAM_FAILED, { error: `Source returned ${page.status}` });
 
 	const $ = parsePage(page.html);
 	// Suggestions cost a dozen extractions over the whole page, so only on the first call

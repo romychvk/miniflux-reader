@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
-import { safeFetch, SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
+import { SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
+import { UPSTREAM_FAILED, fetchSourcePage } from '$lib/server/sourcePage';
 import { clean } from '$lib/server/htmlClean';
 
 // Fetches the raw HTML of an article page server-side so the rule assistant can
@@ -43,18 +44,11 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 
 	try {
-		const result = await safeFetch(parsed.toString(), {
-			headers: {
-				// A real UA helps avoid trivial bot blocks on the source site.
-				'User-Agent': 'Mozilla/5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)',
-				Accept: 'text/html,application/xhtml+xml'
-			},
-			// DoS guard on the raw read; clean()+slice below apply the real 80KB semantic cap.
-			maxBytes: 3_000_000
-		});
+		// DoS guard on the raw read; clean()+slice below apply the real 80KB semantic cap.
+		const result = await fetchSourcePage(parsed.toString(), { maxBytes: 3_000_000 });
 		if (!result.ok) {
 			return new Response(JSON.stringify({ error: `Source returned ${result.status}` }), {
-				status: 502,
+				status: UPSTREAM_FAILED,
 				headers: { 'Content-Type': 'application/json' }
 			});
 		}
@@ -65,12 +59,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	} catch (e) {
 		if (e instanceof SafeFetchError) {
 			return new Response(JSON.stringify({ error: describeSafeFetchError(e) }), {
-				status: e.isPolicy ? 400 : 502,
+				status: e.isPolicy ? 400 : UPSTREAM_FAILED,
 				headers: { 'Content-Type': 'application/json' }
 			});
 		}
 		return new Response(JSON.stringify({ error: 'Failed to fetch page' }), {
-			status: 502,
+			status: UPSTREAM_FAILED,
 			headers: { 'Content-Type': 'application/json' }
 		});
 	}

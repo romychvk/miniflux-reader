@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
-import { safeFetch, SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
+import { SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
+import { UPSTREAM_FAILED, fetchSourcePage } from '$lib/server/sourcePage';
 
 // Default thumbnail source: fetch an article page server-side and read its Open Graph /
 // Twitter image meta tag. Used for entries whose content has no usable <img> and no image
@@ -41,14 +42,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 
 	try {
-		const result = await safeFetch(parsed.toString(), {
-			headers: {
-				'User-Agent': 'Mozilla/5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)',
-				Accept: 'text/html,application/xhtml+xml'
-			},
+		const result = await fetchSourcePage(parsed.toString(), {
 			maxBytes: 200_000 // og/twitter meta live in <head>
 		});
-		if (!result.ok) return fail(502, `Source returned ${result.status}`);
+		if (!result.ok) return fail(UPSTREAM_FAILED, `Source returned ${result.status}`);
 
 		const html = result.body;
 		const raw =
@@ -71,7 +68,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch (e) {
-		if (e instanceof SafeFetchError) return fail(e.isPolicy ? 400 : 502, describeSafeFetchError(e));
-		return fail(502, 'Failed to fetch page');
+		if (e instanceof SafeFetchError) return fail(e.isPolicy ? 400 : UPSTREAM_FAILED, describeSafeFetchError(e));
+		return fail(UPSTREAM_FAILED, 'Failed to fetch page');
 	}
 };

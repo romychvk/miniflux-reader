@@ -5,6 +5,7 @@ import { parseSignedQuery, verifyPageFeedSignature } from '$lib/server/pageFeed/
 import { validatePageFeedConfig } from '$lib/server/pageFeed/validate';
 import { getPageFeedSecret } from '$lib/server/pageFeed/secret';
 import { fetchPageCached } from '$lib/server/pageFeed/pageCache';
+import { UPSTREAM_FAILED } from '$lib/server/sourcePage';
 import {
 	InvalidPatternError,
 	InvalidSelectorError,
@@ -45,10 +46,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	try {
 		page = await fetchPageCached(config.pageUrl, PAGE_MAX_AGE_MS);
 	} catch (e) {
-		if (e instanceof SafeFetchError) return text(e.isPolicy ? 400 : 502, describeSafeFetchError(e));
-		return text(502, 'Failed to fetch the page');
+		if (e instanceof SafeFetchError) return text(e.isPolicy ? 400 : UPSTREAM_FAILED, describeSafeFetchError(e));
+		return text(UPSTREAM_FAILED, 'Failed to fetch the page');
 	}
-	if (!page.ok) return text(502, `Source returned ${page.status}`);
+	if (!page.ok) return text(UPSTREAM_FAILED, `Source returned ${page.status}`);
 
 	let result;
 	try {
