@@ -8,14 +8,17 @@ import { SafeFetchError, safeFetch, type SafeFetchResult } from './safeFetch';
 // satisfy every WAF — each attempt below is here because a real site refuses the one above it.
 //   1. A browser-shaped UA. What Cloudflare-style "you must look like a browser" blocking wants,
 //      and the right default: most sites either don't care or prefer it.
-//   2. Our own name plus a curl product token. quark.com 403s anything Mozilla-shaped that fails
-//      its browser fingerprint (a full Chrome header set is refused too), and helpx.adobe.com's
-//      Akamai goes further — it accepts a connection from an unrecognised client and then never
-//      answers, so the block arrives as a timeout, not a status. Both serve a plain script client;
-//      Akamai keys on the curl token specifically (a trailing "(+url)" comment loses it again).
+//   2. A curl product token, with our own name in the comment the same way rung 1 carries it.
+//      quark.com 403s anything Mozilla-shaped that fails its browser fingerprint (a full Chrome
+//      header set is refused too), and helpx.adobe.com's Akamai goes further — it accepts the
+//      connection from a client it doesn't recognise and then never answers, so the block arrives
+//      as a timeout rather than a status. Both serve a plain script client. Measured against
+//      helpx.adobe.com over this transport: the recognised token has to come FIRST — the same
+//      string with our name in front ('MinifluxReader/1.0 curl/8.5.0') hangs, as does our name
+//      alone, while python-requests/2.31.0 is served like curl.
 const USER_AGENTS = [
 	'Mozilla/5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)',
-	'MinifluxReader/1.0 curl/8.5.0'
+	'curl/8.5.0 (compatible; MinifluxReader/1.0; +https://miniflux.app)'
 ];
 
 const TIMEOUT_MS = 14_000; // Miniflux gives a feed 20 s in total — leave room to parse
