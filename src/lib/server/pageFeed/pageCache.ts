@@ -6,9 +6,9 @@ import { fetchSourcePage } from '../sourcePage';
 // long-lived process; `vite dev` resets it on HMR.
 //
 // Fetching goes through fetchSourcePage: private/loopback targets and unsafe redirects are
-// refused, the read is time- and size-capped, and a bot-blocked 403 is retried once. The URL is
-// untrusted (it comes signed from a logged-in user or as a JSON body from one), hence the crude
-// clear-when-full eviction like /api/rss-bridge.
+// refused, the read is time- and size-capped, and a bot-blocked attempt is retried under another
+// User-Agent. The URL is untrusted (it comes signed from a logged-in user or as a JSON body from
+// one), hence the crude clear-when-full eviction like /api/rss-bridge.
 
 export interface CachedPage {
 	html: string;
