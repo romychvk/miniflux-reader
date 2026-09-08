@@ -11,10 +11,18 @@
 // This is the pure, shared half: types, the query-key map, encode/decode/canonicalize and URL
 // detection. No $lib, no browser or node imports, so the server modules and node --test load it.
 
+// How the page is read. 'cards' (the default, and the only value ever written to the URL) means
+// the selector matches repeated linked cards. 'sections' means it matches the headings of one long
+// document — each item is a heading plus everything up to the next match, for pages like a
+// release-notes page whose entries have no links of their own.
+export type PageFeedMode = 'cards' | 'sections';
+
 export interface PageFeedConfig {
 	pageUrl: string;
-	itemSelector: string;
-	urlPattern?: string; // regex an absolute item URL must match
+	itemSelector: string; // the item cards, or in section mode the section headings
+	mode?: PageFeedMode; // absent = 'cards'
+	urlPattern?: string; // regex an absolute item URL must match (cards only — a section has no link)
+	titlePattern?: string; // regex the title must match: drops 'Sponsored' cards, 'Fixed issues' sections
 	limit?: number; // max items, page order
 	titleSelector?: string; // overrides for the heuristics, all relative to the item
 	dateSelector?: string;
@@ -31,7 +39,9 @@ export const PAGE_FEED_LIMIT_MAX = 100;
 export const PAGE_FEED_KEYS = {
 	pageUrl: 'u',
 	itemSelector: 's',
+	mode: 'm',
 	urlPattern: 'p',
+	titlePattern: 'r',
 	limit: 'n',
 	titleSelector: 't',
 	dateSelector: 'd',
@@ -40,12 +50,13 @@ export const PAGE_FEED_KEYS = {
 } as const;
 
 type ConfigField = keyof typeof PAGE_FEED_KEYS;
-type StringField = Exclude<ConfigField, 'limit'>;
+type StringField = Exclude<ConfigField, 'limit' | 'mode'>;
 
 const STRING_FIELDS: StringField[] = [
 	'pageUrl',
 	'itemSelector',
 	'urlPattern',
+	'titlePattern',
 	'titleSelector',
 	'dateSelector',
 	'summarySelector',
@@ -68,6 +79,9 @@ export function encodePageFeedParams(cfg: PageFeedConfig): Record<string, string
 	if (cfg.limit != null && Number.isInteger(cfg.limit) && cfg.limit > 0) {
 		out[PAGE_FEED_KEYS.limit] = String(cfg.limit);
 	}
+	// 'cards' is deliberately never written: every URL signed before this key existed canonicalizes
+	// to the string it always did, so old feeds keep verifying and don't read as edited.
+	if (cfg.mode === 'sections') out[PAGE_FEED_KEYS.mode] = 'sections';
 	return out;
 }
 
@@ -93,6 +107,13 @@ export function decodePageFeedParams(
 	if (n != null && n !== '') {
 		if (!/^\d{1,3}$/.test(n) || Number(n) < 1) return null;
 		cfg.limit = Number(n);
+	}
+	// An unreadable mode is a malformed URL, not a reason to quietly fall back to cards — the feed
+	// would then be extracted a different way than the one that was signed.
+	const m = get(PAGE_FEED_KEYS.mode);
+	if (m != null && m !== '') {
+		if (m !== 'sections' && m !== 'cards') return null;
+		if (m === 'sections') cfg.mode = 'sections';
 	}
 	return cfg;
 }
@@ -141,6 +162,7 @@ export function pageFeedConfigKey(cfg: PageFeedConfig | null): string {
 export interface PageFeedItem {
 	url: string;
 	title: string;
+	content?: string; // section mode: the section's own HTML, which becomes the RSS description
 	date?: string; // ISO 8601
 	summary?: string;
 	image?: string;

@@ -17,6 +17,12 @@ const SELECTOR_FIELDS = [
 	'imageSelector'
 ] as const;
 
+// Both regexes are bounded the same way and reported with the label the UI uses for them.
+const PATTERN_FIELDS = [
+	['urlPattern', 'Link pattern'],
+	['titlePattern', 'Title pattern']
+] as const;
+
 // Returns a human-readable problem, or null when the config is acceptable. `requireSelector`
 // is false for the wizard's first call, which only wants the page loaded and selectors suggested.
 export function validatePageFeedConfig(cfg: PageFeedConfig, requireSelector = true): string | null {
@@ -35,13 +41,19 @@ export function validatePageFeedConfig(cfg: PageFeedConfig, requireSelector = tr
 		if (value != null && value.length > MAX_SELECTOR) return `${field} is too long`;
 	}
 
-	if (cfg.urlPattern != null) {
-		if (cfg.urlPattern.length > MAX_PATTERN) return 'Link pattern is too long';
+	for (const [field, label] of PATTERN_FIELDS) {
+		const pattern = cfg[field];
+		if (pattern == null) continue;
+		if (pattern.length > MAX_PATTERN) return `${label} is too long`;
 		try {
-			new RegExp(cfg.urlPattern);
+			new RegExp(pattern);
 		} catch {
-			return 'Link pattern is not a valid regular expression';
+			return `${label} is not a valid regular expression`;
 		}
+	}
+
+	if (cfg.mode != null && cfg.mode !== 'cards' && cfg.mode !== 'sections') {
+		return 'Unknown extraction mode';
 	}
 
 	if (cfg.limit != null) {
@@ -73,11 +85,20 @@ export function parsePreviewRequest(raw: unknown): PreviewRequest | { error: str
 		pageUrl: body.pageUrl.trim(),
 		itemSelector: optionalString(body.itemSelector) ?? ''
 	};
-	const urlPattern = optionalString(body.urlPattern);
-	if (urlPattern) config.urlPattern = urlPattern;
-	for (const field of ['titleSelector', 'dateSelector', 'summarySelector', 'imageSelector'] as const) {
+	for (const field of [
+		'urlPattern',
+		'titlePattern',
+		'titleSelector',
+		'dateSelector',
+		'summarySelector',
+		'imageSelector'
+	] as const) {
 		const value = optionalString(body[field]);
 		if (value) config[field] = value;
+	}
+	if (body.mode != null && body.mode !== '') {
+		if (body.mode !== 'cards' && body.mode !== 'sections') return { error: 'Unknown extraction mode' };
+		if (body.mode === 'sections') config.mode = 'sections';
 	}
 	if (body.limit != null && body.limit !== '') {
 		const limit = typeof body.limit === 'string' ? Number(body.limit) : body.limit;

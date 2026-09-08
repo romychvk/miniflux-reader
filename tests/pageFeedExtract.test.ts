@@ -167,3 +167,128 @@ test('suggestSelectors ranks the dated article cards first and skips broken extr
 	assert.ok(!suggestions.some((s) => s.selector === '.card'));
 	assert.ok(suggestions.length <= 6);
 });
+
+// --- Section mode ---
+//
+// Modelled on helpx.adobe.com's AEM markup: the release heading sits in its own grid column and
+// the release body is in the FOLLOWING columns, not inside the heading's parent; a later heading
+// is nested two levels deep inside one of those columns; every component carries an inline
+// <style> block; and the page ends with a footer heading outside the region the releases live in.
+const DOC_BASE = 'https://helpx.example.com/indesign/release-notes.html';
+
+const DOC = `
+<html><head><title>Release notes | InDesign</title></head><body>
+<nav><a href="/indesign/">InDesign</a></nav>
+<main class="grid">
+	<div class="text aem-GridColumn"><div class="cmp-text"><h2>August 2026 (version 21.5.1)</h2></div></div>
+	<div class="flex aem-GridColumn">
+		<style>#root_content_flex_a{color:red}</style>
+		<p class="body">This release includes bug fixes.</p>
+	</div>
+
+	<div class="text aem-GridColumn"><div class="cmp-text"><h2>July 2026 (version 21.5)</h2></div></div>
+	<div class="surfaceSpecificContainer aem-GridColumn">
+		<p>Intro to July.</p>
+		<div class="accordion">
+			<div class="panel"><img src="/content/dam/j.png" alt="Screenshot" data-track="x"><p>Detail.</p></div>
+			<div class="text aem-GridColumn"><div class="cmp-text"><h2>Fixed issues</h2></div></div>
+			<p>Bug list.</p>
+		</div>
+	</div>
+	<div class="accordion aem-GridColumn"><p>Trailing accordion.</p></div>
+</main>
+<footer><h2>More like this</h2><p>Footer junk.</p></footer>
+</body></html>`;
+
+const SECTIONS = { itemSelector: '.cmp-text h2', mode: 'sections' } as const;
+
+test('section mode makes one item per heading, with the heading as title and a slug for a URL', () => {
+	const result = extractItems(parsePage(DOC), DOC_BASE, SECTIONS);
+	assert.equal(result.matched, 3);
+	assert.deepEqual(
+		result.items.map((i) => i.title),
+		['August 2026 (version 21.5.1)', 'July 2026 (version 21.5)', 'Fixed issues']
+	);
+	// The page offers no per-section link, so the URL is the page plus a slug of the heading —
+	// content-derived, so a new release prepended later doesn't renumber the older items' guids.
+	assert.equal(result.items[0].url, `${DOC_BASE}#august-2026-version-21-5-1`);
+	assert.equal(result.items[2].url, `${DOC_BASE}#fixed-issues`);
+});
+
+test('a section is the following siblings, and stops at a heading nested deeper', () => {
+	const [, july] = extractItems(parsePage(DOC), DOC_BASE, SECTIONS).items;
+	assert.match(july.content ?? '', /Intro to July/);
+	assert.match(july.content ?? '', /Detail/);
+	// The next heading lives two levels down inside the same column: the walk descends to it and
+	// stops there instead of swallowing it and everything after it.
+	assert.doesNotMatch(july.content ?? '', /Fixed issues/);
+	assert.doesNotMatch(july.content ?? '', /Bug list/);
+});
+
+test('the last section is bounded by the region the headings share, not by the page', () => {
+	const last = extractItems(parsePage(DOC), DOC_BASE, SECTIONS).items[2];
+	assert.match(last.content ?? '', /Bug list/);
+	// Known limitation, and the reason this assertion is here: a trailing block INSIDE that region
+	// with no heading of its own still belongs to the last section.
+	assert.match(last.content ?? '', /Trailing accordion/);
+	// The footer is outside it, so it never joins a release.
+	assert.doesNotMatch(last.content ?? '', /Footer junk/);
+});
+
+test('section content drops inline CSS and CMS attributes and absolutizes images', () => {
+	const items = extractItems(parsePage(DOC), DOC_BASE, SECTIONS).items;
+	assert.doesNotMatch(items[0].content ?? '', /root_content_flex_a/);
+	assert.equal(items[0].summary, 'This release includes bug fixes.');
+	assert.match(items[1].content ?? '', /https:\/\/helpx\.example\.com\/content\/dam\/j\.png/);
+	assert.doesNotMatch(items[1].content ?? '', /data-track/);
+	assert.doesNotMatch(items[1].content ?? '', /class=/);
+	// Block texts are separated, not run together.
+	assert.equal(items[1].summary, 'Intro to July. Detail.');
+});
+
+test('a title pattern picks which sections become items, and every heading still ends one', () => {
+	const result = extractItems(parsePage(DOC), DOC_BASE, { ...SECTIONS, titlePattern: '\\(version' });
+	assert.deepEqual(
+		result.items.map((i) => i.title),
+		['August 2026 (version 21.5.1)', 'July 2026 (version 21.5)']
+	);
+	assert.equal(result.matched, 3); // the filtered heading is still counted as a match
+	// "Fixed issues" is not an item any more, but it must still cut the July section short.
+	assert.doesNotMatch(result.items[1].content ?? '', /Bug list/);
+});
+
+test('a month in the heading dates the section, in UTC', () => {
+	const items = extractItems(parsePage(DOC), DOC_BASE, SECTIONS).items;
+	// Built with Date.UTC on purpose: Date.parse reads a bare month-year in local time, which would
+	// make the ISO day — and so the RSS bytes and the ETag — depend on the host's timezone.
+	assert.equal(items[0].date, '2026-08-01T00:00:00.000Z');
+	assert.equal(items[1].date, '2026-07-01T00:00:00.000Z');
+	assert.equal(items[2].date, undefined); // "Fixed issues" carries no date
+});
+
+test('identical headings get distinct urls', () => {
+	const doc = parsePage('<body><main><h2>Notes</h2><p>One.</p><h2>Notes</h2><p>Two.</p></main></body>');
+	const items = extractItems(doc, DOC_BASE, { itemSelector: 'h2', mode: 'sections' }).items;
+	assert.deepEqual(
+		items.map((i) => i.url),
+		[`${DOC_BASE}#notes`, `${DOC_BASE}#notes-2`]
+	);
+});
+
+test('section suggestions are headings, ranked by the ones that carry a date', () => {
+	const suggestions = suggestSelectors(parsePage(DOC), DOC_BASE, [], 'sections');
+	assert.equal(suggestions[0].selector, 'main h2');
+	assert.equal(suggestions[0].items, 3);
+	assert.equal(suggestions[0].dated, 2);
+	// Card candidates never appear in this mode.
+	assert.ok(!suggestions.some((s) => s.selector === 'article'));
+});
+
+test('a title pattern also filters cards', () => {
+	const items = extractItems(parsePage(PAGE), BASE, {
+		itemSelector: 'article',
+		titlePattern: 'InDesign'
+	}).items;
+	assert.ok(items.length > 0);
+	assert.ok(items.every((i) => i.title.includes('InDesign')));
+});

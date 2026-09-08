@@ -8,12 +8,17 @@ It connects to a Miniflux instance via API token through a server-side proxy.
 ### Page feeds (HTML listing page → RSS, no RSS-Bridge)
 
 For pages with no usable feed (a tag page whose advertised feed is site-wide, a "latest" section).
+Two modes: **cards** (repeated linked items) and **sections** (one long document split at its
+headings — release notes, a changelog: the item is a heading plus everything up to the next match,
+it carries that section's own HTML, its URL is the page plus a slug of the heading, and a
+`titlePattern` says which headings count).
 Miniflux Reader fetches the page itself, extracts the item cards with a CSS selector and serves RSS 2.0;
 Miniflux subscribes to that URL. **The signed URL is the config** — nothing is stored server-side
 and nothing goes to localStorage (settingsSync would sync it).
 
-- Shared pure module: `src/lib/pageFeed.ts` (config type, query keys `u s p n t d x i`, canonical
+- Shared pure module: `src/lib/pageFeed.ts` (config type, query keys `u s m p r n t d x i`, canonical
   query, `isPageFeedUrl`/`parsePageFeedUrl`, `pageFeedConfigKey` for dirty-tracking, wire types).
+  `m` is only ever written as `sections`, so every URL signed before that key existed still verifies.
   Browser calls go through `src/lib/pageFeedClient.ts`.
 - Server: `src/lib/server/pageFeed/{extract,rss,sign,validate}.ts` are pure (node:test-covered);
   `secret.ts` (HMAC key: `PAGE_FEED_SECRET` env, else auto-generated `data/page-feed.key` on the

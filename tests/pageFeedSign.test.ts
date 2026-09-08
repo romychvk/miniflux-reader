@@ -38,6 +38,17 @@ test('verify accepts the real signature and rejects tampering', () => {
 	assert.equal(verifyPageFeedSignature(params, sig, ''), false);
 });
 
+// Growing PAGE_FEED_KEYS must never move an existing feed's canonical query: the signature is
+// over that string, so a shift would 403 every page feed already living in Miniflux. This pins the
+// bytes for a pre-mode config.
+test('a legacy param set signs to the same string after the key map grew', () => {
+	const legacy = { u: 'https://example.com/news', s: 'article', n: '20' };
+	assert.equal(
+		signPageFeedParams(legacy, SECRET),
+		'OScm3QLEL1M9e5IbXKaEdhh8sSmyJGt-HeJos32ztu4'
+	);
+});
+
 test('buildSignedPageFeedPath → parseSignedQuery → verify round-trips', () => {
 	const path = buildSignedPageFeedPath(CONFIG, SECRET);
 	assert.ok(path.startsWith(`${PAGE_FEED_PATH}?`));

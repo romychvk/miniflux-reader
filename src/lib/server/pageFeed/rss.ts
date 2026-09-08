@@ -38,6 +38,10 @@ export function toRfc822(iso: string): string | null {
 // The description is HTML *inside* XML text: escape the HTML once for its own text nodes, then
 // the whole fragment gets escaped again as XML by the caller.
 function itemDescription(item: ExtractedItem): string {
+	// A section carries its own markup — already HTML, so it needs no escaping of its own here and
+	// gets exactly the one XML pass the caller applies. It replaces the summary rather than joining
+	// it: the summary is that same section flattened to text.
+	if (item.content) return item.content;
 	const parts: string[] = [];
 	if (item.image) parts.push(`<p><img src="${escapeXml(item.image)}" alt=""></p>`);
 	if (item.summary) parts.push(`<p>${escapeXml(item.summary)}</p>`);

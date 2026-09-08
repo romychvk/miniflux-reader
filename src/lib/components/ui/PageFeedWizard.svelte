@@ -12,6 +12,7 @@
 		pageFeedConfigKey,
 		type PageFeedConfig,
 		type PageFeedItem,
+		type PageFeedMode,
 		type PageFeedSuggestion
 	} from '$lib/pageFeed';
 	import { previewPageFeed } from '$lib/pageFeedClient';
@@ -45,6 +46,9 @@
 	let htmlSample = $state.raw('');
 	let suggestions = $state.raw<PageFeedSuggestion[]>([]);
 	let config = $state<PageFeedConfig>({ pageUrl: '', itemSelector: '' });
+	// Kept beside the config because it survives a reseed: switching mode reloads the suggestions
+	// and rebuilds the config around this.
+	let mode = $state<PageFeedMode>('cards');
 	let loadingPage = $state(false);
 	let pageError = $state('');
 
@@ -71,7 +75,9 @@
 		if (!categoryId)
 			categoryId = initialCategoryId ?? feeds.getNoCategoryId() ?? feeds.getCategories()[0]?.id ?? 0;
 	});
-	let crawler = $state(true); // let Miniflux fetch the full articles by default
+	// Let Miniflux fetch the full articles by default — except for sections, where the feed already
+	// carries the section's own markup and crawling its #fragment would fetch the whole page over it.
+	let crawler = $state(true);
 
 	let saving = $state(false);
 	let copied = $state(false);
@@ -109,21 +115,49 @@
 		loadingPage = true;
 		pageError = '';
 		try {
-			const res = await previewPageFeed({ pageUrl: target });
+			const res = await previewPageFeed({ pageUrl: target, mode });
 			loadedUrl = target;
 			pageTitle = res.pageTitle;
 			htmlSample = res.htmlSample;
-			suggestions = res.suggestions;
-			aiExplanation = '';
-			preview = null;
-			attemptedKey = '';
-			// Best built-in guess goes straight into the field; the effect above previews it.
-			config = { pageUrl: target, itemSelector: res.suggestions[0]?.selector ?? '' };
+			applySuggestions(target, res.suggestions);
 		} catch (e) {
 			pageError = e instanceof Error ? e.message : 'Failed to load page';
 			loadedUrl = '';
 			suggestions = [];
 			preview = null;
+		} finally {
+			loadingPage = false;
+		}
+	}
+
+	// Suggestions are scored for one mode, so both the first load and a mode switch land here.
+	function applySuggestions(target: string, next: PageFeedSuggestion[]) {
+		suggestions = next;
+		aiExplanation = '';
+		preview = null;
+		attemptedKey = '';
+		// Best built-in guess goes straight into the field; the effect above previews it.
+		config = {
+			pageUrl: target,
+			itemSelector: next[0]?.selector ?? '',
+			...(mode === 'sections' ? { mode } : {})
+		};
+	}
+
+	// A selector chosen for cards means nothing for sections, so the switch reloads the suggestions
+	// instead of previewing the old one under the new mode and reporting zero items.
+	async function changeMode(next: PageFeedMode) {
+		if (next === mode || loadingPage) return;
+		mode = next;
+		crawler = next === 'cards';
+		if (!loadedUrl) return;
+		loadingPage = true;
+		pageError = '';
+		try {
+			const res = await previewPageFeed({ pageUrl: loadedUrl, mode: next });
+			applySuggestions(loadedUrl, res.suggestions);
+		} catch (e) {
+			pageError = e instanceof Error ? e.message : 'Failed to load page';
 		} finally {
 			loadingPage = false;
 		}
@@ -166,7 +200,10 @@
 			const suggestion = parseSelectorSuggestion(text);
 			aiExplanation = suggestion.explanation;
 			// The server scores the model's candidates next to the built-ins with the real extractor.
-			const res = await previewPageFeed({ pageUrl: loadedUrl }, { candidates: suggestion.url_selectors });
+			const res = await previewPageFeed(
+				{ pageUrl: loadedUrl, mode },
+				{ candidates: suggestion.url_selectors }
+			);
 			suggestions = res.suggestions;
 			const best =
 				res.suggestions.find((s) => suggestion.url_selectors.includes(s.selector)) ?? res.suggestions[0];
@@ -277,11 +314,16 @@
 						</div>
 					{:else}
 						<p class="text-xs text-warning">
-							No obvious listing found on this page. Enter a selector below, or ask the AI for one.
+							{#if mode === 'sections'}
+								No repeated headings found on this page. Enter a heading selector below, or try Item
+								cards.
+							{:else}
+								No obvious listing found on this page. Enter a selector below, or ask the AI for one.
+							{/if}
 						</p>
 					{/if}
 
-					<PageFeedFields bind:config idPrefix="pfw" />
+					<PageFeedFields bind:config idPrefix="pfw" onmodechange={changeMode} disabled={loadingPage} />
 
 					{#if aiConfig.isConfigured}
 						<div class="flex gap-2">
@@ -317,7 +359,7 @@
 					{#if previewError}
 						<p class="text-xs text-danger">{previewError}</p>
 					{:else if current}
-						<PageFeedPreviewList items={current.items} matched={current.matched} />
+						<PageFeedPreviewList items={current.items} matched={current.matched} {mode} />
 					{:else if previewing || (config.itemSelector.trim() && attemptedKey !== configKey)}
 						<p class="text-xs text-n-500">Previewing…</p>
 					{/if}
@@ -334,7 +376,12 @@
 						<label for="pfw-crawler" class="text-sm text-n-700">
 							Fetch original content (crawler)
 							<span class="block text-xs text-n-500">
-								Recommended — the page only gives titles and summaries. Untick if the site is slow.
+								{#if mode === 'sections'}
+									Leave off — each item already carries its whole section, and crawling would replace
+									it with the entire page.
+								{:else}
+									Recommended — the page only gives titles and summaries. Untick if the site is slow.
+								{/if}
 							</span>
 						</label>
 					</div>
