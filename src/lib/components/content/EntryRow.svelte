@@ -444,13 +444,13 @@
 {:else if viewMode === 'magazine'}
 	<!-- Magazine: image left, title/date/description right -->
 	<div
-		class="border-b border-n-200"
+		class="@container/mag"
 		bind:this={rowEl}
 		use:autoMarkRead={entry}
 	>
 		<a
 			href={articleHref}
-			class="flex items-start gap-4 px-4 py-3 @lg/mag:py-5 cursor-pointer hover:bg-n-50 transition-colors {isSelected ? 'bg-a-50' : ''}"
+			class="flex items-start gap-4 px-4 py-3 @lg/mag:py-4 cursor-pointer hover:bg-n-100 transition-colors {isSelected ? 'bg-a-50' : ''}"
 			onclick={openInPlace}
 			onauxclick={onAuxClick}
 			oncontextmenu={openContextMenu}
@@ -485,7 +485,7 @@
 
 			<div class="flex-1 min-w-0">
 
-  		  <h3 class="leading-snug mb-2 font-bold @lg/mag:text-lg {isRead ? 'text-n-500' : ''}" {lang}>{entry.title}</h3>
+  		  <h3 class="leading-snug mb-2 font-bold {isRead ? 'text-n-500' : ''}" {lang}>{entry.title}</h3>
         <p class="text-xs @lg/mag:text-sm text-n-600 mb-2 @lg/mag:mb-3 flex items-center gap-2">
    					{#if feedIcon}
   						<img src={feedIcon} alt="" class="size-3 mt-px shrink-0 {isRead ? 'opacity-80' : ''}" />
@@ -496,7 +496,7 @@
           <div class="grow flex gap-4 @lg/mag:gap-6 w-full justify-between">
             {#if thumbnailUrl}
       		    <div
-      		    	class="relative self-start shrink-0 w-56 @lg/mag:w-64 max-h-[150px] @lg/mag:max-h-[240px] mt-1 rounded overflow-hidden bg-n-100 flex items-center justify-center"
+      		    	class="relative self-start shrink-0 w-56 @2xl/mag:w-64 max-h-[150px] @2xl/mag:max-h-[240px] mt-1 rounded overflow-hidden bg-n-100 flex items-center justify-center"
       		    >
        					<!-- blurred backdrop: only fills the side gaps of a portrait image; a full-width
        					     landscape image covers it entirely, so no top/bottom bars ever show -->
@@ -512,7 +512,7 @@
        					<img
         						src={thumbnailUrl}
         						alt=""
-        						class="relative block max-h-[150px] @lg/mag:max-h-[240px] max-w-full w-auto"
+        						class="relative block max-h-[150px] @2xl/mag:max-h-[240px] max-w-full w-auto"
         						loading="lazy"
         						onerror={thumbnailFailed}
        					/>
@@ -521,7 +521,7 @@
             <div class="grow">
 
       				{#if description}
-       					<p class="text-sm @lg/mag:text-base leading-normal text-n-800 line-clamp-6" {lang}>{description}</p>
+       					<p class="text-xs @lg/mag:text-sm leading-normal text-n-800 {thumbnailUrl ? 'line-clamp-5' : 'line-clamp-6'}" {lang}>{description}</p>
       				{/if}
             </div>
 

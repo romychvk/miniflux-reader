@@ -27,10 +27,20 @@
 		</div>
 
 	{:else if ui.viewMode === 'magazine'}
-		<div class="max-w-screen-md @container/mag">
-			{#each entries.entries as entry (entry.id)}
-				<EntryRow {entry} />
-			{/each}
+		<!-- One column until the content area is genuinely wide enough for two (@6xl = 1152px,
+		     which leaves each column above the @lg/mag threshold the row layout wants). The
+		     container is this outer div, so it measures the available width; each row carries its
+		     own @container/mag and so responds to its column, not to the window. items-start keeps
+		     a short entry from stretching to the height of a tall one beside it. -->
+		<div class="@container/maglist">
+			<div
+				class="grid grid-cols-1 items-start max-w-screen-md
+				       @6xl/maglist:grid-cols-2 @6xl/maglist:max-w-[1600px]"
+			>
+				{#each entries.entries as entry (entry.id)}
+					<EntryRow {entry} />
+				{/each}
+			</div>
 		</div>
 	{:else if ui.viewMode === 'cards'}
 		<div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 p-4">
