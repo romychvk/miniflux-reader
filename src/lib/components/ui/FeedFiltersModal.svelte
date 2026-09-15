@@ -197,18 +197,17 @@
 			storageSet(FILTER_ACTION_PREFIX + feedId, filterAction);
 			saveHideRules(feedId, effHideRules);
 
-			// In "mark read" mode, apply the rules to the existing backlog right away, so saving the
-			// filter has immediate effect rather than only on the next per-page load.
-			if (isMarkRead && effHideRules.length > 0) {
-				const n = await entries.applyHideToExisting(feedId, effHideRules);
-				ui.showSuccess(
-					n > 0
-						? `Filters saved — marked ${n} existing ${n === 1 ? 'post' : 'posts'} read.`
-						: 'Filters saved.'
-				);
-			} else {
-				ui.showSuccess('Filters saved.');
-			}
+			// Settle the existing backlog against the settings just saved — hide-rule matches and,
+			// with dedup on, duplicate copies — so the choice takes effect now rather than on the
+			// next load. It reads them back from localStorage, which is why it runs after the writes
+			// above. The background sweep would not catch this on its own: it only revisits a feed
+			// whose unread count has moved, and changing a setting doesn't move the count.
+			const n = await entries.reconcileBacklog(feedId);
+			ui.showSuccess(
+				n > 0
+					? `Filters saved — marked ${n} existing ${n === 1 ? 'post' : 'posts'} read.`
+					: 'Filters saved.'
+			);
 
 			// Re-apply visibly over the live list (dedup + hide-on-load) when it's the open feed.
 			if (ui.selectedFeed && ui.selectedFeed.id === feedId) {

@@ -64,14 +64,14 @@ function createRefreshStore() {
 			} else {
 				// The count is "new unread fetched": cross-device reads between the snapshots
 				// can offset it, but unlike the list-length delta it isn't capped by the
-				// loadEntries limit. Hide-rule matches are swept out before the second
+				// loadEntries limit. What the reader hides is swept out before the second
 				// snapshot, so "+N new" counts posts that will actually appear in the list.
 				const node = liveCounterNode();
 				const before = node?.unread ?? 0;
 				if (sel.isFeed) await feeds.refreshFeed(sel.id);
 				else if (sel.id === -1) await feeds.refreshAllFeeds();
 				else await feeds.refreshCategoryFeeds(sel.id);
-				await entries.sweepHiddenBacklogs();
+				await entries.sweepBacklogs();
 				const after = node?.unread ?? 0; // refresh* already ran loadCounters()
 				await entries.loadEntries(sel.apiPath);
 				showResult(formatRefreshResult(computeNewCount(before, after)));
@@ -96,7 +96,7 @@ function createRefreshStore() {
 		try {
 			if (node.isFeed) await feeds.refreshFeed(node.id);
 			else await feeds.refreshCategoryFeeds(node.id);
-			await entries.sweepHiddenBacklogs();
+			await entries.sweepBacklogs();
 			if (ui.selectedFeed) await entries.loadEntries(ui.selectedFeed.apiPath);
 		} catch {
 			/* already handled */
@@ -128,9 +128,9 @@ function createRefreshStore() {
 		const node = liveCounterNode();
 		const before = node?.unread ?? 0;
 		await feeds.loadCounters();
-		// Whatever the daemon fetched, hide-rule matches never reach the reader — take them out
-		// of the counters here so the sidebar doesn't promise posts the list won't show.
-		await entries.sweepHiddenBacklogs();
+		// Whatever the daemon fetched, hidden matches and duplicate copies never reach the reader —
+		// take them out of the counters so the sidebar doesn't promise posts the list won't show.
+		await entries.sweepBacklogs();
 		lastCheck = Date.now();
 		if (node) {
 			const delta = node.unread - before;

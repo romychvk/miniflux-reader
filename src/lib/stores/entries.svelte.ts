@@ -4,10 +4,16 @@ import type { FilterRule } from "$lib/contentFilter";
 import { storageGet, storageGetString, storageSet } from "$lib/storage";
 import {
   dedupeEntries,
+  dedupeKeys,
   asDedupMode,
   DEDUP_STORAGE_PREFIX,
   type DedupMode,
 } from "$lib/dedup";
+import {
+  loadBacklogSettings,
+  needsBacklogSweep,
+  reducesUnread,
+} from "$lib/backlogSweep";
 import { hasCoverRule, extractCover } from "$lib/cover";
 import { requestArchive } from "$lib/imageArchiveClient";
 import { collectImageUrls } from "$lib/imageArchive";
@@ -24,7 +30,6 @@ import {
   loadHideRules,
   compileMatchers,
   isEntryHidden,
-  needsHideSweep,
   type HideMatchers,
 } from "$lib/filterHide";
 import { sourceFor, type SourceContext } from "$lib/sources";
@@ -171,10 +176,14 @@ function createEntriesStore() {
         }
         return m;
       };
-      const deduped = dedupeEntries(
+      const { kept: deduped, dropped } = dedupeEntries(
         enrichEntries(data.entries || [], loadCoverRule),
         modeFor,
       );
+      // A collapsed duplicate is invisible in every view, so leaving it unread would inflate the
+      // feed's count forever — retire it. Not in Bookmarks: that view isn't about unread state,
+      // and a starred entry's status is the user's business.
+      if (dropped.length > 0 && !isStarredView) void retire(dropped);
       // Miniflux sorted by its fallback discovery timestamp. Content-derived dates above can
       // differ, so restore the requested newest-first order before filters/navigation use it.
       deduped.sort(
@@ -187,23 +196,26 @@ function createEntriesStore() {
       const toArchive = deduped.flatMap((e) => e._imageUrls ?? []);
       if (toArchive.length > 0) requestArchive(toArchive);
 
-      // For a single feed set to "hide (mark read)", reconcile the *whole* unread backlog so the
-      // rules apply even when they were imported (Backup & Restore) or the backlog is larger than
-      // one page — this runs on every load of the feed (page refresh, selection, Refresh Feed).
-      // Hide matches from the view instantly; mark them read + fix counters in the background.
-      // (This replaces applyClientHide for that feed so counters aren't decremented twice.)
+      // A feed set to "hide (mark read)" filters its own view here; applyClientHide is for the
+      // aggregate views, where each entry's feed decides.
       const singleFeedId = feedIdFromEntriesPath(apiPath);
       if (singleFeedId !== null && loadFilterAction(singleFeedId) === "mark-read") {
-        const rules = loadHideRules(singleFeedId);
-        const matchers = compileMatchers(rules);
+        const matchers = compileMatchers(loadHideRules(singleFeedId));
         entries = showAll
           ? deduped
           : deduped.filter((e) => !isEntryHidden(e, matchers));
-        void applyHideToExisting(singleFeedId, rules).catch(() => {
-          // Best-effort background reconcile; failures leave the backlog for the next load.
-        });
       } else {
         entries = isStarredView ? deduped : applyClientHide(deduped);
+      }
+
+      // Then reconcile the *whole* unread backlog behind the view, so the settings apply even
+      // when they were imported (Backup & Restore) or the backlog is larger than the page just
+      // loaded. Runs on every load of the feed (page refresh, selection, Refresh Feed) and is
+      // fire-and-forget: the list is already right, this only settles the counters.
+      if (singleFeedId !== null) {
+        void reconcileIfStale(singleFeedId).catch(() => {
+          // Failures leave the backlog for the next load or sweep.
+        });
       }
 
       // Eagerly resolve covers for the newest rule-based entries so setting/changing a
@@ -240,35 +252,71 @@ function createEntriesStore() {
     };
 
     const visible: Entry[] = [];
-    const hiddenIds: number[] = [];
+    const hidden: Entry[] = [];
     for (const e of list) {
       const m = matchersFor(e.feed.id);
       if (m && isEntryHidden(e, m)) {
-        if (e.status === "unread") hiddenIds.push(e.id);
+        hidden.push(e);
         continue;
       }
       visible.push(e);
     }
-    if (hiddenIds.length) void hideMatchedEntries(hiddenIds, list);
+    if (hidden.length) void retire(hidden);
     return visible;
   }
 
-  async function hideMatchedEntries(ids: number[], list: Entry[]): Promise<void> {
-    try {
+  // --- Retiring what the reader won't show -------------------------------------------------
+  // Hide-rule matches and collapsed duplicates are both invisible to the reader, and both stay
+  // unread on the server unless this app says otherwise — so the sidebar promises posts the list
+  // will never produce. Marking them read is the whole cure: the counters then count what's left.
+
+  // Entry ids already retired this session. Several paths can reach the same entry — the open
+  // feed, an aggregate view and the background sweep — and Miniflux will happily re-mark a read
+  // entry read, so without this the counters would be decremented more than once for one entry.
+  const retiredIds = new Set<number>();
+
+  async function bulkMarkRead(ids: number[]): Promise<void> {
+    // Chunked to keep each request modest on a long backlog.
+    const CHUNK = 500;
+    for (let i = 0; i < ids.length; i += CHUNK) {
       await apiCall("entries", {
         method: "PUT",
-        body: JSON.stringify({ entry_ids: ids, status: "read" }),
+        body: JSON.stringify({ entry_ids: ids.slice(i, i + CHUNK), status: "read" }),
       });
-      for (const id of ids) {
-        const e = list.find((x) => x.id === id);
-        if (e && e.status === "unread") {
-          e.status = "read";
-          feeds.updateCounters(e.feed.id, -1);
-        }
-      }
-    } catch {
-      // Best-effort: on failure the entries simply stay unread and reappear next load.
     }
+  }
+
+  // Mark the unread ones read and take them out of the counters. Returns the ids retired, for
+  // callers that also have to drop them from the visible list. Best-effort: on failure the
+  // entries stay unread and the next load or sweep tries again.
+  async function retire(items: Entry[]): Promise<number[]> {
+    const fresh = items.filter(
+      (e) => e.status === "unread" && !retiredIds.has(e.id),
+    );
+    if (fresh.length === 0) return [];
+    const ids = fresh.map((e) => e.id);
+    // Claim them before awaiting, so a concurrent pass over the same entries stands down.
+    for (const id of ids) retiredIds.add(id);
+    try {
+      await bulkMarkRead(ids);
+    } catch {
+      for (const id of ids) retiredIds.delete(id);
+      return [];
+    }
+    for (const e of fresh) {
+      e.status = "read";
+      feeds.updateCounters(e.feed.id, -1);
+    }
+    return ids;
+  }
+
+  // Entries retired by a backlog scan are copies fetched from the API, not the objects the list
+  // is rendering — so mirror the change onto the view.
+  function dropFromView(ids: number[]): void {
+    if (ids.length === 0) return;
+    const idset = new Set(ids);
+    for (const e of entries) if (idset.has(e.id)) e.status = "read";
+    if (!showAll) entries = entries.filter((e) => !idset.has(e.id));
   }
 
   function initShowAll() {
@@ -599,121 +647,139 @@ function createEntriesStore() {
       : field === "url" ? e.url
       : e.author;
     const matches = (data.entries || []).filter((e) => re.test(fieldValue(e) ?? ""));
-    if (matches.length === 0) return 0;
-
-    const ids = matches.map((e) => e.id);
-    await apiCall("entries", {
-      method: "PUT",
-      body: JSON.stringify({ entry_ids: ids, status: "read" }),
-    });
-    feeds.updateCounters(feedId, -matches.length);
-
-    const idset = new Set(ids);
-    entries = entries.filter((e) => !idset.has(e.id));
-    return matches.length;
+    const retired = await retire(matches);
+    dropFromView(retired);
+    return retired.length;
   }
 
-  // Apply a "mark read" rule set to a feed's whole existing unread backlog (called on save so the
-  // choice takes effect immediately, not just on the next per-page load). Pages through unread
-  // entries, marks matches read in bulk, updates counters, and drops them from the current view.
-  // Reconciling one feed twice at once would subtract the same entries from the counters twice:
-  // the second pass re-marks what the first already marked, but updateCounters can't tell. Opening
-  // a feed, saving its filters and the background sweep can all reach for it, so one wins and the
-  // others stand down.
+  // --- Backlog reconciliation ---------------------------------------------------------------
+  // The view only ever collapses the page it loaded. These walk a feed's whole unread backlog so
+  // the counters settle on the number of posts the reader would actually produce.
+
+  // Reconciling one feed twice at once would subtract the same entries from the counters twice.
+  // Opening a feed, saving its filters and the background sweep can all reach for it, so one wins
+  // and the others stand down. (retire() is idempotent per entry; this just saves the work.)
   const reconciling = new Set<number>();
 
-  async function applyHideToExisting(
+  const BACKLOG_PAGE = 100;
+  const BACKLOG_MAX = 5000; // safety bound against runaway backlogs
+
+  // Walk a feed's unread entries newest-first, a page at a time.
+  async function scanUnreadBacklog(
+    feedId: number,
+    onPage: (page: Entry[]) => void,
+  ): Promise<void> {
+    let offset = 0;
+    let total = Infinity;
+    while (offset < total && offset < BACKLOG_MAX) {
+      const data = await apiCall<{ total: number; entries: Entry[] }>(
+        `feeds/${feedId}/entries?status=unread&order=published_at&direction=desc&limit=${BACKLOG_PAGE}&offset=${offset}`,
+      );
+      total = data.total ?? 0;
+      const page = data.entries || [];
+      onPage(page);
+      offset += BACKLOG_PAGE;
+      if (page.length < BACKLOG_PAGE) break;
+    }
+  }
+
+  // Apply a "mark read" rule set to a feed's whole existing unread backlog.
+  async function hideExistingMatches(
     feedId: number,
     rules: FilterRule[],
-    onProgress?: (done: number, total: number) => void,
   ): Promise<number> {
-    if (reconciling.has(feedId)) return 0;
+    const matchers = compileMatchers(rules);
+    if (matchers.block.length === 0 && matchers.keep.length === 0) return 0;
+
+    const matches: Entry[] = [];
+    await scanUnreadBacklog(feedId, (page) => {
+      for (const e of page) if (isEntryHidden(e, matchers)) matches.push(e);
+    });
+    const retired = await retire(matches);
+    dropFromView(retired);
+    return retired.length;
+  }
+
+  // The same for duplicates: collapse the feed's whole unread backlog the way the list collapses
+  // the page it loaded, and retire the losing copies. Every entry here is unread, so "prefer the
+  // unread copy" never applies — the newest copy of each group simply wins, exactly as in the
+  // list. Keys rather than entries are carried across pages: a 5000-entry backlog of full article
+  // bodies is not worth holding in memory to count duplicates.
+  async function dedupeExistingBacklog(feedId: number, mode: DedupMode): Promise<number> {
+    if (mode === "off") return 0;
+
+    const seen = new Set<string>();
+    const dups: Entry[] = [];
+    await scanUnreadBacklog(feedId, (page) => {
+      for (const e of page) {
+        const keys = dedupeKeys(e, mode);
+        if (keys.length === 0) continue;
+        if (keys.some((k) => seen.has(k))) dups.push(e);
+        // Register every key either way, so a third copy matching only on title is caught too.
+        for (const k of keys) seen.add(k);
+      }
+    });
+    const retired = await retire(dups);
+    dropFromView(retired);
+    return retired.length;
+  }
+
+  // Each feed's unread count as of its last reconcile — the bookkeeping that keeps this off the
+  // network when nothing has happened. Recorded after the pass, so it counts what's left.
+  const sweptUnread = new Map<number, number>();
+  let sweeping = false;
+
+  function rememberSwept(feedId: number): void {
+    // Through the store rather than a held reference: a tree rebuild mid-pass detaches the node.
+    sweptUnread.set(feedId, feeds.findFeedNodeById(feedId, true)?.unread ?? 0);
+  }
+
+  // Settle one feed's counter against everything this reader hides: filter matches first (they
+  // leave the list entirely), then duplicates among what survives. Unconditional — callers that
+  // only want it when something has changed go through reconcileIfStale.
+  async function reconcileBacklog(feedId: number): Promise<number> {
+    const settings = loadBacklogSettings(feedId);
+    if (!reducesUnread(settings)) {
+      rememberSwept(feedId); // nothing to reconcile, and now we know not to look again
+      return 0;
+    }
+    if (reconciling.has(feedId)) return 0; // the pass already running will record it
     reconciling.add(feedId);
     try {
-      return await hideExistingMatches(feedId, rules, onProgress);
+      let n = 0;
+      if (settings.hideRules.length > 0) {
+        n += await hideExistingMatches(feedId, settings.hideRules);
+      }
+      n += await dedupeExistingBacklog(feedId, settings.dedupMode);
+      rememberSwept(feedId);
+      return n;
     } finally {
       reconciling.delete(feedId);
     }
   }
 
-  async function hideExistingMatches(
-    feedId: number,
-    rules: FilterRule[],
-    onProgress?: (done: number, total: number) => void,
-  ): Promise<number> {
-    const matchers = compileMatchers(rules);
-    if (matchers.block.length === 0 && matchers.keep.length === 0) return 0;
-
-    const PAGE = 100;
-    const MAX = 5000; // safety bound against runaway backlogs
-    const toMark: number[] = [];
-    let offset = 0;
-    let total = Infinity;
-    while (offset < total && offset < MAX) {
-      const data = await apiCall<{ total: number; entries: Entry[] }>(
-        `feeds/${feedId}/entries?status=unread&order=published_at&direction=desc&limit=${PAGE}&offset=${offset}`,
-      );
-      total = data.total ?? 0;
-      const page = data.entries || [];
-      for (const e of page) if (isEntryHidden(e, matchers)) toMark.push(e.id);
-      offset += PAGE;
-      onProgress?.(Math.min(offset, total), total);
-      if (page.length < PAGE) break;
-    }
-    if (toMark.length === 0) return 0;
-
-    // Mark read in chunks to keep each request modest.
-    const CHUNK = 500;
-    for (let i = 0; i < toMark.length; i += CHUNK) {
-      await apiCall("entries", {
-        method: "PUT",
-        body: JSON.stringify({ entry_ids: toMark.slice(i, i + CHUNK), status: "read" }),
-      });
-    }
-    feeds.updateCounters(feedId, -toMark.length);
-
-    const idset = new Set(toMark);
-    for (const e of entries) if (idset.has(e.id)) e.status = "read";
-    if (!showAll) entries = entries.filter((e) => !idset.has(e.id));
-    return toMark.length;
+  async function reconcileIfStale(feedId: number): Promise<number> {
+    const unread = feeds.findFeedNodeById(feedId, true)?.unread ?? 0;
+    if (!needsBacklogSweep(unread, sweptUnread.get(feedId))) return 0;
+    return reconcileBacklog(feedId);
   }
 
-  // Unread counts the sweep has already reconciled, per feed.
-  const sweptUnread = new Map<number, number>();
-  let sweeping = false;
-
-  // Bring the sidebar's numbers down to what the reader will actually show. A feed set to
-  // "hide (mark read)" only has its backlog reconciled when it is opened (loadEntries above), so
-  // until then it advertises Miniflux's raw count — 18 unread where the rules leave 2. This walks
-  // the feeds whose counter has grown since it last ran and reconciles them in the background, one
-  // at a time: it rides on the counter poll, so there is no hurry, and a burst of parallel
-  // requests would only push Miniflux around.
-  async function sweepHiddenBacklogs(): Promise<void> {
+  // Bring the sidebar's numbers down to what the reader will actually show. Without this a feed
+  // is only reconciled when it is opened, so until then it advertises Miniflux's raw count — 18
+  // unread where the filters leave 2. Walks the feeds whose counter has moved since their last
+  // pass, one at a time: this rides on the counter poll, so there is no hurry, and a burst of
+  // parallel requests would only push Miniflux around.
+  async function sweepBacklogs(): Promise<void> {
     if (sweeping) return;
     sweeping = true;
     try {
       for (const node of feeds.allFeedNodes()) {
-        if (!needsHideSweep(node.unread, sweptUnread.get(node.id))) continue;
-        // Remember the count even for feeds with nothing to do, so the next sweep skips them
-        // until something new arrives.
-        if (loadFilterAction(node.id) !== "mark-read") {
-          sweptUnread.set(node.id, node.unread);
-          continue;
-        }
-        const rules = loadHideRules(node.id);
-        if (rules.length === 0) {
-          sweptUnread.set(node.id, node.unread);
-          continue;
-        }
         try {
-          await applyHideToExisting(node.id, rules);
+          // Cheap for a feed with nothing configured — two localStorage reads and out.
+          await reconcileIfStale(node.id);
         } catch {
-          continue; // leave it unrecorded so the next sweep retries
+          // Leave it unrecorded so the next sweep retries.
         }
-        // Re-read through the store: a tree rebuild mid-sweep leaves `node` detached, and the
-        // count to remember is the one after the hidden entries were marked read.
-        const live = feeds.findFeedNodeById(node.id, true);
-        sweptUnread.set(node.id, live?.unread ?? node.unread);
       }
     } finally {
       sweeping = false;
@@ -744,8 +810,8 @@ function createEntriesStore() {
     refetchContent,
     refetchFeedLatest,
     blockExistingMatches,
-    applyHideToExisting,
-    sweepHiddenBacklogs,
+    reconcileBacklog,
+    sweepBacklogs,
     initShowAll,
     toggleShowAll,
     setSearchQuery,
