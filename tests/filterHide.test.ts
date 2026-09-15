@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compileMatchers, isEntryHidden, asFilterAction } from '../src/lib/filterHide.ts';
+import { compileMatchers, isEntryHidden, asFilterAction, needsHideSweep } from '../src/lib/filterHide.ts';
 import type { FilterRule } from '../src/lib/contentFilter.ts';
 import type { Entry, Feed } from '../src/lib/types.ts';
 
@@ -78,4 +78,17 @@ test('block wins; empty values and uncompilable regex are dropped', () => {
 test('no rules hides nothing', () => {
 	const m = compileMatchers([]);
 	assert.equal(isEntryHidden(makeEntry({ title: 'anything at all' }), m), false);
+});
+
+test('a feed is swept once, then only when its unread count grows', () => {
+	// Never swept: worth a look only if there is something to look at.
+	assert.equal(needsHideSweep(18, undefined), true);
+	assert.equal(needsHideSweep(0, undefined), false);
+	// Already reconciled down to 2 — reading posts lowers the count, it can't add matches.
+	assert.equal(needsHideSweep(2, 2), false);
+	assert.equal(needsHideSweep(1, 2), false);
+	assert.equal(needsHideSweep(0, 2), false);
+	// New entries arrived: they may include matches the rules have never seen.
+	assert.equal(needsHideSweep(3, 2), true);
+	assert.equal(needsHideSweep(1, 0), true);
 });

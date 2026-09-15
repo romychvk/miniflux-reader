@@ -243,6 +243,12 @@ function createFeedsStore() {
 		}
 	}
 
+	// Every feed node in the tree, categories and pseudo-feeds excluded — for passes that have
+	// to walk all of them (the background hide-rule sweep).
+	function allFeedNodes(): FeedNode[] {
+		return [...feedIndex.values()];
+	}
+
 	function getAllNode(): FeedNode | null {
 		return feedTree.find(n => n.id === -1) ?? null;
 	}
@@ -476,6 +482,7 @@ function createFeedsStore() {
 		reorderFeed,
 		reorderCategory,
 		moveFeedToCategory,
+		allFeedNodes,
 		getAllNode,
 		getStarredNode,
 		findFeedNodeById,

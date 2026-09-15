@@ -91,6 +91,10 @@
 
 		await feeds.loadFeeds();
 		refresh.startPolling();
+		// Miniflux's counters don't know about "hide (mark read)" rules, so bring the sidebar's
+		// numbers down to what the reader will show. Not awaited — it costs a request per feed
+		// with a backlog to reconcile, and the first paint shouldn't wait on it.
+		void entries.sweepHiddenBacklogs();
 		ready = true;
 	}
 </script>

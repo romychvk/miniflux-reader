@@ -24,6 +24,7 @@ import {
   loadHideRules,
   compileMatchers,
   isEntryHidden,
+  needsHideSweep,
   type HideMatchers,
 } from "$lib/filterHide";
 import { sourceFor, type SourceContext } from "$lib/sources";
@@ -615,7 +616,27 @@ function createEntriesStore() {
   // Apply a "mark read" rule set to a feed's whole existing unread backlog (called on save so the
   // choice takes effect immediately, not just on the next per-page load). Pages through unread
   // entries, marks matches read in bulk, updates counters, and drops them from the current view.
+  // Reconciling one feed twice at once would subtract the same entries from the counters twice:
+  // the second pass re-marks what the first already marked, but updateCounters can't tell. Opening
+  // a feed, saving its filters and the background sweep can all reach for it, so one wins and the
+  // others stand down.
+  const reconciling = new Set<number>();
+
   async function applyHideToExisting(
+    feedId: number,
+    rules: FilterRule[],
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<number> {
+    if (reconciling.has(feedId)) return 0;
+    reconciling.add(feedId);
+    try {
+      return await hideExistingMatches(feedId, rules, onProgress);
+    } finally {
+      reconciling.delete(feedId);
+    }
+  }
+
+  async function hideExistingMatches(
     feedId: number,
     rules: FilterRule[],
     onProgress?: (done: number, total: number) => void,
@@ -657,6 +678,48 @@ function createEntriesStore() {
     return toMark.length;
   }
 
+  // Unread counts the sweep has already reconciled, per feed.
+  const sweptUnread = new Map<number, number>();
+  let sweeping = false;
+
+  // Bring the sidebar's numbers down to what the reader will actually show. A feed set to
+  // "hide (mark read)" only has its backlog reconciled when it is opened (loadEntries above), so
+  // until then it advertises Miniflux's raw count — 18 unread where the rules leave 2. This walks
+  // the feeds whose counter has grown since it last ran and reconciles them in the background, one
+  // at a time: it rides on the counter poll, so there is no hurry, and a burst of parallel
+  // requests would only push Miniflux around.
+  async function sweepHiddenBacklogs(): Promise<void> {
+    if (sweeping) return;
+    sweeping = true;
+    try {
+      for (const node of feeds.allFeedNodes()) {
+        if (!needsHideSweep(node.unread, sweptUnread.get(node.id))) continue;
+        // Remember the count even for feeds with nothing to do, so the next sweep skips them
+        // until something new arrives.
+        if (loadFilterAction(node.id) !== "mark-read") {
+          sweptUnread.set(node.id, node.unread);
+          continue;
+        }
+        const rules = loadHideRules(node.id);
+        if (rules.length === 0) {
+          sweptUnread.set(node.id, node.unread);
+          continue;
+        }
+        try {
+          await applyHideToExisting(node.id, rules);
+        } catch {
+          continue; // leave it unrecorded so the next sweep retries
+        }
+        // Re-read through the store: a tree rebuild mid-sweep leaves `node` detached, and the
+        // count to remember is the one after the hidden entries were marked read.
+        const live = feeds.findFeedNodeById(node.id, true);
+        sweptUnread.set(node.id, live?.unread ?? node.unread);
+      }
+    } finally {
+      sweeping = false;
+    }
+  }
+
   function findEntryById(id: number): Entry | null {
     return entries.find((e) => e.id === id) ?? null;
   }
@@ -682,6 +745,7 @@ function createEntriesStore() {
     refetchFeedLatest,
     blockExistingMatches,
     applyHideToExisting,
+    sweepHiddenBacklogs,
     initShowAll,
     toggleShowAll,
     setSearchQuery,

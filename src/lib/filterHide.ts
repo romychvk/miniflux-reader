@@ -61,6 +61,17 @@ export function appendHideRule(feedId: number, rule: FilterRule): void {
 	saveHideRules(feedId, rules);
 }
 
+// --- Background sweep bookkeeping ---------------------------------------------------------
+
+// A 'mark-read' feed's backlog is only reconciled when the feed is opened, so until then the
+// sidebar advertises Miniflux's raw unread count — 18 where the rules leave 2. A background
+// sweep fixes that, and this decides which feeds it has to touch: only those whose unread
+// count has grown since the sweep last ran. Reading posts lowers the count and can't create
+// new matches, so a shrinking count needs no work.
+export function needsHideSweep(unread: number, lastSwept: number | undefined): boolean {
+	return lastSwept === undefined ? unread > 0 : unread > lastSwept;
+}
+
 // --- Client-side matching -----------------------------------------------------------------
 
 export interface HideMatchers {
