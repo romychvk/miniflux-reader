@@ -69,16 +69,35 @@ function extractThumbnail(doc: Document): string | null {
   return null;
 }
 
-// Mutates `doc` (inserts spacing text nodes before block elements), so callers must run any
+const MAX_DESCRIPTION = 700;
+
+// Mutates `doc` (inserts newline text nodes at block boundaries), so callers must run any
 // read-only extraction (thumbnail, date) against the shared Document *before* this.
 export function extractDescription(doc: Document): string {
-  for (const br of doc.querySelectorAll(
-    "br, p, div, li, tr, h1, h2, h3, h4, h5, h6, blockquote",
+  // A newline wherever the source drew a break, which keeps words from gluing together across
+  // tags (all this used to be for) and carries the post's own structure — which a card with no
+  // picture has the room to lay out (see EntryRow). Two tiers, because the source means two
+  // different things: a block starts a paragraph, a lone <br> only ends a line, and a Telegram
+  // post writes its paragraphs as <br><br> and its lists as single ones. Every other view puts
+  // the text in one element, where the browser collapses all of it back to spaces.
+  for (const br of doc.querySelectorAll("br")) br.before("\n");
+  for (const block of doc.querySelectorAll(
+    "p, div, li, tr, h1, h2, h3, h4, h5, h6, blockquote",
   )) {
-    br.before(" ");
+    block.before("\n\n");
   }
-  const text = (doc.body.textContent ?? "").replace(/\s+/g, " ").trim();
-  return text.length > 150 ? text.slice(0, 250) + "..." : text;
+  const text = (doc.body.textContent ?? "")
+    .replace(/[^\S\n]+/g, " ") // runs of spaces and tabs collapse; the newlines survive
+    .replace(/ *\n */g, "\n") // no spaces left hanging around a break
+    .replace(/\n{3,}/g, "\n\n") // however many tags drew it, a gap is one blank line
+    .trim();
+  // Long enough to fill a card that has no picture and spends the whole card on its text; the
+  // views that pair the summary with a picture clamp it to a few lines anyway, and a line-clamp
+  // ends in an ellipsis of its own. Our cut is by characters, so it lands mid-word — which is the
+  // one case CSS cannot mark, hence the "...".
+  return text.length > MAX_DESCRIPTION
+    ? text.slice(0, MAX_DESCRIPTION).trimEnd() + "..."
+    : text;
 }
 
 // CssSelectorBridge does not expose a publication-date selector. When it emits an item

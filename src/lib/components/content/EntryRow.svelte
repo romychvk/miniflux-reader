@@ -90,6 +90,11 @@
 		return chain[failed.key === chain[0] ? failed.count : 0] ?? null;
 	});
 	const description = $derived(entry._description ?? '');
+	// The summary carries the post's own breaks (see extractDescription): a blank line between
+	// paragraphs, a single one inside them. A card with no picture has the room to lay that out the
+	// way the article itself reads — the paragraphs here, the line breaks in whitespace-pre-line —
+	// while everywhere else the text stays in one element and the browser collapses it to spaces.
+	const paragraphs = $derived(description.split(/\n{2,}/).filter((p) => p !== ''));
 
 	function thumbnailFailed() {
 		const key = thumbnailChain[0] ?? '';
@@ -99,6 +104,21 @@
 	// Cards: size the image box to the current view's median thumbnail ratio, so a feed of
 	// uniform images fills the box without bars or crop. Each loaded image feeds the median.
 	const boxAspect = $derived(cardAspect.aspectFor(ui.viewKey));
+
+	// The text of a card with no picture, bounded by what a card *with* one spends on the same
+	// rows: the image box (the card's own width over this view's ratio — hence the card being the
+	// container the cqw resolves against) plus two lines. Two rather than the three lines of
+	// summary that sit under a picture, because the rest of a text-only card is not identical
+	// either — its title is free to run the longer of its three clamped lines — and a card that
+	// ends up taller sets the height of every row it's in, which is the opposite of the compact
+	// card a missing picture should leave behind. What doesn't fit fades into the card at the
+	// bottom edge, where a hard cut would read as a rendering bug; a summary that ends short of
+	// the edge leaves the gradient nothing to fade.
+	const TEXT_ONLY_LINES = 2;
+	const textOnlyStyle = $derived(
+		`max-height: calc(100cqw / ${boxAspect} + ${(TEXT_ONLY_LINES * 1.375 * 0.875).toFixed(3)}rem); ` +
+			'mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent)'
+	);
 
 	function recordAspect(e: Event) {
 		const img = e.currentTarget as HTMLImageElement;
@@ -218,10 +238,12 @@
 	let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 	let settleTimer: ReturnType<typeof setTimeout> | undefined;
 
-	// Not on touch (no real hover), and not for the card whose article is open inline —
-	// that one would grow over its own ArticleView.
+	// Not on touch (no real hover), and not for the card whose article is open inline — that one
+	// would grow over its own ArticleView. A card with no picture doesn't grow either: it already
+	// stands the full height of its row and spends all of it on the text, so a wider card would
+	// reveal nothing (and the rise a grown card measures is the picture's, which it hasn't got).
 	const canExpand = $derived(
-		viewMode === 'cards' && !ui.isMobile && !(ui.layoutMode === 'expanded' && isSelected)
+		viewMode === 'cards' && !!thumbnailUrl && !ui.isMobile && !(ui.layoutMode === 'expanded' && isSelected)
 	);
 
 	type Rect = { left: string; right: string; top: string; height: string };
@@ -547,7 +569,7 @@
 		href={articleHref}
 		onmouseenter={hoverEnter}
 		onmouseleave={hoverLeave}
-		class="block rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 bg-n-100 hover:bg-surface hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''} {expanded ? 'absolute z-20 shadow-xl' : ''}"
+		class="{thumbnailUrl ? 'block' : 'flex flex-col h-full @container'} rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 bg-n-100 hover:bg-surface hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''} {expanded ? 'absolute z-20 shadow-xl' : ''}"
 		onclick={openInPlace}
 		onauxclick={onAuxClick}
 		oncontextmenu={openContextMenu}
@@ -580,12 +602,30 @@
 			</div>
 		{/if}
 
-		<div bind:this={bodyEl} class="px-4 py-3">
+		<!-- With no picture the text column takes the room the picture would have had (see
+		     textOnlyStyle) and no more, the card stands its row's full height if a neighbour is taller
+		     (h-full above), and the byline stays at the foot of the card either way. Beside a picture
+		     the same summary is clamped to three lines, eight while the card is grown. -->
+		<div bind:this={bodyEl} class="px-4 py-3 {thumbnailUrl ? '' : 'flex-1 flex flex-col min-h-0'}">
   			<h3 class="leading-snug {expanded ? 'line-clamp-none' : 'line-clamp-3'} mb-2 {isRead ? 'font-normal' : 'font-bold'}" {lang}>{entry.title}</h3>
 			{#if description}
-				<p class="text-sm text-n-800 leading-snug {expanded ? 'line-clamp-8' : 'line-clamp-3'} mb-3" {lang}>{description}</p>
+				{#if thumbnailUrl}
+					<p
+						class="text-sm text-n-800 leading-snug mb-3 {expanded ? 'line-clamp-8' : 'line-clamp-3'}"
+						{lang}>{description}</p>
+				{:else}
+					<div
+						class="text-sm text-n-800 leading-snug mb-3 flex-1 min-h-0 overflow-hidden"
+						style={textOnlyStyle}
+						{lang}
+					>
+						{#each paragraphs as paragraph, i (i)}
+							<p class="whitespace-pre-line {i > 0 ? 'mt-2' : ''}">{paragraph}</p>
+						{/each}
+					</div>
+				{/if}
 			{/if}
-			<div class="flex justify-between gap-1">
+			<div class="flex justify-between gap-1 {thumbnailUrl ? '' : 'mt-auto'}">
    			<p class="text-xs text-n-500 flex items-center gap-2">
   				{#if feedIcon}
    					<img src={feedIcon} alt="" class="size-4 shrink-0 {isRead ? 'opacity-80' : ''} " />
