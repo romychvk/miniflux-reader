@@ -20,14 +20,15 @@ export interface SourceRules {
   // Consulted once per feed on load; the newest matching entry wins.
   feedIcon?(entry: Entry): string | null;
 
-  // Kick off any async work needed before coverHidden() can answer — idempotent, safe to call
-  // per row (e.g. resolve a telegram channel's avatar once and cache it). Uses ctx to schedule
-  // bounded-concurrency work and to react when the answer arrives.
+  // Kick off any async work the source's own cover suppression needs — idempotent, safe to call
+  // per row (e.g. resolve a telegram channel's avatar once and remember it as that feed's default
+  // cover). Uses ctx to schedule bounded-concurrency work and to react when the answer arrives.
   prime?(entry: Entry, ctx: SourceContext): void;
 
   // Given a resolved cover URL for this entry, return true to drop it (don't show it as a card
-  // image) — e.g. a telegram text post whose og:image is the repeated channel avatar. May use ctx
-  // to react (e.g. retroactively clear the same cover from other already-loaded posts).
+  // image) — e.g. a steam group's avatar, which its host names outright. Only for a default the
+  // source can recognise on sight; one that merely repeats is caught by $lib/defaultCover without
+  // a source at all. May use ctx to react (e.g. repurpose the image as the feed's sidebar icon).
   coverHidden?(entry: Entry, url: string, ctx: SourceContext): boolean;
 }
 

@@ -5,7 +5,8 @@ import { hostOf } from "./host";
 // links (no <img>, no enclosures), and the page's og:image is always the group's avatar. So the
 // only cover the pipeline can resolve is that avatar, repeated identically on every card — drop it.
 // Steam serves avatars from a dedicated host, so one host check identifies one; no content image
-// can be confused with it, and there's no need for telegram's repetition heuristic. (Announcements
+// can be confused with it, and there's no need to wait for the shared repetition detector
+// ($lib/defaultCover) to learn it. (Announcements
 // *can* embed images via bbcode, so github's blanket `imageless` would be too coarse here.)
 // The avatar is repurposed as the feed's sidebar icon, like github: Miniflux fetches the
 // steamcommunity.com favicon, which is the generic Steam logo — identical for every Steam feed.

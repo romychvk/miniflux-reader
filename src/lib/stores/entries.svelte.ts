@@ -32,7 +32,8 @@ import {
   isEntryHidden,
   type HideMatchers,
 } from "$lib/filterHide";
-import { sourceFor, type SourceContext } from "$lib/sources";
+import { sourceFor, type SourceContext, type SourceRules } from "$lib/sources";
+import { isDefaultCover } from "$lib/defaultCover";
 import { mapPool } from "$lib/pool";
 import { feeds } from "./feeds.svelte";
 import { ui } from "./ui.svelte";
@@ -501,6 +502,17 @@ function createEntriesStore() {
     },
   };
 
+  // Would this resolved cover be the feed's own default picture rather than the article's? Two
+  // signals answer that, and every caller needs both: the source's own rule, when it can name its
+  // default outright (a steam group's avatar, by its host), and the shared repetition detector,
+  // which needs no per-site knowledge — see $lib/defaultCover.
+  function coverSuppressed(entry: Entry, url: string, source: SourceRules | null): boolean {
+    if (source?.coverHidden?.(entry, url, sourceContext)) return true;
+    return isDefaultCover(entry.feed.id, entry.id, url, (u) =>
+      sourceContext.clearCover(entry.feed.id, u),
+    );
+  }
+
   // Fill in a missing thumbnail. Lazy and cached: invoked per row from the UI only for image
   // views, runs at most once per article URL. By default reads the page's og:image; if the
   // feed has a custom cover rule, fetches the page HTML and extracts via the CSS selector.
@@ -511,8 +523,8 @@ function createEntriesStore() {
     const source = sourceFor(entry);
     // Some sources never have a usable cover (e.g. github release feeds) — never fetch one.
     if (source?.imageless?.(entry)) return;
-    // Let the source prime any async work it needs to answer coverHidden() (e.g. telegram
-    // resolves the channel avatar so text-only posts don't show it as a card cover).
+    // Let the source prime any async work its own suppression needs (e.g. telegram resolves the
+    // channel avatar so text-only posts don't show it as a card cover).
     source?.prime?.(entry, sourceContext);
     if (ogCache === null)
       ogCache = storageGet<Record<string, string>>(OG_CACHE_KEY, {});
@@ -525,7 +537,7 @@ function createEntriesStore() {
 
     const cached = ogCache[cacheKey];
     if (cached !== undefined) {
-      if (cached && !source?.coverHidden?.(entry, cached, sourceContext))
+      if (cached && !coverSuppressed(entry, cached, source))
         entry._thumbnailUrl = cached;
       return;
     }
@@ -562,9 +574,9 @@ function createEntriesStore() {
       scheduleOgCacheFlush();
       if (image) {
         const target = entries.find((e) => e.id === entry.id) ?? entry;
-        // A source may drop a resolved cover (e.g. a telegram text post's og:image is the channel
-        // avatar). The raw value is still cached above; suppression is applied at read time.
-        if (!target._thumbnailUrl && !source?.coverHidden?.(target, image, sourceContext))
+        // A resolved cover can still be dropped — the feed's default picture rather than this
+        // article's. The raw value is still cached above; suppression is applied at read time.
+        if (!target._thumbnailUrl && !coverSuppressed(target, image, source))
           target._thumbnailUrl = image;
       }
     });

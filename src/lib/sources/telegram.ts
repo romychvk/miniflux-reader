@@ -1,7 +1,7 @@
 import type { Entry } from "$lib/types";
 import type { SourceRules } from "./types";
 import { hostOf } from "./host";
-import { storageGet, storageSet } from "$lib/storage";
+import { rememberDefaultCover } from "$lib/defaultCover";
 import { authedFetch } from "$lib/api";
 
 // Telegram feeds (via RSS-Bridge) have a generic bridge-instance feed_url, but every post links to
@@ -24,87 +24,20 @@ function channelRoot(url: string): string | null {
   }
 }
 
-// A Telegram text-only post's og:image is the channel avatar, so the same image repeats as a card
-// cover across many posts. We recognise it two ways and drop it as a cover:
-//   (a) prime() — the og:image of the channel root page (immediate, so fresh posts never flash);
-//   (b) coverHidden() — any cover URL that repeats across >= REPEAT_THRESHOLD distinct posts.
-// (b) is essential because Telegram rotates the telesco.pe file token over time: a months-old
-// cached post cover points at a stale avatar URL that (a)'s freshly-resolved channel avatar no
-// longer matches — but that stale URL still repeats across the feed's text posts, so (b) catches
-// it. Both signals feed the same per-feed set of known avatar URLs, persisted to localStorage.
-// (The sidebar icon already is the channel avatar — Miniflux fetches the t.me favicon — so, unlike
-// github, there's nothing to repurpose for the icon.)
-const KNOWN_KEY = "tgAvatars_v2"; // feedId -> known avatar url[]
-const REPEAT_THRESHOLD = 3;
-
-let knownCache: Record<string, string[]> | null = null;
-const knownSets = new Map<number, Set<string>>();
+// A Telegram text-only post's og:image is the channel avatar, so the same image would repeat as a
+// card cover across every text post. The pipeline's shared detector ($lib/defaultCover) catches
+// that on its own, from the repetition — including the case this module cannot see, a months-old
+// cached post whose cover points at a stale telesco.pe file token that the current avatar URL no
+// longer matches. All this source adds is the immediate signal: the channel root's og:image *is*
+// the avatar, so resolving it once per feed suppresses fresh posts without waiting for a third one
+// to arrive. (The sidebar icon already is the channel avatar — Miniflux fetches the t.me favicon —
+// so, unlike github, there's nothing to repurpose for the icon.)
 const rootFetched = new Set<number>();
-// feedId -> (cover url -> distinct post ids that used it) — repetition tally, in-memory only.
-const tally = new Map<number, Map<string, Set<number>>>();
-
-function knownStore(): Record<string, string[]> {
-  if (knownCache === null)
-    knownCache = storageGet<Record<string, string[]>>(KNOWN_KEY, {});
-  return knownCache;
-}
-
-function knownFor(feedId: number): Set<string> {
-  let set = knownSets.get(feedId);
-  if (!set) {
-    set = new Set(knownStore()[String(feedId)] ?? []);
-    knownSets.set(feedId, set);
-  }
-  return set;
-}
-
-// Record `url` as a known avatar for the feed; returns true only when it was newly added, so the
-// caller clears it from already-loaded posts exactly once.
-function remember(feedId: number, url: string): boolean {
-  const set = knownFor(feedId);
-  if (set.has(url)) return false;
-  set.add(url);
-  const store = knownStore();
-  store[String(feedId)] = [...set];
-  storageSet(KNOWN_KEY, store);
-  return true;
-}
-
-function tallyFor(feedId: number, url: string): Set<number> {
-  let byUrl = tally.get(feedId);
-  if (!byUrl) {
-    byUrl = new Map();
-    tally.set(feedId, byUrl);
-  }
-  let ids = byUrl.get(url);
-  if (!ids) {
-    ids = new Set();
-    byUrl.set(url, ids);
-  }
-  return ids;
-}
 
 export const telegramSource: SourceRules = {
   id: "telegram",
   appliesTo: isTelegramPost,
 
-  coverHidden(entry, url, ctx) {
-    if (!url) return false;
-    const feedId = entry.feed.id;
-    if (knownFor(feedId).has(url)) return true;
-    // Not yet known — does this cover repeat across posts? (The avatar does; real photos don't.)
-    const ids = tallyFor(feedId, url);
-    ids.add(entry.id);
-    if (ids.size >= REPEAT_THRESHOLD && remember(feedId, url)) {
-      ctx.clearCover(feedId, url); // retro-hide posts already showing it
-      return true;
-    }
-    return false;
-  },
-
-  // Resolve the channel root's og:image (the avatar) once per feed so fresh posts are suppressed
-  // immediately, without waiting for the repetition tally. Only the channel root is fetched here;
-  // each post's own og:image is resolved by the pipeline's ensureThumbnail.
   prime(entry, ctx) {
     const feedId = entry.feed.id;
     if (rootFetched.has(feedId)) return;
@@ -120,7 +53,7 @@ export const telegramSource: SourceRules = {
         rootFetched.delete(feedId); // transient — allow a later retry
         return;
       }
-      if (avatar && remember(feedId, avatar)) ctx.clearCover(feedId, avatar);
+      if (avatar && rememberDefaultCover(feedId, avatar)) ctx.clearCover(feedId, avatar);
     });
   },
 };
