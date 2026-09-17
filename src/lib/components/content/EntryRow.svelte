@@ -105,20 +105,38 @@
 	// uniform images fills the box without bars or crop. Each loaded image feeds the median.
 	const boxAspect = $derived(cardAspect.aspectFor(ui.viewKey));
 
-	// The text of a card with no picture, bounded by what a card *with* one spends on the same
-	// rows: the image box (the card's own width over this view's ratio — hence the card being the
-	// container the cqw resolves against) plus two lines. Two rather than the three lines of
-	// summary that sit under a picture, because the rest of a text-only card is not identical
-	// either — its title is free to run the longer of its three clamped lines — and a card that
-	// ends up taller sets the height of every row it's in, which is the opposite of the compact
-	// card a missing picture should leave behind. What doesn't fit fades into the card at the
-	// bottom edge, where a hard cut would read as a rendering bug; a summary that ends short of
-	// the edge leaves the gradient nothing to fade.
-	const TEXT_ONLY_LINES = 2;
+	// How much of the card the text of a picture-less one gets, in the terms a card *with* a
+	// picture sets. At least the three lines of summary a picture card shows, so a feed of one-line
+	// release notes ("Bug fixes and improvements.") still reads as cards and not as strips. At most
+	// the image box — the card's own width over this view's ratio, hence the card being the
+	// container the cqw resolves against — plus two more lines: two rather than three, because the
+	// rest of a text-only card is not identical either (its title is free to run the longer of its
+	// three clamped lines), and a card that ends up taller sets the height of every row it is in.
+	const LINE = 1.375 * 0.875; // rem of one summary line: text-sm at leading-snug
+	const MIN_LINES = 3;
+	const MAX_EXTRA_LINES = 2;
 	const textOnlyStyle = $derived(
-		`max-height: calc(100cqw / ${boxAspect} + ${(TEXT_ONLY_LINES * 1.375 * 0.875).toFixed(3)}rem); ` +
-			'mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent)'
+		`min-height: ${(MIN_LINES * LINE).toFixed(3)}rem; ` +
+			`max-height: calc(100cqw / ${boxAspect} + ${(MAX_EXTRA_LINES * LINE).toFixed(3)}rem)`
 	);
+
+	// Text that runs past that bound fades into the card at the bottom edge, where a hard cut would
+	// read as a rendering bug. Only then, though: the gradient reaches ~1.5 lines up, so painted
+	// over a summary that already fits it just washes out its last line — which is most of them in
+	// a short-note feed. Hence the measurement, and the observer for every reason the box can
+	// change size: the window, the row's tallest card, a picture arriving late.
+	const FADE_OUT = 'mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent)';
+	let textEl: HTMLElement | undefined = $state();
+	let clipped = $state(false);
+	$effect(() => {
+		const el = textEl;
+		if (!el) return;
+		const measure = () => (clipped = el.scrollHeight - el.clientHeight > 1);
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(el);
+		return () => observer.disconnect();
+	});
 
 	function recordAspect(e: Event) {
 		const img = e.currentTarget as HTMLImageElement;
@@ -615,8 +633,9 @@
 						{lang}>{description}</p>
 				{:else}
 					<div
-						class="text-sm text-n-800 leading-snug mb-3 flex-1 min-h-0 overflow-hidden"
-						style={textOnlyStyle}
+						bind:this={textEl}
+						class="text-sm text-n-800 leading-snug mb-3 flex-1 overflow-hidden"
+						style={clipped ? `${textOnlyStyle}; ${FADE_OUT}` : textOnlyStyle}
 						{lang}
 					>
 						{#each paragraphs as paragraph, i (i)}
