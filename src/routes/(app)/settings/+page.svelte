@@ -2,6 +2,7 @@
 	import { X, Download, Upload } from 'lucide-svelte';
 	import type { AiProvider } from '$lib/types';
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
+	import { authedFetch } from '$lib/api';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { exportSettings, importSettings } from '$lib/settingsBackup';
 	import { settingsSync } from '$lib/settingsSync.svelte';
@@ -62,7 +63,9 @@
 		testing = true;
 		status = null;
 		try {
-			const res = await fetch('/api/ai', {
+			// /api/ai is gated on the Miniflux credential like the other helper endpoints (8022ebc);
+			// a bare fetch here answered 401 "Missing server or token" to every test.
+			const res = await authedFetch('/api/ai', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-AI-Key': apiKey.trim() },
 				body: JSON.stringify({
