@@ -65,7 +65,7 @@ src/
       refresh.svelte.ts         # Manual refresh + background counter polling + "+N new" chip
     components/
       App.svelte                # Root shell: sidebar + topbar + content
-      sidebar/                  # Sidebar, FeedTree, FeedItem
+      sidebar/                  # Sidebar (desktop: Rail + tree; mobile: drawer), Rail, FeedTree, FeedItem
       topbar/                   # TopBar (hamburger + title + logout)
       content/                  # EntryList, EntryRow, EntryContent
       ui/                       # Spinner, Toast, RefreshIndicator

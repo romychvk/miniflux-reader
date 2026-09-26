@@ -112,8 +112,9 @@
     :is(h2, h3, div.prose-img, figure, pre, table, blockquote):not(:first-child) {
       @apply mt-6;
     }
+    /* ArticleView sets --p-gap per placement (roomier full page, tighter panel). */
     p {
-      @apply mb-4;
+      margin-bottom: var(--p-gap, 1rem);
     }
     blockquote {
       @apply pl-5 border-l-6 border-l-n-200 text-sm mb-6;

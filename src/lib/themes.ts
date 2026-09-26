@@ -19,6 +19,7 @@ export const TOKENS = [
 	'surface',
 	'danger', 'danger-strong', 'success', 'warning', 'overlay', 'on-accent',
 	'sidebar', 'navbar', 'sidebar-fg', 'navbar-fg',
+	'rail', 'rail-fg',
 ] as const;
 
 export type Token = (typeof TOKENS)[number];
@@ -110,6 +111,11 @@ export function generateTokens(inputs: ThemeInputs): TokenMap {
 	map.navbar = map.surface;
 	map['sidebar-fg'] = map['n-900'];
 	map['navbar-fg'] = map['n-900'];
+	// The desktop rail (the narrow strip left of the feed tree) wears the accent on light
+	// themes and sinks below the page background on dark ones, where a full-accent strip
+	// would be the loudest thing on screen.
+	map.rail = dark ? map['n-50'] : map['a-600'];
+	map['rail-fg'] = dark ? map['n-500'] : mixOklab(map['a-600'], '#ffffff', 0.72);
 
 	Object.assign(map, dark ? SEMANTIC_DARK : SEMANTIC_LIGHT);
 	// Light accents (yellow, lime) need dark label text; the darkest neutral
@@ -143,6 +149,17 @@ export function resolveTheme(t: Theme): TokenMap {
 		map['sidebar-fg'] = 'sidebar' in t.overrides ? contrastFg(map.sidebar) : map['n-900'];
 	if (!('navbar-fg' in t.overrides))
 		map['navbar-fg'] = 'navbar' in t.overrides ? contrastFg(map.navbar) : map['n-900'];
+	// The rail follows the (possibly overridden) accent / page background the same way — themes
+	// saved before the rail existed pin a-600 and n-50 but know nothing about it.
+	const dark = t.inputs.mode === 'dark';
+	if (!('rail' in t.overrides)) map.rail = dark ? map['n-50'] : map['a-600'];
+	if (!('rail-fg' in t.overrides))
+		map['rail-fg'] =
+			'rail' in t.overrides
+				? mixOklab(map.rail, contrastFg(map.rail), 0.8)
+				: dark
+					? map['n-500']
+					: mixOklab(map.rail, '#ffffff', 0.72);
 	return map;
 }
 
@@ -184,6 +201,16 @@ export function resolveThemeCss(t: Theme): Record<string, string> {
 				: map[`n-${step}` as Token];
 		}
 	}
+	// Rail states, derived rather than editable: a dark rail gets a white tile carrying the rail's
+	// own color (logo, active item, badge, avatar); a light or neutral one gets an accent tile.
+	// rail-strong is the hover text — the rail's far end from its background.
+	// Generous threshold: mid-lightness accents (the default blue sits at L≈0.55) still carry
+	// white; only genuinely pale rails (yellow, lime) switch to dark text and an accent tile.
+	const railDark = hexToOklch(map.rail).l < 0.72;
+	const accentTile = t.inputs.mode === 'dark' || !railDark;
+	vars['rail-active'] = accentTile ? map['a-600'] : '#ffffff';
+	vars['rail-active-fg'] = accentTile ? map['on-accent'] : map.rail;
+	vars['rail-strong'] = railDark ? '#ffffff' : map['n-900'];
 	return vars;
 }
 
@@ -253,6 +280,21 @@ export const PRESETS: readonly Theme[] = [
 			'n-800': '#27272a', 'n-900': '#18181b',
 			'a-50': '#fff1f2', 'a-400': '#fb7185', 'a-500': '#f43f5e', 'a-600': '#e11d48', 'a-700': '#be123c',
 			surface: '#ffffff',
+			...SEMANTIC_LIGHT, 'on-accent': '#ffffff',
+		},
+	},
+	{
+		// "Indigo Rail" refresh: blue-violet neutrals, an indigo rail, white tree and top bar.
+		id: 'indigo',
+		label: 'Indigo',
+		inputs: { mode: 'light', accent: '#3438a8', tint: '#8e90a8' },
+		overrides: {
+			'n-50': '#f4f4fa', 'n-100': '#f1f1f8', 'n-200': '#e4e5f0', 'n-300': '#c3c4d8',
+			'n-400': '#8e90a8', 'n-500': '#61637d', 'n-600': '#4c4e68', 'n-700': '#3a3c55',
+			'n-800': '#23243a', 'n-900': '#15162a',
+			'a-50': '#ececfc', 'a-400': '#8b8de6', 'a-500': '#5457d6', 'a-600': '#3438a8', 'a-700': '#3f42b5',
+			surface: '#ffffff',
+			rail: '#3438a8', 'rail-fg': '#c9caf0',
 			...SEMANTIC_LIGHT, 'on-accent': '#ffffff',
 		},
 	},

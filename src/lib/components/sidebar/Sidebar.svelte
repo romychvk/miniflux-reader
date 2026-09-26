@@ -9,6 +9,7 @@
 	import { makeFeedSlug } from '$lib/slug';
 	import type { FeedCreate } from '$lib/types';
 	import FeedTree from './FeedTree.svelte';
+	import Rail from './Rail.svelte';
 	import FeedAddModal from '$lib/components/ui/FeedAddModal.svelte';
 	import ScrapedFeedWizard from '$lib/components/ui/ScrapedFeedWizard.svelte';
 	import BridgeFeedWizard from '$lib/components/ui/BridgeFeedWizard.svelte';
@@ -23,6 +24,8 @@
 	// of feed and category names nobody can see — so while it is parked off-screen the sidebar
 	// opts out via translate="no" (with the legacy .notranslate class Google Translate also honours).
 	let { collapsed = false }: { collapsed?: boolean } = $props();
+
+	const RAIL_WIDTH = 56; // Rail.svelte's w-14
 
 	let showAddModal = $state(false);
 	// The two "feed from a page" wizards: Miniflux Reader's own page feed (default) and the RSS-Bridge
@@ -82,42 +85,39 @@
 
 <!-- Desktop sidebar -->
 {#if !ui.isMobile}
+	<!-- Rail + tree slide away together; the resize handle only ever resizes the tree. -->
 	<aside
 		translate={collapsed ? 'no' : 'yes'}
 		class:notranslate={collapsed}
-		class="h-screen border-r-2 border-r-n-200 bg-sidebar flex flex-col shrink-0 relative transition-[margin-left] duration-200 ease-out motion-reduce:transition-none"
-		style="width: {ui.sidebarWidth}px; margin-left: {collapsed ? -ui.sidebarWidth : 0}px"
+		class="h-screen flex shrink-0 relative transition-[margin-left] duration-200 ease-out motion-reduce:transition-none"
+		style="margin-left: {collapsed ? -(ui.sidebarWidth + RAIL_WIDTH) : 0}px"
 	>
-		<div class="pl-3 pr-1 py-1.5 flex items-center justify-between">
-			<h2 class="text-lg text-sb-800 font-bold leading-none"><a href="/">Miniflux Reader</a></h2>
-			<div class="flex items-center gap-px">
+		<Rail />
+		<div
+			class="h-full border-r border-r-sb-200 bg-sidebar text-sidebar-fg flex flex-col relative"
+			style="width: {ui.sidebarWidth}px"
+		>
+			<div class="h-13 shrink-0 pl-4 pr-2.5 flex items-center justify-between">
+				<h2 class="text-[15px] font-bold tracking-[-0.01em] text-sb-900">Feeds</h2>
 				<button
 					onclick={() => openAddModal()}
-					class="text-sb-700 p-2 rounded-full hover:bg-sb-200 transition-colors"
+					class="h-7 pl-1.75 pr-2.5 flex items-center gap-1 rounded-full bg-a-50 text-a-700 text-[12.5px] font-semibold transition-colors hover:bg-a-600/12 hover:text-a-600 active:bg-a-600 active:text-on-accent"
 					title="Add feed"
 				>
-					<Plus size={20} />
-				</button>
-				<button
-					onclick={() => { void refresh.refreshCurrent(); }}
-					disabled={!ui.selectedFeed || refresh.refreshing}
-					class="text-sb-700 p-2 rounded-full hover:bg-sb-200 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
-					title={ui.selectedFeed?.isFeed ? 'Refresh Feed' : 'Refresh Feeds'}
-				>
-					<RotateCw size={20} />
+					<Plus size={14} strokeWidth={2.5} />
+					Add
 				</button>
 			</div>
+			<div class="scroll-quiet flex-1">
+				<FeedTree onAddFeed={openAddModal} />
+			</div>
+			<!-- Resize handle -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-10 hover:bg-a-500/30 transition-colors [&.active]:bg-a-500/30"
+				use:resizable={{ getCurrentValue: () => ui.sidebarWidth, onResize: ui.setSidebarWidth }}
+			></div>
 		</div>
-		<div class="overflow-y-auto flex-1">
-			<FeedTree onAddFeed={openAddModal} />
-		</div>
-		{@render logoutButton()}
-		<!-- Resize handle -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="absolute top-0 -right-1 w-2 h-full cursor-col-resize z-10 hover:bg-a-400/30 transition-colors [&.active]:bg-a-400/30"
-			use:resizable={{ getCurrentValue: () => ui.sidebarWidth, onResize: ui.setSidebarWidth }}
-		></div>
 	</aside>
 {/if}
 
@@ -150,8 +150,8 @@
 				</button>
 			</div>
 		</div>
-		<div class="overflow-y-auto flex-1">
-			<FeedTree onAddFeed={openAddModal} />
+		<div class="scroll-quiet flex-1">
+			<FeedTree onAddFeed={openAddModal} pinned />
 		</div>
 		{@render logoutButton()}
 	</aside>

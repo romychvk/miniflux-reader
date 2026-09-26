@@ -52,6 +52,25 @@
 	--color-nb-700: var(--navbar-n-700);
 	--color-nb-800: var(--navbar-n-800);
 	--color-nb-900: var(--navbar-n-900);
+
+	/* Desktop rail (left of the feed tree). rail-active is the tile of the logo, the current
+	   route, the unread badge and the avatar; rail-strong is the hover text. */
+	--color-rail: var(--rail);
+	--color-rail-fg: var(--rail-fg);
+	--color-rail-strong: var(--rail-strong);
+	--color-rail-active: var(--rail-active);
+	--color-rail-active-fg: var(--rail-active-fg);
+
+	/* Elevation, tinted with the strongest neutral so it reads on light and dark themes alike:
+	   a hairline ring instead of a border, plus a soft drop for what floats. */
+	--shadow-card: 0 0 0 1px color-mix(in oklab, var(--n-900) 6%, transparent),
+		0 1px 2px color-mix(in oklab, var(--n-900) 5%, transparent);
+	--shadow-card-grown: 0 0 0 1px color-mix(in oklab, var(--n-900) 6%, transparent),
+		0 20px 40px -12px color-mix(in oklab, var(--n-900) 28%, transparent);
+	--shadow-pop: 0 0 0 1px color-mix(in oklab, var(--n-900) 8%, transparent),
+		0 12px 32px -8px color-mix(in oklab, var(--n-900) 30%, transparent);
+	--shadow-menu: 0 0 0 1px color-mix(in oklab, var(--n-900) 8%, transparent),
+		0 16px 40px -8px color-mix(in oklab, var(--n-900) 28%, transparent);
 }
 
 /* Pre-JS / no-JS fallback palette only — the real theme values are applied as
@@ -110,6 +129,12 @@
 	--navbar-n-700: var(--n-700);
 	--navbar-n-800: var(--n-800);
 	--navbar-n-900: var(--n-900);
+
+	--rail: var(--a-600);
+	--rail-fg: #c7d6fb;
+	--rail-strong: #ffffff;
+	--rail-active: #ffffff;
+	--rail-active-fg: var(--rail);
 }
 
 @layer base {
@@ -125,7 +150,7 @@
 
 .prose {
 	a {
-		@apply underline text-a-700;
+		@apply underline text-a-700 underline-offset-3 decoration-1;
 	}
 	td {
 		@apply px-2 py-1;
@@ -141,12 +166,13 @@
 
   --text-col-w mirrors the reading column those blocks break out of, so content that should
   stay measured against the text (figure captions) can pull it back in. It restates
-  ArticleView's own `max-w-3xl mx-auto px-6` in the same terms the breakout uses — keep the
-  two in step if that wrapper's width or padding changes.
+  ArticleView's own full-page `max-w-[808px] mx-auto px-6` (a 760px text measure) in the same
+  terms the breakout uses — keep the two in step if that wrapper's width or padding changes.
+  The side panel overrides --hero-breakout-w on its own @container (column + 12px a side).
 */
 :root {
 	--hero-breakout-w: max(100%, min(100cqw - 3rem, 64rem));
-	--text-col-w: calc(min(48rem, 100cqw) - 3rem);
+	--text-col-w: calc(min(808px, 100cqw) - 3rem);
 }
 
 /* 
@@ -219,6 +245,41 @@
 	::view-transition-old(article),
 	::view-transition-new(article) {
 		animation-duration: 1ms;
+	}
+}
+
+/*
+  Thin scrollbar that sits in a reserved gutter and only shows while the pointer is over the
+  panel (feed tree, the list's <main>). Tokens, so the dark theme gets its own thumb for free.
+  Chrome 121+ uses the standard properties and ignores the ::-webkit-* rules; those remain for
+  older WebKit.
+*/
+@utility scroll-quiet {
+	overflow-y: auto;
+	scrollbar-width: thin;
+	scrollbar-gutter: stable;
+	scrollbar-color: transparent transparent;
+	&:hover {
+		scrollbar-color: var(--color-n-300) transparent;
+	}
+	&::-webkit-scrollbar {
+		width: 6px;
+	}
+	&::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	&::-webkit-scrollbar-thumb {
+		border-radius: 9999px;
+		background: transparent;
+	}
+	&:hover::-webkit-scrollbar-thumb {
+		background: var(--color-n-300);
+	}
+	&::-webkit-scrollbar-thumb:hover {
+		background: var(--color-n-400);
+	}
+	&::-webkit-scrollbar-button {
+		display: none;
 	}
 }
 

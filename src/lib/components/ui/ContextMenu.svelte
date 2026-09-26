@@ -5,15 +5,24 @@
 		label: string;
 		icon?: typeof Icon;
 		action: () => void;
+		/** Draw a divider above this item. */
+		divider?: boolean;
+		disabled?: boolean;
+		/** Extra classes for the icon (e.g. animate-spin while the action runs). */
+		iconClass?: string;
 	}
 
-	let { x, y, items, onclose, anchor }: {
+	let { x, y, items, onclose, anchor, align = 'left', width }: {
 		x: number;
 		y: number;
 		items: MenuItem[];
 		onclose: () => void;
 		/** Trigger element, if any — clicks on it are left to the trigger's own toggle. */
 		anchor?: HTMLElement | null;
+		/** 'right': x is the menu's right edge (a menu hanging off a button's right end). */
+		align?: 'left' | 'right';
+		/** Fixed width in px; otherwise the menu sizes to its longest item. */
+		width?: number;
 	} = $props();
 
 	let menuEl: HTMLDivElement | undefined = $state();
@@ -21,7 +30,9 @@
 	$effect(() => {
 		if (!menuEl) return;
 		const rect = menuEl.getBoundingClientRect();
-		if (rect.right > window.innerWidth) {
+		if (align === 'right') {
+			menuEl.style.left = `${Math.max(4, x - rect.width)}px`;
+		} else if (rect.right > window.innerWidth) {
 			menuEl.style.left = `${window.innerWidth - rect.width - 4}px`;
 		}
 		if (rect.bottom > window.innerHeight) {
@@ -61,16 +72,22 @@
 
 <div
 	bind:this={menuEl}
-	class="fixed z-50 min-w-40 bg-surface border border-n-200 rounded-lg shadow-lg py-1"
-	style="left: {x}px; top: {y}px;"
+	role="menu"
+	class="fixed z-50 min-w-44 bg-surface text-n-700 rounded-xl p-1.5 shadow-pop"
+	style="left: {x}px; top: {y}px;{width ? ` width: ${width}px;` : ''}"
 >
 	{#each items as item (item.label)}
+		{#if item.divider}
+			<div class="h-px bg-n-200/70 m-1"></div>
+		{/if}
 		<button
+			role="menuitem"
+			disabled={item.disabled}
 			onclick={() => { item.action(); onclose(); }}
-			class="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-n-700 hover:bg-n-100 text-left"
+			class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-[13.5px] text-left transition-colors hover:bg-n-50 disabled:opacity-50 disabled:pointer-events-none"
 		>
 			{#if item.icon}
-				<item.icon size={15} />
+				<item.icon size={16} class="shrink-0 text-n-500 {item.iconClass ?? ''}" />
 			{/if}
 			{item.label}
 		</button>

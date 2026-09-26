@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, RotateCw, ChevronLeft, ChevronRight, Ban, Bookmark, ArrowLeft, ExternalLink, Expand, Shrink } from 'lucide-svelte';
+	import { X, RotateCw, ChevronLeft, ChevronRight, Ban, Bookmark, Check, Circle, Ellipsis, ExternalLink, Expand, Shrink } from 'lucide-svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import type { Entry } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -12,6 +12,7 @@
 	import { archivedSrc } from '$lib/imageArchive';
 	import { entryLang } from '$lib/lang';
 	import EntryContent from './EntryContent.svelte';
+	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 
 	let { entry, onClose }: { entry: Entry; onClose?: () => void } = $props();
 
@@ -23,7 +24,6 @@
 	const rawFeed = $derived(feeds.getRawFeed(entry.feed.id));
 	const feedTitle = $derived(rawFeed?.title || entry.feed.title);
 	const feedHref = $derived(`/feed/${makeFeedSlug(entry.feed.id, feedTitle)}`);
-	const feedSiteUrl = $derived(rawFeed?.site_url || entry.feed.site_url || '');
 	const category = $derived(rawFeed?.category ?? entry.feed.category ?? null);
 	const categoryTitle = $derived(category ? categoryDisplayTitle(category.title) : '');
 	const categoryHref = $derived(category ? `/category/${makeFeedSlug(category.id, categoryTitle)}` : '');
@@ -234,6 +234,50 @@
 		refetching = false;
 	}
 
+	// The ⋯ menu: the rarer article actions, kept out of the meta row.
+	let kebab = $state<{ x: number; y: number } | null>(null);
+	let kebabBtn = $state<HTMLButtonElement | null>(null);
+	const isRead = $derived(entry.status === 'read');
+
+	function toggleKebab() {
+		if (kebab || !kebabBtn) {
+			kebab = null;
+			return;
+		}
+		const r = kebabBtn.getBoundingClientRect();
+		kebab = { x: r.right, y: r.bottom + 6 };
+	}
+
+	const kebabItems = $derived([
+		{
+			label: 'Re-fetch original content',
+			icon: RotateCw,
+			iconClass: refetching ? 'animate-spin' : '',
+			disabled: refetching,
+			action: () => void refetch()
+		},
+		{
+			label: isRead ? 'Mark as unread' : 'Mark as read',
+			icon: isRead ? Circle : Check,
+			action: () => entries.markRead([entry.id], !isRead)
+		},
+		{
+			label: 'Ignore posts like this…',
+			icon: Ban,
+			divider: true,
+			action: () =>
+				ui.openFilterModal({ feedId: entry.feed.id, feedTitle: entry.feed.title, seedTitle: entry.title })
+		}
+	]);
+
+	// Shared looks: the white floating buttons (Close, prev/next), the meta-row icon buttons and
+	// the two links of the breadcrumb chip.
+	const floating =
+		'pointer-events-auto absolute grid place-items-center rounded-full bg-surface text-n-700 shadow-[0_0_0_1px_color-mix(in_oklab,var(--color-n-900)_8%,transparent),0_4px_12px_color-mix(in_oklab,var(--color-n-900)_15%,transparent)] transition-colors hover:bg-n-100 hover:text-n-900';
+	const metaBtn = 'grid place-items-center size-8 rounded-full transition-colors hover:bg-n-100 hover:text-n-900';
+	const crumb =
+		'flex items-center gap-1.5 h-6.5 px-2.25 rounded-full transition-colors duration-120 hover:bg-a-50 hover:text-a-700 active:bg-a-600/15';
+
 	function goBack() {
 		// An article opened in its own tab — a middle-clicked card — is that tab's first page, so
 		// back() is a no-op and the reader would be stuck on it with a Close button that does
@@ -256,165 +300,181 @@
 		{#if !onClose && prevEntry}
 			<button
 				onclick={() => navigate(prevEntry, 'prev')}
-				class="nav-arrow pointer-events-auto absolute left-2 md:left-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+				class="nav-arrow {floating} size-10 left-2 md:left-4 top-[50vh] -translate-y-1/2"
 				class:pressed={pressed === 'prev'}
 				class:zen-hidden={arrowsHidden}
 				title="Previous article"
 			>
-				<ChevronLeft class="size-6.5" />
+				<ChevronLeft size={22} strokeWidth={2.2} />
 			</button>
 		{/if}
 		{#if !onClose && nextEntry}
 			<button
 				onclick={() => navigate(nextEntry, 'next')}
-				class="nav-arrow pointer-events-auto absolute right-2 md:right-4 top-[50vh] -translate-y-1/2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+				class="nav-arrow {floating} size-10 right-2 md:right-4 top-[50vh] -translate-y-1/2"
 				class:pressed={pressed === 'next'}
 				class:zen-hidden={arrowsHidden}
 				title="Next article"
 			>
-				<ChevronRight class="size-6.5" />
+				<ChevronRight size={22} strokeWidth={2.2} />
 			</button>
 		{/if}
 		<button
 			onclick={onClose ?? goBack}
-			class="pointer-events-auto absolute right-2 md:right-4 top-2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
+			class="{floating} size-9 right-2 md:right-4 top-3"
 			title="Close article"
 		>
-			<X class="size-6.5" />
+			<X size={18} strokeWidth={2.2} />
 		</button>
 	</div>
 
 	<!-- The @container is the measuring block for the hero-image breakout (cqw units in
 	     .hero-breakout here and the lead-image rule in EntryContent). It wraps only the article
 	     column: inline-size containment would make this div the positioning ancestor of the
-	     fixed/sticky buttons above, so they stay outside it. -->
-	<div class="@container">
-	<!-- Without the breadcrumbs row, panel/expanded mode starts straight on the H1 — so it has to
-	     open below the floating Close button (top-2 + its 40px box) or a long first line runs
-	     under it. The full-page route keeps the tighter top: the breadcrumbs sit there instead. -->
-	<div class="max-w-3xl mx-auto px-6 pb-4 {onClose ? 'pt-14' : 'pt-4'} relative" class:article-vt={!onClose}>
-	<!-- Breadcrumbs stand in for the app top bar, which the full-page route hides. Panel and
-	     expanded mode keep that top bar and sit right next to the feed list, so there the row
-	     would only repeat the feed the reader just clicked in. -->
-	{#if !onClose}
-	<!-- The floating Close button overlaps this row's right end, but only while the column is narrow
-	     enough to reach it: below ~52rem of container width the column fills <main> and the button
-	     sits ~32px inside its right edge; above that the column stops at max-w-3xl and the button
-	     clears it entirely. Reserving that room with padding-right would shift the centred crumbs
-	     left of the H1 by half the padding — visibly off-centre at every width. Two flex spacers do
-	     the centring instead, and only the right one carries a floor, so the crumbs stay centred
-	     until they would actually run under the button and give way just then. The floor lifts past
-	     the threshold; @container measures <main>, so this tracks the sidebar, not the viewport. -->
-	<nav class="flex items-center gap-0.5 text-sm text-n-800 mb-6 min-w-0 before:flex-1 before:content-[''] after:flex-1 after:content-[''] after:min-w-5 sm:after:min-w-8 @[52rem]:after:min-w-0">
-		<!-- {#if !onClose}
-			<button
-				onclick={goBack}
-				title="Back"
-				class="shrink-0 -ml-1.5 p-1 rounded-md hover:bg-n-200 bg-n-100 hover:text-n-800 transition-colors"
+	     fixed/sticky buttons above, so they stay outside it. In the panel the hero only bleeds
+	     12px past each side of the column. -->
+	<div class="@container {onClose ? '[--hero-breakout-w:calc(100%_+_24px)]' : ''}">
+	<div
+		class="mx-auto relative {onClose ? 'max-w-[696px] px-7 pb-8' : 'max-w-[808px] px-6 pb-10'}"
+		class:article-vt={!onClose}
+	>
+		<div class={zen ? 'text-center' : ''}>
+			<!-- Header row: the breadcrumb chip, in every placement. The floating Close button sits over
+			     this row's right end whenever the column reaches it — always in the panel, and on the
+			     full-page route until <main> is wide enough (~55rem) for the column to stop short of it.
+			     Left-aligned rows just reserve the room; Zen's centred chip uses two flex spacers with the
+			     floor only on the right, so it stays centred until it would actually run under the button. -->
+			<div
+				class="h-14 flex items-center min-w-0 {zen
+					? "justify-center before:flex-1 before:content-[''] after:flex-1 after:content-[''] after:min-w-11 @[55rem]:after:min-w-0"
+					: onClose
+						? 'pr-11'
+						: 'pr-11 @[55rem]:pr-0'}"
 			>
-				<ArrowLeft size={18} />
-			</button>
-		{/if} -->
-		{#if category}
-			<a href={categoryHref} class="shrink-0 truncate hover:text-n-800 underline transition-colors hover:bg-n-200 rounded px-2 py-1 hover:no-underline">{categoryTitle}</a>
-			<ChevronRight size={14} class="shrink-0 text-n-600" />
-		{/if}
-		<a href={feedHref} class="flex items-center gap-1.5 min-w-0 hover:text-n-800 underline transition-colors rounded px-2 py-1 hover:bg-n-200 hover:no-underline">
-			{#if feedIcon}
-				<img src={feedIcon} alt="" class="size-3.5 shrink-0" />
-			{/if}
-			<span class="truncate">{feedTitle}</span>
-		</a>
-		<!-- {#if feedSiteUrl}
-			<a
-				href={feedSiteUrl}
-				target="_blank"
-				rel="noopener noreferrer"
-				title="Open site"
-				class="shrink-0 text-n-600 hover:text-n-800 hover:bg-n-200 transition-colors bg-n-100 rounded-full size-7 flex items-center justify-center"
-			>
-				<ExternalLink size={16} />
-			</a>
-		{/if} -->
-	</nav>
-	{/if}
+				<nav class="flex items-center h-6.5 min-w-0 rounded-full bg-n-100 text-[12.5px] font-medium text-n-700">
+					{#if category}
+						<a href={categoryHref} class="{crumb} shrink-0 whitespace-nowrap">{categoryTitle}</a>
+						<ChevronRight size={12} strokeWidth={2.5} class="shrink-0 -mx-1 text-n-400/80" />
+					{/if}
+					<a href={feedHref} class="{crumb} min-w-0">
+						{#if feedIcon}
+							<img src={feedIcon} alt="" class="size-3.5 rounded-[3px] shrink-0" />
+						{/if}
+						<span class="truncate">{feedTitle}</span>
+					</a>
+				</nav>
+			</div>
 
-	<h1 class="text-[34px] leading-snug text-center font-semibold mb-4 px-6" lang={entryLang(entry)}>{entry.title}</h1>
-
-	<div class="flex flex-wrap items-center justify-center gap-1 text-sm text-n-600 mb-8">
-		<span>{relaTimestamp(entry.published_at)}</span>
-		{#if entry.author}
-		  <span class="mx-1 h-4 w-px bg-n-200"></span>
-			<span>{entry.author}</span>
-		{/if}
-		<span class="mx-1 h-4 w-px bg-n-200"></span>
-		<a
-			href={entry.url}
-			target="_blank"
-			rel="noopener noreferrer"
-			title="Open the original article"
-			class="group underline gap-1 transition-colors rounded px-1.5 py-0.5 hover:text-n-800 hover:bg-n-200 hover:no-underline flex items-center justify-center"
-		>
-			Source
-			<ExternalLink class="text-n-400 group-hover:text-n-600" size={15} />
-		</a>
-		<span class="ml-1 mr-0.5 h-4 w-px bg-n-200"></span>
-		<button
-			onclick={() => entries.toggleBookmark(entry.id)}
-			title={(entry.starred ?? false) ? 'Remove bookmark' : 'Bookmark'}
-			class="shrink-0 flex justify-center items-center size-7 rounded-full transition-colors {(entry.starred ?? false) ? 'text-a-600 hover:bg-n-200' : 'text-n-400 hover:text-n-600 hover:bg-n-200'}"
-		>
-			<Bookmark size={16} fill={(entry.starred ?? false) ? 'currentColor' : 'none'} />
-		</button>
-		<button
-			onclick={() => ui.openFilterModal({ feedId: entry.feed.id, feedTitle: entry.feed.title, seedTitle: entry.title })}
-			title="Ignore posts like this"
-			class="shrink-0 rounded-full size-7 flex items-center justify-center text-n-400 hover:text-n-700 hover:bg-n-200 transition-colors"
-		>
-			<Ban size={16} />
-		</button>
-		<button
-			onclick={refetch}
-			disabled={refetching}
-			title="Re-fetch original content (applies the feed's rules)"
-			class="shrink-0 flex justify-center items-center size-7 rounded-full text-n-400 hover:text-n-700 hover:bg-n-200 transition-colors disabled:opacity-50"
-		>
-			<RotateCw size={16} class={refetching ? 'animate-spin' : ''} />
-		</button>
-		{#if !ui.isMobile}
-			<button
-				onclick={toggleZen}
-				title={ui.zenMode ? 'Exit Zen mode' : 'Zen mode'}
-				class="shrink-0 flex justify-center items-center size-7 rounded-full transition-colors {ui.zenMode ? 'text-a-600 hover:bg-n-200' : 'text-n-400 hover:text-n-700 hover:bg-n-200'}"
+			<h1
+				class="font-bold tracking-[-0.015em] text-balance {onClose
+					? 'text-[22px] leading-[1.3] mt-1.5 mb-3.5'
+					: `text-[30px] leading-[1.25] ${zen ? 'mt-2.5' : 'mt-1.5'} mb-4.5`}"
+				lang={entryLang(entry)}
 			>
-				{#if ui.zenMode}
-					<Shrink size={16} />
-				{:else}
-					<Expand size={16} />
+				{entry.title}
+			</h1>
+
+			<div
+				class="flex flex-wrap items-center gap-x-3.5 gap-y-1 pb-3 mb-5.5 border-b border-n-200/60 {zen
+					? 'justify-center'
+					: 'justify-between'}"
+			>
+				<div class="flex items-center gap-2 min-w-0 text-[13px] text-n-500 whitespace-nowrap">
+					{#if entry.author}
+						<span class="font-semibold text-n-700 truncate">{entry.author}</span>
+						<span class="text-n-300">&middot;</span>
+					{/if}
+					<span class="shrink-0">{relaTimestamp(entry.published_at)}</span>
+					<span class="text-n-300">&middot;</span>
+					<a
+						href={entry.url}
+						target="_blank"
+						rel="noopener noreferrer"
+						title="Open the original article"
+						class="shrink-0 flex items-center gap-1.25 transition-colors hover:text-n-900 hover:underline underline-offset-3 decoration-1"
+					>
+						Open original
+						<ExternalLink size={13} />
+					</a>
+				</div>
+				{#if zen}
+					<span class="w-px h-4 bg-n-200"></span>
 				{/if}
-			</button>
-		{/if}
-	</div>
-
-	{#if showCover}
-		<!-- The breakout div (not the button) carries the width so the click target stays the
-		     image itself: the button shrink-wraps its img and centres inside the wider block. -->
-		<div class="hero-breakout mb-5">
-			<button type="button" onclick={openCover} class="block mx-auto" title="Open image">
-				<img
-					src={coverSrc}
-					alt={entry.title}
-					class="max-w-full h-auto rounded-lg cursor-zoom-in"
-					onerror={coverLoadFailed}
-				/>
-			</button>
+				<div class="flex items-center gap-0.5 shrink-0">
+					<button
+						onclick={() => entries.toggleBookmark(entry.id)}
+						title={(entry.starred ?? false) ? 'Remove bookmark' : 'Bookmark'}
+						aria-label={(entry.starred ?? false) ? 'Remove bookmark' : 'Bookmark'}
+						class="{metaBtn} {(entry.starred ?? false) ? 'text-a-700' : 'text-n-500'}"
+					>
+						<Bookmark size={17} fill={(entry.starred ?? false) ? 'currentColor' : 'none'} />
+					</button>
+					{#if !ui.isMobile}
+						<button
+							onclick={toggleZen}
+							title={ui.zenMode ? 'Exit Zen mode' : 'Zen mode'}
+							aria-label={ui.zenMode ? 'Exit Zen mode' : 'Zen mode'}
+							class="{metaBtn} {ui.zenMode ? 'text-a-700' : 'text-n-500'}"
+						>
+							{#if ui.zenMode}
+								<Shrink size={17} />
+							{:else}
+								<Expand size={17} />
+							{/if}
+						</button>
+					{/if}
+					<button
+						bind:this={kebabBtn}
+						onclick={toggleKebab}
+						title="More"
+						aria-label="More actions"
+						aria-haspopup="menu"
+						aria-expanded={!!kebab}
+						class="{metaBtn} {kebab ? 'bg-a-50 text-a-700 hover:bg-a-50 hover:text-a-700' : 'text-n-500'}"
+					>
+						<Ellipsis size={17} />
+					</button>
+				</div>
+			</div>
 		</div>
-	{/if}
 
-	<EntryContent {entry} />
+		{#if showCover}
+			<!-- The breakout div (not the button) carries the width so the click target stays the
+			     image itself: the button shrink-wraps its img and centres inside the wider block. -->
+			<div class="hero-breakout mb-5">
+				<button type="button" onclick={openCover} class="block mx-auto" title="Open image">
+					<img
+						src={coverSrc}
+						alt={entry.title}
+						class="max-w-full h-auto rounded-[10px] cursor-zoom-in"
+						onerror={coverLoadFailed}
+					/>
+				</button>
+			</div>
+		{/if}
+
+		<div
+			class="text-n-800 {onClose
+				? 'text-[15.5px] leading-[1.6] [--p-gap:14px]'
+				: 'text-[17px] leading-[1.65] [--p-gap:18px]'}"
+		>
+			<EntryContent {entry} />
+		</div>
 	</div>
 	</div>
 </div>
+
+{#if kebab}
+	<ContextMenu
+		x={kebab.x}
+		y={kebab.y}
+		items={kebabItems}
+		anchor={kebabBtn}
+		align="right"
+		width={232}
+		onclose={() => (kebab = null)}
+	/>
+{/if}
 
 <style>
 	/* Gentle press reaction for the prev/next arrows — fires on click (:active) and on a

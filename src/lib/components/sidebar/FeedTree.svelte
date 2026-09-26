@@ -11,7 +11,9 @@
 	import { makeFeedSlug } from '$lib/slug';
 	import { storageGet, storageSet } from '$lib/storage';
 
-	let { onAddFeed }: { onAddFeed: (categoryId: number) => void } = $props();
+	// All and Bookmarks live in the desktop rail; only the mobile drawer (no rail) pins them here.
+	let { onAddFeed, pinned = false }: { onAddFeed: (categoryId: number) => void; pinned?: boolean } =
+		$props();
 
 	let contextMenu = $state<{ x: number; y: number; catId: number } | null>(null);
 	let editingCatId = $state<number | null>(null);
@@ -125,7 +127,7 @@
 	}
 </script>
 
-<nav class="flex flex-col gap-0.5 px-3 pt-1.5 pb-3">
+<nav class="flex flex-col gap-px pl-2 pr-0.5 pt-0.5 pb-2">
 	{#each feeds.feedTree as node, treeIndex (node.id)}
 		{#if node.children}
 			<!-- Category insert line (before) -->
@@ -139,8 +141,10 @@
 			{@const isCatTarget = isCatDropTarget(node.id)}
 			<div
 				role="listitem"
-				class="flex items-center gap-0 rounded hover:bg-sb-200 transition-colors
-          {isSelected ? 'bg-sb-200 text-a-700' : 'text-sb-900'}
+				class="flex items-center gap-2 h-8 px-2 rounded-lg text-[13.5px] leading-5 transition-colors
+					{isSelected
+						? 'bg-a-600/12 text-a-700 font-[650]'
+						: `hover:bg-sb-200/60 hover:text-sb-900 ${node.unread > 0 ? 'text-sb-900 font-semibold' : 'text-sb-600 font-[450]'}`}
 					{isCatDragged ? 'opacity-40' : ''}
 					{isCatTarget ? 'ring-2 ring-a-400 bg-a-50' : ''}"
 				draggable="true"
@@ -153,13 +157,13 @@
 			>
 				<button
 					onclick={() => toggleCategory(node.id)}
-					class="p-1.5 shrink-0"
+					class="w-4.5 h-full grid place-items-center shrink-0 text-sb-400"
 					aria-label="{expandedCategories.has(node.id) ? 'Collapse' : 'Expand'} {node.title}"
 				>
 					{#if expandedCategories.has(node.id)}
-						<ChevronDown size={20} />
+						<ChevronDown size={16} strokeWidth={2.2} />
 					{:else}
-						<ChevronRight size={20} />
+						<ChevronRight size={16} strokeWidth={2.2} />
 					{/if}
 				</button>
 				<button
@@ -167,20 +171,20 @@
 						goto(`/category/${makeFeedSlug(node.id, node.title)}`);
 						if (ui.isMobile) ui.toggleSidebar();
 					}}
-					class="
-            flex items-center gap-1 flex-1 min-w-0 py-1.5 pr-2 text-sm text-left
-
-            {node.unread > 0 ? 'font-bold' : ''}
-          "
+					class="flex items-center gap-2 flex-1 min-w-0 h-full text-left"
 				>
 					<span class="truncate flex-1 pointer-events-none">{node.title}</span>
 					{#if node.unread > 0}
-						<span class="text-xs text-sb-400 font-normal pointer-events-none">{node.unread}</span>
+						<span
+							class="text-[11.5px] tabular-nums pointer-events-none {isSelected
+								? 'text-a-700 font-bold'
+								: 'text-sb-600 font-medium'}">{node.unread}</span
+						>
 					{/if}
 				</button>
 			</div>
 			{#if expandedCategories.has(node.id)}
-				<div class="ml-6 flex flex-col">
+				<div class="flex flex-col gap-px">
 					{#each node.children as child, childIndex (child.id)}
 						{#if showInsertLine(node.id, childIndex)}
 							<div class="h-0.5 bg-a-500 mx-2 rounded"></div>
@@ -193,11 +197,13 @@
 				</div>
 			{/if}
 		{:else}
-			<!-- Top-level item (All) -->
-			<FeedItem feed={node} />
-			{#if node.id === -1}
-				<!-- Bookmarks (Miniflux starred) pseudo-feed, right under "All" -->
-				<FeedItem feed={feeds.getStarredNode()} />
+			<!-- Top-level item (All) — in the drawer only; the desktop rail carries it -->
+			{#if pinned}
+				<FeedItem feed={node} />
+				{#if node.id === -1}
+					<!-- Bookmarks (Miniflux starred) pseudo-feed, right under "All" -->
+					<FeedItem feed={feeds.getStarredNode()} />
+				{/if}
 			{/if}
 		{/if}
 	{/each}

@@ -241,8 +241,8 @@
 	const GROW_X = 10; // px the card bleeds past its cell to the left and right
 	const GROW_B = 6; // px of extra room below the text
 	const BOTTOM_AIR = 16; // px of scroll room kept under a grown card in the last row
-	const PAD_X = 16; // the body's resting px-4 …
-	const PAD_B = 12; // … and the bottom half of its py-3
+	const PAD_X = 14; // the body's resting px-3.5 …
+	const PAD_B = 10; // … and the bottom half of its py-2.5
 	const GROW_MS = 180;
 	const HOVER_MS = 300; // hover-intent: how long the pointer has to settle before a card grows
 
@@ -587,7 +587,7 @@
 		href={articleHref}
 		onmouseenter={hoverEnter}
 		onmouseleave={hoverLeave}
-		class="{thumbnailUrl ? 'block' : 'flex flex-col h-full @container'} rounded-lg border border-n-200 bg-surface overflow-hidden cursor-pointer hover:shadow-md transition-all {isRead ? 'opacity-60 bg-n-100 hover:bg-surface hover:opacity-100' : ''} {isSelected ? 'ring-2 ring-a-400' : ''} {expanded ? 'absolute z-20 shadow-xl' : ''}"
+		class="{thumbnailUrl ? 'block' : 'flex flex-col h-full @container'} rounded-xl bg-surface overflow-hidden cursor-pointer transition-[opacity,box-shadow] {isRead && !expanded ? 'opacity-55 hover:opacity-100' : ''} {isSelected ? 'shadow-[0_0_0_2px_var(--color-a-500)]' : expanded ? 'shadow-card-grown' : 'shadow-card'} {expanded ? 'absolute z-20' : ''}"
 		onclick={openInPlace}
 		onauxclick={onAuxClick}
 		oncontextmenu={openContextMenu}
@@ -597,7 +597,7 @@
 		{#if thumbnailUrl}
 			<div
 				bind:this={imageEl}
-				class="relative w-full overflow-hidden bg-n-100 rounded-t-lg"
+				class="relative w-full overflow-hidden bg-n-100"
 				style="aspect-ratio: {boxAspect}"
 			>
 				<!-- blurred backdrop: same image, enlarged + blurred to fill letterbox bars -->
@@ -624,17 +624,17 @@
 		     textOnlyStyle) and no more, the card stands its row's full height if a neighbour is taller
 		     (h-full above), and the byline stays at the foot of the card either way. Beside a picture
 		     the same summary is clamped to three lines, eight while the card is grown. -->
-		<div bind:this={bodyEl} class="px-4 py-3 {thumbnailUrl ? '' : 'flex-1 flex flex-col min-h-0'}">
-  			<h3 class="leading-snug {expanded ? 'line-clamp-none' : 'line-clamp-3'} mb-2 {isRead ? 'font-normal' : 'font-bold'}" {lang}>{entry.title}</h3>
+		<div bind:this={bodyEl} class="px-3.5 py-2.5 {thumbnailUrl ? '' : 'flex-1 flex flex-col min-h-0'}">
+			<h3 class="text-[15px] leading-[1.35] tracking-[-0.005em] {expanded ? 'line-clamp-none' : 'line-clamp-3'} mb-1.5 font-[650]" {lang}>{entry.title}</h3>
 			{#if description}
 				{#if thumbnailUrl}
 					<p
-						class="text-sm text-n-800 leading-snug mb-3 {expanded ? 'line-clamp-8' : 'line-clamp-3'}"
+						class="text-[13px] text-n-600 leading-[1.45] mb-2.5 {expanded ? 'line-clamp-8' : 'line-clamp-3'}"
 						{lang}>{description}</p>
 				{:else}
 					<div
 						bind:this={textEl}
-						class="text-sm text-n-800 leading-snug mb-3 flex-1 overflow-hidden"
+						class="text-[13px] text-n-600 leading-[1.45] mb-2.5 flex-1 overflow-hidden"
 						style={clipped ? `${textOnlyStyle}; ${FADE_OUT}` : textOnlyStyle}
 						{lang}
 					>
@@ -644,39 +644,41 @@
 					</div>
 				{/if}
 			{/if}
-			<div class="flex justify-between gap-1 {thumbnailUrl ? '' : 'mt-auto'}">
-   			<p class="text-xs text-n-500 flex items-center gap-2">
-  				{#if feedIcon}
-   					<img src={feedIcon} alt="" class="size-4 shrink-0 {isRead ? 'opacity-80' : ''} " />
-  				{/if}
-  				{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
-   			</p>
-				<div class="shrink-0 flex items-center gap-1">
+			<div class="flex justify-between items-center gap-1.5 pt-2 border-t border-n-200/60 {thumbnailUrl ? '' : 'mt-auto'}">
+				<p class="min-w-0 text-xs text-n-500 flex items-center gap-1.5">
+					{#if feedIcon}
+						<img src={feedIcon} alt="" class="size-4 rounded-[4px] shrink-0" />
+					{/if}
+					<span class="truncate">{entry.feed.title}</span>
+					<span class="shrink-0">&middot;</span>
+					<span class="shrink-0">{relaTimestamp(entry.published_at)}</span>
+				</p>
+				<div class="shrink-0 flex items-center gap-0.5">
 					<button
 						type="button"
 						onclick={toggleBookmark}
 						aria-label={isStarred ? 'Remove bookmark' : 'Bookmark'}
 						title={isStarred ? 'Remove bookmark' : 'Bookmark'}
-						class="shrink-0 grid place-items-center size-6 rounded-full cursor-pointer bg-surface/70 backdrop-blur-sm transition-colors {isStarred ? 'text-a-600' : 'text-n-500 hover:text-n-800'}"
+						class="grid place-items-center size-6 rounded-full cursor-pointer transition-colors hover:bg-a-50 hover:text-a-700 {isStarred ? 'text-a-700' : expanded ? 'text-a-700' : 'text-n-400/80'}"
 					>
-						<Bookmark size={16} fill={isStarred ? 'currentColor' : 'none'} />
+						<Bookmark size={15} fill={isStarred ? 'currentColor' : 'none'} />
 					</button>
-        <button
-     			type="button"
-     			onclick={toggleRead}
-     			aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
-     			title={isRead ? 'Mark as unread' : 'Mark as read'}
-     			class="shrink-0 grid place-items-center size-6 rounded-full cursor-pointer bg-surface/70 backdrop-blur-sm group/dot"
-    		>
-     			{#if isRead}
-    				<span class="block size-4 group-hover/dot:size-[18px] rounded-full border-2 border-n-400 transition-[width,height] duration-150 ease-out"></span>
-     			{:else}
-    				<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4 group-hover/dot:size-[18px] text-n-700 transition-[width,height] duration-150 ease-out">
-     					<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
-     					<circle cx="8" cy="8" r="3" fill="currentColor" />
-     				</svg>
-     			{/if}
-    		</button>
+					<button
+						type="button"
+						onclick={toggleRead}
+						aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
+						title={isRead ? 'Mark as unread' : 'Mark as read'}
+						class="grid place-items-center size-6 rounded-full cursor-pointer transition-colors hover:bg-a-50 hover:text-a-700 {expanded ? 'text-a-700' : isRead ? 'text-n-400/80' : 'text-n-500'}"
+					>
+						{#if isRead}
+							<span class="block size-4 rounded-full border-[1.5px] border-current"></span>
+						{:else}
+							<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4">
+								<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+								<circle cx="8" cy="8" r="3" fill="currentColor" />
+							</svg>
+						{/if}
+					</button>
 				</div>
 			</div>
 		</div>

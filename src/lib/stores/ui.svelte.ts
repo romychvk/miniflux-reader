@@ -3,7 +3,7 @@ import { storageGet, storageGetString, storageSet } from '$lib/storage';
 import { migrateLegacyZen, parseLayoutMode, type LayoutMode } from '$lib/layoutMode';
 
 const SIDEBAR_WIDTH_KEY = 'sidebarWidth';
-const DEFAULT_SIDEBAR_WIDTH = 256;
+const DEFAULT_SIDEBAR_WIDTH = 236;
 const MIN_SIDEBAR_WIDTH = 180;
 const MAX_SIDEBAR_WIDTH = 480;
 
