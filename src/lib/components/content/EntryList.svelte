@@ -43,7 +43,9 @@
 			</div>
 		</div>
 	{:else if ui.viewMode === 'cards'}
-		<div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 p-4">
+		<!-- 243px is the narrowest a card gets: it keeps four columns down to a 1064px-wide <main>
+		     (10px scrollbar gutter + p-4 + three gap-4 + 4×243), three down to ~803px. -->
+		<div class="grid grid-cols-[repeat(auto-fill,minmax(243px,1fr))] gap-4 p-4">
 			{#each entries.entries as entry (entry.id)}
 				<EntryRow {entry} />
 			{/each}
