@@ -1,5 +1,6 @@
-import { apiCall, authedFetch } from "$lib/api";
-import type { Entry } from "$lib/types";
+import { authedFetch } from "$lib/api";
+import { backend, feedIdOf } from "$lib/backend";
+import type { Entry, EntryScope } from "$lib/types";
 import type { FilterRule } from "$lib/contentFilter";
 import { storageGet, storageGetString, storageSet } from "$lib/storage";
 import {
@@ -18,7 +19,6 @@ import { hasCoverRule, extractCover } from "$lib/cover";
 import { requestArchive } from "$lib/imageArchiveClient";
 import { collectImageUrls } from "$lib/imageArchive";
 import {
-  decodeContent,
   parseContent,
   extractDescription,
   pickThumbnail,
@@ -43,13 +43,6 @@ export interface RefetchError {
   title: string;
   url: string;
   message: string;
-}
-
-// The feed id for a single-feed entries path (`feeds/{id}/entries`), or null for aggregate
-// views ("entries" for All, `categories/{id}/entries` for a category).
-function feedIdFromEntriesPath(apiPath: string): number | null {
-  const m = apiPath.match(/^feeds\/(\d+)\/entries/);
-  return m ? Number(m[1]) : null;
 }
 
 // --- Lazy cover resolution (og:image by default, per-feed rule when set) --------------
@@ -122,19 +115,8 @@ function createEntriesStore() {
   let showAll = $state(false);
   let searchQuery = $state("");
   let abortController: AbortController | null = null;
-  let cachedUserId: number | null = null;
 
-  // The current Miniflux user id (needed for the All-view mark-all-as-read endpoint).
-  // Fetched once and cached for the session.
-  async function currentUserId(): Promise<number> {
-    if (cachedUserId === null) {
-      const me = await apiCall<{ id: number }>("me");
-      cachedUserId = me.id;
-    }
-    return cachedUserId;
-  }
-
-  async function loadEntries(apiPath: string) {
+  async function loadEntries(scope: EntryScope) {
     abortController?.abort();
     abortController = new AbortController();
     const signal = abortController.signal;
@@ -143,17 +125,15 @@ function createEntriesStore() {
     try {
       // The Bookmarks view lists starred entries regardless of read state, so
       // the unread-only default (and per-feed hide rules) must not apply here.
-      const isStarredView = apiPath.includes("starred=true");
-      const sep = apiPath.includes("?") ? "&" : "?";
-      let params = "";
-      if (searchQuery) {
-        params = `search=${encodeURIComponent(searchQuery)}&`;
-      } else if (!showAll && !isStarredView) {
-        params = "status=unread&";
-      }
-      const data = await apiCall<{ total: number; entries: Entry[] }>(
-        `${apiPath}${sep}${params}order=published_at&direction=desc&limit=100`,
-        { signal },
+      const isStarredView = scope.kind === "starred";
+      const data = await backend().listEntries(
+        scope,
+        {
+          search: searchQuery || undefined,
+          status: !searchQuery && !showAll && !isStarredView ? "unread" : undefined,
+          limit: 100,
+        },
+        signal,
       );
 
       // Let sources derive a feed's sidebar icon from an entry (e.g. github repurposes the
@@ -199,7 +179,7 @@ function createEntriesStore() {
 
       // A feed set to "hide (mark read)" filters its own view here; applyClientHide is for the
       // aggregate views, where each entry's feed decides.
-      const singleFeedId = feedIdFromEntriesPath(apiPath);
+      const singleFeedId = feedIdOf(scope);
       if (singleFeedId !== null && loadFilterAction(singleFeedId) === "mark-read") {
         const matchers = compileMatchers(loadHideRules(singleFeedId));
         entries = showAll
@@ -280,10 +260,7 @@ function createEntriesStore() {
     // Chunked to keep each request modest on a long backlog.
     const CHUNK = 500;
     for (let i = 0; i < ids.length; i += CHUNK) {
-      await apiCall("entries", {
-        method: "PUT",
-        body: JSON.stringify({ entry_ids: ids.slice(i, i + CHUNK), status: "read" }),
-      });
+      await backend().setStatus(ids.slice(i, i + CHUNK), "read");
     }
   }
 
@@ -339,13 +316,7 @@ function createEntriesStore() {
 
   async function markRead(entryIds: number[], read: boolean) {
     try {
-      await apiCall("entries", {
-        method: "PUT",
-        body: JSON.stringify({
-          entry_ids: entryIds,
-          status: read ? "read" : "unread",
-        }),
-      });
+      await backend().setStatus(entryIds, read ? "read" : "unread");
 
       for (const id of entryIds) {
         const entry = entries.find((e) => e.id === id);
@@ -364,31 +335,19 @@ function createEntriesStore() {
 
   // "Mark all as read" for the current view. The topbar button used to send only the
   // loaded page (≤100 entries), so a feed with a larger unread backlog was left partly
-  // unread (e.g. 242 → 142). This marks the *entire* scope instead: Miniflux's native
-  // mark-all-as-read endpoints for a feed / category / All (one request, whole backlog),
-  // and a paged sweep for the Bookmarks (starred) and search views those endpoints can't
-  // express. Counters are re-synced from the server afterwards.
-  async function markAllRead(feed: {
-    id: number;
-    isFeed: boolean;
-    apiPath: string;
-  }): Promise<void> {
-    const isStarred = feed.apiPath.includes("starred=true");
+  // unread (e.g. 242 → 142). This marks the *entire* scope instead: the backend's own
+  // mark-all-as-read for a feed / category / All (one request, whole backlog), and a paged
+  // sweep for the Bookmarks (starred) and search views no backend can express. Counters
+  // are re-synced from the server afterwards.
+  async function markAllRead(feed: { scope: EntryScope }): Promise<void> {
+    const { scope } = feed;
+    const isStarred = scope.kind === "starred";
     const searching = searchQuery !== "";
     try {
-      if (!isStarred && !searching) {
-        if (feed.isFeed) {
-          await apiCall(`feeds/${feed.id}/mark-all-as-read`, { method: "PUT" });
-        } else if (feed.id === -1) {
-          const userId = await currentUserId();
-          await apiCall(`users/${userId}/mark-all-as-read`, { method: "PUT" });
-        } else {
-          await apiCall(`categories/${feed.id}/mark-all-as-read`, {
-            method: "PUT",
-          });
-        }
+      if (scope.kind === "starred" || searching) {
+        await markAllReadPaged(scope);
       } else {
-        await markAllReadPaged(feed.apiPath);
+        await backend().markAllRead(scope);
       }
 
       // Reflect it locally: everything unread in the view is now read. In the unread-only
@@ -407,45 +366,34 @@ function createEntriesStore() {
   }
 
   // Page through the current view's unread backlog and mark it read in chunks. Used for the
-  // Bookmarks (starred) and search views, which have no native mark-all-as-read endpoint.
-  async function markAllReadPaged(apiPath: string): Promise<void> {
-    const sep = apiPath.includes("?") ? "&" : "?";
-    const searchParam = searchQuery
-      ? `search=${encodeURIComponent(searchQuery)}&`
-      : "";
+  // Bookmarks (starred) and search views, which have no native mark-all-as-read operation.
+  async function markAllReadPaged(scope: EntryScope): Promise<void> {
     const PAGE = 100;
     const MAX = 10000; // safety bound against a runaway sweep
     const ids: number[] = [];
     let offset = 0;
     let total = Infinity;
     while (offset < total && offset < MAX) {
-      const data = await apiCall<{ total: number; entries: Entry[] }>(
-        `${apiPath}${sep}${searchParam}status=unread&order=published_at&direction=desc&limit=${PAGE}&offset=${offset}`,
-      );
-      total = data.total ?? 0;
-      const page = data.entries || [];
+      const data = await backend().listEntries(scope, {
+        search: searchQuery || undefined,
+        status: "unread",
+        limit: PAGE,
+        offset,
+      });
+      total = data.total;
+      const page = data.entries;
       for (const e of page) ids.push(e.id);
       offset += PAGE;
       if (page.length < PAGE) break;
     }
-    const CHUNK = 500;
-    for (let i = 0; i < ids.length; i += CHUNK) {
-      await apiCall("entries", {
-        method: "PUT",
-        body: JSON.stringify({
-          entry_ids: ids.slice(i, i + CHUNK),
-          status: "read",
-        }),
-      });
-    }
+    await bulkMarkRead(ids);
   }
 
-  // Toggle an entry's starred/bookmark state. Miniflux's per-entry bookmark
-  // endpoint takes no body and returns 204, flipping the flag server-side — so
-  // we mirror that by flipping the local `starred` after the call succeeds.
+  // Toggle an entry's starred/bookmark state. The backend flips the flag server-side, so
+  // the local `starred` is flipped after the call succeeds.
   async function toggleBookmark(entryId: number) {
     try {
-      await apiCall(`entries/${entryId}/bookmark`, { method: "PUT" });
+      await backend().toggleBookmark(entryId);
       const entry = entries.find((e) => e.id === entryId);
       if (entry) entry.starred = !entry.starred;
     } catch (e) {
@@ -453,18 +401,10 @@ function createEntriesStore() {
     }
   }
 
-  // Re-scrape the original page (applying the feed's scraper/rewrite rules) and
-  // persist it. Miniflux's fetch-content endpoint returns the content but does not
-  // save it (as of 2.2.19), so we PUT it back explicitly.
+  // Re-scrape the original page (applying the feed's scraper/rewrite rules) and persist
+  // it; the backend returns the content as stored.
   async function fetchAndStore(entryId: number): Promise<string> {
-    const data = await apiCall<{ content: string }>(
-      `entries/${entryId}/fetch-content`,
-    );
-    const content = decodeContent(data.content || "");
-    await apiCall(`entries/${entryId}`, {
-      method: "PUT",
-      body: JSON.stringify({ content }),
-    });
+    const content = await backend().fetchContent(entryId);
     const entry = entries.find((e) => e.id === entryId);
     if (entry) {
       entry.content = content;
@@ -607,11 +547,11 @@ function createEntriesStore() {
     failed: number;
     errors: RefetchError[];
   }> {
-    const statusParam = status === "unread" ? "status=unread&" : "";
-    const data = await apiCall<{ entries: Entry[] }>(
-      `feeds/${feedId}/entries?${statusParam}order=published_at&direction=desc&limit=${limit}`,
+    const data = await backend().listEntries(
+      { kind: "feed", id: feedId },
+      { status: status === "unread" ? "unread" : undefined, limit },
     );
-    const list = data.entries || [];
+    const list = data.entries;
     const total = list.length;
     let ok = 0;
     let done = 0;
@@ -650,15 +590,16 @@ function createEntriesStore() {
     re: RegExp | null,
   ): Promise<number> {
     if (!re) return 0;
-    const data = await apiCall<{ entries: Entry[] }>(
-      `feeds/${feedId}/entries?status=unread&limit=100`,
+    const data = await backend().listEntries(
+      { kind: "feed", id: feedId },
+      { status: "unread", limit: 100 },
     );
     const fieldValue = (e: Entry): string =>
       field === "title" ? e.title
       : field === "content" ? e.content
       : field === "url" ? e.url
       : e.author;
-    const matches = (data.entries || []).filter((e) => re.test(fieldValue(e) ?? ""));
+    const matches = data.entries.filter((e) => re.test(fieldValue(e) ?? ""));
     const retired = await retire(matches);
     dropFromView(retired);
     return retired.length;
@@ -684,11 +625,12 @@ function createEntriesStore() {
     let offset = 0;
     let total = Infinity;
     while (offset < total && offset < BACKLOG_MAX) {
-      const data = await apiCall<{ total: number; entries: Entry[] }>(
-        `feeds/${feedId}/entries?status=unread&order=published_at&direction=desc&limit=${BACKLOG_PAGE}&offset=${offset}`,
+      const data = await backend().listEntries(
+        { kind: "feed", id: feedId },
+        { status: "unread", limit: BACKLOG_PAGE, offset },
       );
-      total = data.total ?? 0;
-      const page = data.entries || [];
+      total = data.total;
+      const page = data.entries;
       onPage(page);
       offset += BACKLOG_PAGE;
       if (page.length < BACKLOG_PAGE) break;

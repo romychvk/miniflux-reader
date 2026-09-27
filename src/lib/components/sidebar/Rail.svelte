@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { Bookmark, House, LogOut, Monitor, Rss, Settings } from 'lucide-svelte';
-	import { apiCall } from '$lib/api';
+	import { backend } from '$lib/backend';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 
@@ -31,7 +31,8 @@
 	const initial = $derived((displayName.match(/[\p{L}\p{N}]/u)?.[0] ?? '?').toUpperCase());
 
 	onMount(() => {
-		apiCall<{ username: string; is_admin?: boolean }>('me')
+		backend()
+			.me()
 			.then((m) => (me = m))
 			.catch(() => {}); // the avatar falls back to the server host's initial
 	});

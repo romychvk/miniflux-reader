@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
-	import { apiCall } from '$lib/api';
+	import { backend } from '$lib/backend';
 	import { parseEntrySlugId } from '$lib/slug';
 	import { enrichEntries, loadCoverRule } from '$lib/enrichment';
 	import { requestArchive } from '$lib/imageArchiveClient';
@@ -34,7 +34,7 @@
 		// overwrite a newer one when the slug changes faster than the request resolves.
 		const controller = new AbortController();
 		loading = true;
-		apiCall<Entry>(`entries/${id}`, { signal: controller.signal }).then((raw) => {
+		backend().getEntry(id, controller.signal).then((raw) => {
 			// An entry reached straight by URL — a middle-clicked tab, a bookmark, a shared link —
 			// never passed through the list, so nothing had enriched it: no thumbnail, no preview
 			// text, and no idea whether its feed archives images. Run the same pass the list runs,

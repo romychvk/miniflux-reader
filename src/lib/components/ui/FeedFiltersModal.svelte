@@ -211,7 +211,7 @@
 
 			// Re-apply visibly over the live list (dedup + hide-on-load) when it's the open feed.
 			if (ui.selectedFeed && ui.selectedFeed.id === feedId) {
-				await entries.loadEntries(ui.selectedFeed.apiPath);
+				await entries.loadEntries(ui.selectedFeed.scope);
 			}
 			onclose();
 		} catch {

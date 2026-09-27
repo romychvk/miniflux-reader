@@ -10,7 +10,7 @@
 		const allNode = feeds.getAllNode();
 		if (allNode) {
 			ui.selectFeed(allNode);
-			entries.loadEntries(allNode.apiPath);
+			entries.loadEntries(allNode.scope);
 		}
 	});
 </script>

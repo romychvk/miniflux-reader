@@ -16,7 +16,7 @@
 		const node = feeds.findFeedNodeById(id, false);
 		if (node) {
 			ui.selectFeed(node);
-			entries.loadEntries(node.apiPath);
+			entries.loadEntries(node.scope);
 		}
 	});
 </script>

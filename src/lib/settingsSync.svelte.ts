@@ -1,4 +1,5 @@
 import { auth } from '$lib/stores/auth.svelte';
+import { authHeaders } from '$lib/api';
 import { setStorageChangeListener } from '$lib/storage';
 import { isSyncableKey, SYNC_META_PREFIX } from '$lib/settingsBackup';
 
@@ -27,7 +28,7 @@ function createSettingsSync() {
 	let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
 	function authHeaders(): Record<string, string> {
-		return { 'X-Auth-Token': auth.apiToken, 'X-Miniflux-Server': auth.serverUrl };
+		return authHeaders();
 	}
 
 	function collectSyncable(): Record<string, string> {
@@ -119,7 +120,7 @@ function createSettingsSync() {
 		try {
 			// Account switch guard: leftover settings from a previous login must not be
 			// pushed into (or mixed with) the new account's namespace.
-			const identity = await sha256Hex(`${auth.serverUrl}|${auth.apiToken}`);
+			const identity = await sha256Hex(`${auth.backend}|${auth.serverUrl}|${auth.apiToken}`);
 			const storedIdentity = localStorage.getItem(IDENTITY_KEY);
 			if (storedIdentity && storedIdentity !== identity) {
 				for (const k of Object.keys(collectSyncable())) localStorage.removeItem(k);

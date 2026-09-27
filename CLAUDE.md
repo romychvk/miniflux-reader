@@ -50,11 +50,12 @@ src/
   routes/
     +layout.svelte              # Base layout (imports app.css)
     +page.svelte                # Auth guard → App or redirect /login
-    login/+page.svelte          # Login form (server URL + API token)
+    login/+page.svelte          # Login page (renders components/login/MinifluxLoginForm)
     api/proxy/[...path]/+server.ts  # Catch-all proxy → Miniflux API
   lib/
     types.ts                    # Shared interfaces
-    api.ts                      # apiCall() fetch wrapper
+    api.ts                      # authedFetch() for our /api/* helpers; apiCall() is the Miniflux transport
+    backend/                    # ReaderBackend adapter: types, miniflux impl, register (per build), index (backend()/caps())
     icons.ts                    # Canvas-based fallback feed icons
     time.ts                     # Relative timestamps
     stores/
@@ -75,6 +76,7 @@ src/
 
 - **Stores** use Svelte 5 runes in plain `.svelte.ts` files (not Svelte 4 `writable`/`readable`)
 - **API proxy** at `/api/proxy/[...path]` forwards requests to Miniflux, reading `X-Auth-Token` and `X-Miniflux-Server` from request headers
+- **Backend adapter**: stores and components never call `apiCall` — they go through `backend()` from `$lib/backend`, a `ReaderBackend` (feeds, categories, entries, states, refresh, discover, fetch-content) whose one implementation here is `backend/miniflux.ts`. Lists of entries are addressed by an `EntryScope` (`all | starred | feed | category`), never by a path. `backend/register.ts` names the backends a build ships and is the only repo-specific file; `caps().rssBridge` gates the RSS-Bridge UI. The auth store carries `backend: BackendKind` (localStorage `backend`, absent = miniflux)
 - **Auth** is client-side only (localStorage), no SSR auth — page guard via `onMount`
 - **IntersectionObserver** as a Svelte `use:` action for auto-mark-read on scroll-down
 - **Feed icons** cached in localStorage under `favicons` key

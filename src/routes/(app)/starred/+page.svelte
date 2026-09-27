@@ -9,7 +9,7 @@
 		const _search = entries.searchQuery;
 		const node = feeds.getStarredNode();
 		ui.selectFeed(node);
-		entries.loadEntries(node.apiPath);
+		entries.loadEntries(node.scope);
 	});
 </script>
 

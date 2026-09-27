@@ -1,8 +1,8 @@
-import { apiCall } from '$lib/api';
+import { backend } from '$lib/backend';
 import { categoryDisplayTitle } from '$lib/category';
 import { createFeedIcon } from '$lib/icons';
 import { storageGet, storageSet } from '$lib/storage';
-import type { Category, Feed, FeedCounters, FeedCreate, FeedIcon, FeedNode, FeedUpdate } from '$lib/types';
+import type { Category, Feed, FeedCreate, FeedNode, FeedUpdate } from '$lib/types';
 import { mapPool } from '$lib/pool';
 import { applySavedOrder, persistOrder } from '$lib/feedOrder';
 import { ui } from './ui.svelte';
@@ -44,9 +44,9 @@ function createFeedsStore() {
 		loading = true;
 		try {
 			const [feedList, counters, catList] = await Promise.all([
-				apiCall<Feed[]>('feeds', { signal }),
-				apiCall<FeedCounters>('feeds/counters', { signal }),
-				apiCall<Category[]>('categories', { signal })
+				backend().listFeeds(signal),
+				backend().counters(signal),
+				backend().listCategories(signal)
 			]);
 
 			rawFeeds = feedList;
@@ -65,7 +65,7 @@ function createFeedsStore() {
 			const totalUnread = Object.values(unreads).reduce((sum, n) => sum + n, 0);
 
 			const tree: FeedNode[] = [
-				{ id: -1, title: 'All', apiPath: 'entries', isFeed: false, unread: totalUnread }
+				{ id: -1, title: 'All', scope: { kind: 'all' }, isFeed: false, unread: totalUnread }
 			];
 
 			const sortedCategories = [...categoryMap.entries()].sort((a, b) =>
@@ -76,10 +76,10 @@ function createFeedsStore() {
 				const catFeeds = feedList
 					.filter((f) => f.category?.id === catId)
 					.sort((a, b) => a.title.localeCompare(b.title))
-					.map((f) => ({
+					.map((f): FeedNode => ({
 						id: f.id,
 						title: f.title,
-						apiPath: `feeds/${f.id}/entries`,
+						scope: { kind: 'feed', id: f.id },
 						isFeed: true,
 						iconData: createFeedIcon(f.title),
 						unread: unreads[f.id] || 0
@@ -90,7 +90,7 @@ function createFeedsStore() {
 				tree.push({
 					id: catId,
 					title: categoryDisplayTitle(catTitle),
-					apiPath: `categories/${catId}/entries`,
+					scope: { kind: 'category', id: catId },
 					isFeed: false,
 					unread: catUnread,
 					children: catFeeds
@@ -130,7 +130,7 @@ function createFeedsStore() {
 			await mapPool(uncachedFeeds, FEED_REQUEST_CONCURRENCY, async (feed) => {
 				if (signal.aborted) return;
 				try {
-					const icon = await apiCall<FeedIcon>(`feeds/${feed.id}/icon`, { signal });
+					const icon = await backend().feedIcon(feed.id, signal);
 					const iconData = `data:${icon.data}`;
 					cache[feed.id] = iconData;
 					cacheUpdated = true;
@@ -223,10 +223,7 @@ function createFeedsStore() {
 		persistOrder(feedTree);
 
 		try {
-			await apiCall(`feeds/${feedId}`, {
-				method: 'PUT',
-				body: JSON.stringify({ category_id: targetCatId })
-			});
+			await backend().updateFeed(feedId, { category_id: targetCatId });
 		} catch (e) {
 			// Revert
 			const revertIndex = targetCat.children.findIndex(f => f.id === feedId);
@@ -260,7 +257,7 @@ function createFeedsStore() {
 	const STARRED_NODE: FeedNode = {
 		id: -2,
 		title: 'Bookmarks',
-		apiPath: 'entries?starred=true',
+		scope: { kind: 'starred' },
 		isFeed: false,
 		unread: 0
 	};
@@ -304,10 +301,7 @@ function createFeedsStore() {
 
 	async function createCategory(title: string): Promise<Category> {
 		try {
-			const cat = await apiCall<Category>('categories', {
-				method: 'POST',
-				body: JSON.stringify({ title })
-			});
+			const cat = await backend().createCategory(title);
 			await loadFeeds();
 			return cat;
 		} catch (e) {
@@ -318,10 +312,7 @@ function createFeedsStore() {
 
 	async function createFeed(data: FeedCreate): Promise<number | undefined> {
 		try {
-			const res = await apiCall<{ feed_id: number }>('feeds', {
-				method: 'POST',
-				body: JSON.stringify(data)
-			});
+			const res = await backend().createFeed(data);
 			await loadFeeds();
 			return res?.feed_id;
 		} catch (e) {
@@ -332,10 +323,7 @@ function createFeedsStore() {
 
 	async function updateFeed(feedId: number, changes: FeedUpdate) {
 		try {
-			await apiCall(`feeds/${feedId}`, {
-				method: 'PUT',
-				body: JSON.stringify(changes)
-			});
+			await backend().updateFeed(feedId, changes);
 
 			// Update tree locally
 			const child = feedIndex.get(feedId);
@@ -378,7 +366,7 @@ function createFeedsStore() {
 
 	async function deleteFeed(feedId: number) {
 		try {
-			await apiCall(`feeds/${feedId}`, { method: 'DELETE' });
+			await backend().deleteFeed(feedId);
 			await loadFeeds();
 		} catch (e) {
 			ui.showError(e instanceof Error ? e.message : 'Failed to unsubscribe from feed');
@@ -388,10 +376,7 @@ function createFeedsStore() {
 
 	async function updateCategory(catId: number, title: string) {
 		try {
-			await apiCall(`categories/${catId}`, {
-				method: 'PUT',
-				body: JSON.stringify({ title })
-			});
+			await backend().updateCategory(catId, title);
 
 			// Update tree locally
 			const cat = feedTree.find(n => n.id === catId);
@@ -410,7 +395,7 @@ function createFeedsStore() {
 
 	async function loadCounters() {
 		try {
-			const counters = await apiCall<FeedCounters>('feeds/counters');
+			const counters = await backend().counters();
 			const unreads = counters.unreads;
 			let totalUnread = 0;
 			for (const node of feedTree) {
@@ -434,7 +419,7 @@ function createFeedsStore() {
 
 	async function refreshFeed(feedId: number) {
 		try {
-			await apiCall(`feeds/${feedId}/refresh`, { method: 'PUT' });
+			await backend().refreshFeed(feedId);
 		} catch (e) {
 			ui.showError(e instanceof Error ? e.message : 'Failed to refresh feed');
 			throw e;
@@ -442,15 +427,15 @@ function createFeedsStore() {
 		await loadCounters();
 	}
 
-	// Fan out per-feed synchronous refreshes. The bulk PUT feeds/refresh endpoint is
-	// async server-side — it returns before crawling, so counters read right after it
-	// are stale and any "+N new" count would lie. PUT feeds/{id}/refresh blocks until
-	// the feed is crawled, so after the pool drains the counters are trustworthy.
+	// Fan out per-feed synchronous refreshes: refreshFeed blocks until the feed is crawled, so
+	// after the pool drains the counters are trustworthy and a "+N new" count can be honest.
+	// (Miniflux's bulk refresh endpoint is async server-side, which is why there is no bulk
+	// operation on the backend interface.)
 	async function refreshFeedList(list: { id: number; title: string }[]) {
 		const errors: string[] = [];
 		await mapPool(list, FEED_REQUEST_CONCURRENCY, async (feed) => {
 			try {
-				await apiCall(`feeds/${feed.id}/refresh`, { method: 'PUT' });
+				await backend().refreshFeed(feed.id);
 			} catch {
 				errors.push(feed.title);
 			}
@@ -462,7 +447,7 @@ function createFeedsStore() {
 	}
 
 	async function refreshAllFeeds() {
-		// Miniflux refuses to refresh disabled feeds — skip them instead of toasting.
+		// A disabled feed is not crawled (Miniflux refuses outright) — skip them instead of toasting.
 		await refreshFeedList(rawFeeds.filter(f => !f.disabled));
 	}
 

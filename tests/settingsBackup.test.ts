@@ -10,6 +10,7 @@ test('isSyncableKey excludes secrets, the bootstrap server URL, caches and sync 
 		'miniflux_api_key',
 		'ai_api_key',
 		'miniflux_server',
+		'backend',
 		'favicons',
 		'ogImages_v5',
 		'ogImages',

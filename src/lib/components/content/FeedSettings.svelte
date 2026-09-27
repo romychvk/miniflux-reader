@@ -2,7 +2,7 @@
 	import type { Feed, FeedUpdate } from '$lib/types';
 	import { X } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { apiCall } from '$lib/api';
+	import { backend, caps } from '$lib/backend';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { ui } from '$lib/stores/ui.svelte';
@@ -48,12 +48,14 @@
 	const navItems = [
 		{ id: 'general', label: 'General' },
 		{ id: 'network', label: 'Network Settings' },
-		isPageFeed ? { id: 'page-feed', label: 'Page Feed' } : { id: 'rss-bridge', label: 'RSS-Bridge' },
+		isPageFeed ? { id: 'page-feed', label: 'Page Feed' }
+		: caps().rssBridge ? { id: 'rss-bridge', label: 'RSS-Bridge' }
+		: null,
 		{ id: 'original-content', label: 'Original Content' },
 		{ id: 'cover-image', label: 'Cover Image' },
 		{ id: 'image-archive', label: 'Image Archive' },
 		{ id: 'danger-zone', label: 'Danger Zone' }
-	];
+	].filter((item) => item !== null);
 	let activeSection = $state('general');
 
 	function goBack() {
@@ -194,7 +196,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await apiCall<{ total: number }>(`feeds/${feed.id}/entries?limit=1`);
+			const res = await backend().listEntries({ kind: 'feed', id: feed.id }, { limit: 1 });
 			entryCount = res.total;
 		} catch {
 			// stats are best-effort

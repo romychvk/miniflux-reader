@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Sparkles, RotateCw, Check, Undo2 } from 'lucide-svelte';
 	import type { Entry, Feed, AiMessage, RuleSuggestion } from '$lib/types';
-	import { apiCall, authedFetch } from '$lib/api';
+	import { authedFetch } from '$lib/api';
+	import { backend } from '$lib/backend';
 	import { sanitizeHtml } from '$lib/sanitize';
 	import { entries } from '$lib/stores/entries.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -90,10 +91,8 @@
 		loading = true;
 		try {
 			if (!refineFeedback) {
-				const data = await apiCall<{ entries: Entry[] }>(
-					`feeds/${feed.id}/entries?order=published_at&direction=desc&limit=${sampleCount}`
-				);
-				const list = data.entries || [];
+				const data = await backend().listEntries({ kind: 'feed', id: feed.id }, { limit: sampleCount });
+				const list = data.entries;
 				if (list.length === 0) {
 					throw new Error('No entries to sample — try "Re-fetch latest" first.');
 				}

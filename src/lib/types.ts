@@ -94,10 +94,25 @@ export interface RuleSuggestion {
 	explanation: string;
 }
 
+// What a list of entries is a list of. The backend maps it onto its own addressing; the UI
+// never builds a path itself.
+export type EntryScope =
+	| { kind: 'all' }
+	| { kind: 'starred' }
+	| { kind: 'feed'; id: number }
+	| { kind: 'category'; id: number };
+
+// A feed the backend found for a page URL.
+export type FoundFeed = {
+	title: string;
+	url: string;
+	type?: string;
+};
+
 export interface FeedNode {
 	id: number;
 	title: string;
-	apiPath: string;
+	scope: EntryScope;
 	isFeed: boolean;
 	iconData?: string;
 	unread: number;

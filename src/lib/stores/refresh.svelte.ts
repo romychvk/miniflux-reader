@@ -59,7 +59,7 @@ function createRefreshStore() {
 		clearPending();
 		try {
 			if (sel.id === -2) {
-				await entries.loadEntries(sel.apiPath);
+				await entries.loadEntries(sel.scope);
 				showResult('Updated');
 			} else {
 				// The count is "new unread fetched": cross-device reads between the snapshots
@@ -73,7 +73,7 @@ function createRefreshStore() {
 				else await feeds.refreshCategoryFeeds(sel.id);
 				await entries.sweepBacklogs();
 				const after = node?.unread ?? 0; // refresh* already ran loadCounters()
-				await entries.loadEntries(sel.apiPath);
+				await entries.loadEntries(sel.scope);
 				showResult(formatRefreshResult(computeNewCount(before, after)));
 			}
 		} catch {
@@ -97,7 +97,7 @@ function createRefreshStore() {
 			if (node.isFeed) await feeds.refreshFeed(node.id);
 			else await feeds.refreshCategoryFeeds(node.id);
 			await entries.sweepBacklogs();
-			if (ui.selectedFeed) await entries.loadEntries(ui.selectedFeed.apiPath);
+			if (ui.selectedFeed) await entries.loadEntries(ui.selectedFeed.scope);
 		} catch {
 			/* already handled */
 		}
@@ -105,7 +105,7 @@ function createRefreshStore() {
 
 	async function applyPending() {
 		clearPending();
-		if (ui.selectedFeed) await entries.loadEntries(ui.selectedFeed.apiPath);
+		if (ui.selectedFeed) await entries.loadEntries(ui.selectedFeed.scope);
 	}
 
 	function onSelectionChanged() {

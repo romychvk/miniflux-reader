@@ -1,4 +1,7 @@
-import { apiCall } from '$lib/api';
+import { backend } from '$lib/backend';
+import type { FoundFeed } from '$lib/types';
+
+export type { FoundFeed } from '$lib/types';
 
 // Feed discovery for the Add Feed form.
 //
@@ -12,12 +15,6 @@ import { apiCall } from '$lib/api';
 // stays for the two cases upstream doesn't handle: deeper paths like /owner/repo/releases, which
 // it returns nothing for, and site sections like /topics/rss, which it mistakes for a repository —
 // see isGithubSection() below.
-
-export type FoundFeed = {
-	title: string;
-	url: string;
-	type?: string;
-};
 
 // Paths under github.com that are site sections rather than a user or organization.
 const GITHUB_RESERVED = new Set([
@@ -93,18 +90,9 @@ function normalizeUrl(url: string): string {
 
 // Returns every feed we can find for a page URL — empty when there is none to find.
 export async function findFeeds(pageUrl: string): Promise<FoundFeed[]> {
-	let discovered: FoundFeed[] = [];
-	try {
-		const res = await apiCall<FoundFeed[]>('discover', {
-			method: 'POST',
-			body: JSON.stringify({ url: pageUrl })
-		});
-		if (Array.isArray(res)) discovered = res;
-	} catch {
-		// Miniflux answers 404 when it finds nothing and 500 when it cannot fetch the page.
-		// Both mean the same thing here, and the caller says so inline next to the RSS-Bridge
-		// offer — so this stays quiet instead of raising a ui.showError() toast.
-	}
+	// Quiet on failure by contract (the backend answers [] when it finds nothing or cannot fetch
+	// the page): the caller says so inline next to the RSS-Bridge offer, no toast.
+	let discovered = await backend().discover(pageUrl);
 
 	// On a site section every repository feed guessed for the page is fictional. githubFeeds()
 	// never generates those; Miniflux's have to be dropped so the picker stays honest.

@@ -8,6 +8,7 @@
 	import { findFeeds, type FoundFeed } from '$lib/feedFinder';
 	import { findBridges, warmBridgeCatalog, type BridgeChoice } from '$lib/bridgeFinder';
 	import { defaultInstance } from '$lib/rssbridge';
+	import { caps } from '$lib/backend';
 	import type { BridgeMatch } from '$lib/rssbridgeCatalog';
 
 	let { onclose, onsave, onpagefeed, onwizard, onbridge, initialCategoryId }: {
@@ -40,9 +41,10 @@
 	let bridgeMatches = $state.raw<BridgeMatch[]>([]);
 	let discoveredFor = $state<string | null>(null);
 
-	// '' when no RSS-Bridge instance is known yet — the whole bridge offer then stays out of the way.
+	// '' when no RSS-Bridge instance is known yet, or when the backend has no use for one — the
+	// whole bridge offer (catalog matches, the CssSelectorBridge wizard) then stays out of the way.
 	// Snapshot at mount like ScrapedFeedWizard does: the modal is created fresh each time it opens.
-	const instance = defaultInstance();
+	const instance = caps().rssBridge ? defaultInstance() : '';
 
 	// The instance's bridge list is ~1.2MB to read the first time, so start it while the user is
 	// still typing rather than paying for it on submit.

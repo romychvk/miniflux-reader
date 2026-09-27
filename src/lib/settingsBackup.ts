@@ -10,12 +10,13 @@ const SECRET_KEYS = ['miniflux_api_key', 'ai_api_key']; // gated behind "include
 export const SYNC_META_PREFIX = 'settingsSync_';
 
 // Keys that participate in server-side sync: everything except regenerable caches,
-// secrets, the auth-bootstrap server URL, and the sync bookkeeping itself.
+// secrets, the auth bootstrap (server URL and backend kind), and the sync bookkeeping itself.
 export function isSyncableKey(k: string): boolean {
 	return (
 		!CACHE_KEY_RE.test(k) &&
 		!SECRET_KEYS.includes(k) &&
 		k !== 'miniflux_server' &&
+		k !== 'backend' &&
 		!k.startsWith(SYNC_META_PREFIX)
 	);
 }

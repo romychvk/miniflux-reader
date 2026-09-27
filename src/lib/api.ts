@@ -5,21 +5,30 @@ import { ui } from '$lib/stores/ui.svelte';
 // Like the Miniflux proxy they now require the user's token so they can't be driven anonymously
 // (see requireMinifluxAuth). Returns the raw Response — callers read .ok / .json() themselves —
 // and preserves the caller's init (signal, method, extra headers).
+//
+// apiCall below is the Miniflux transport and belongs to $lib/backend/miniflux; the stores and
+// components go through $lib/backend instead of calling it.
 export function authedFetch(input: string, init?: RequestInit): Promise<Response> {
 	return fetch(input, {
 		...init,
 		headers: {
-			'X-Auth-Token': auth.apiToken,
-			'X-Miniflux-Server': auth.serverUrl,
+			...authHeaders(),
 			...(init?.headers as Record<string, string>)
 		}
 	});
 }
 
+// The credential headers of the signed-in session. The server header names the Miniflux
+// instance the token is for; a token of another backend is for this deployment and carries none.
+export function authHeaders(): Record<string, string> {
+	const h: Record<string, string> = { 'X-Auth-Token': auth.apiToken };
+	if (auth.backend === 'miniflux') h['X-Miniflux-Server'] = auth.serverUrl;
+	return h;
+}
+
 export async function apiCall<T>(path: string, options?: RequestInit): Promise<T> {
 	const headers: Record<string, string> = {
-		'X-Auth-Token': auth.apiToken,
-		'X-Miniflux-Server': auth.serverUrl,
+		...authHeaders(),
 		...(options?.headers as Record<string, string>)
 	};
 
