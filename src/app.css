@@ -252,7 +252,8 @@
 
 /*
   Thin scrollbar that sits in a reserved gutter and only shows while the pointer is over the
-  panel (feed tree, the list's <main>). Tokens, so the dark theme gets its own thumb for free.
+  panel — the sidebar's feed tree only; the list and article keep the default scrollbar.
+  Tokens, so the dark theme gets its own thumb for free.
   Chrome 121+ uses the standard properties and ignores the ::-webkit-* rules; those remain for
   older WebKit.
 */

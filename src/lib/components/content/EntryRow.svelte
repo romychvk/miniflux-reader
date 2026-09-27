@@ -125,6 +125,11 @@
 	// over a summary that already fits it just washes out its last line — which is most of them in
 	// a short-note feed. Hence the measurement, and the observer for every reason the box can
 	// change size: the window, the row's tallest card, a picture arriving late.
+	// A one-column grid has no neighbours to stand level with: there the text-only card drops the
+	// room-of-a-picture sizing (inline, hence the !important) and clamps to three lines instead.
+	// 532px = the cards container (EntryList) at which two 242px columns stop fitting.
+	const ONE_COLUMN =
+		'@max-[532px]/cardlist:line-clamp-3 @max-[532px]/cardlist:min-h-0! @max-[532px]/cardlist:max-h-none! @max-[532px]/cardlist:mask-none!';
 	const FADE_OUT = 'mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent)';
 	let textEl: HTMLElement | undefined = $state();
 	let clipped = $state(false);
@@ -511,17 +516,21 @@
 {:else if viewMode === 'magazine'}
 	<!-- Magazine: a card with the picture down its left side (full height, contained over its own
 	     blurred copy, as in Cards) and the Cards footer at the foot of the text. Without a picture
-	     the text takes the whole width and the summary two more lines. -->
+	     the text takes the whole width and the summary two more lines. A card too narrow for a
+	     side picture (a phone) turns into a Cards card: the picture on top, in this view's ratio. -->
 	<div class="@container/mag h-full" bind:this={rowEl} use:autoMarkRead={entry}>
 		<a
 			href={articleHref}
-			class="flex h-full rounded-xl bg-surface overflow-hidden cursor-pointer transition-[opacity,box-shadow] duration-150 {isRead ? 'opacity-55 hover:opacity-100' : ''} {isSelected ? 'shadow-[0_0_0_2px_var(--color-a-500)]' : 'shadow-card hover:shadow-card-hover'}"
+			class="flex flex-col @md/mag:flex-row h-full rounded-xl bg-surface overflow-hidden cursor-pointer transition-[opacity,box-shadow] duration-150 {isRead ? 'opacity-55 hover:opacity-100' : ''} {isSelected ? 'shadow-[0_0_0_2px_var(--color-a-500)]' : 'shadow-card hover:shadow-card-hover'}"
 			onclick={openInPlace}
 			onauxclick={onAuxClick}
 			oncontextmenu={openContextMenu}
 		>
 			{#if thumbnailUrl}
-				<div class="relative w-60 shrink-0 self-stretch overflow-hidden bg-n-100 hidden @md/mag:block">
+				<div
+					class="relative w-full shrink-0 overflow-hidden bg-n-100 aspect-(--box-aspect) @md/mag:w-60 @md/mag:aspect-auto @md/mag:self-stretch"
+					style="--box-aspect: {boxAspect}"
+				>
 					<img
 						src={thumbnailUrl}
 						alt=""
@@ -534,6 +543,7 @@
 						alt=""
 						class="absolute inset-0 w-full h-full object-contain"
 						loading="lazy"
+						onload={recordAspect}
 						onerror={thumbnailFailed}
 					/>
 				</div>
@@ -542,7 +552,7 @@
 			<div class="px-4 pt-3 pb-2.5 flex-1 min-w-0 flex flex-col">
 				<h3 class="text-[16px] leading-[1.35] tracking-[-0.005em] font-[650] line-clamp-3 mb-1.5" {lang}>{entry.title}</h3>
 				{#if description}
-					<p class="text-[13px] text-n-600 leading-[1.45] mb-2.5 {thumbnailUrl ? 'line-clamp-2' : 'line-clamp-4'}" {lang}>{description}</p>
+					<p class="text-[13px] text-n-600 leading-[1.45] mb-2.5 {thumbnailUrl ? 'line-clamp-3 @md/mag:line-clamp-2' : 'line-clamp-3 @md/mag:line-clamp-4'}" {lang}>{description}</p>
 				{/if}
 				{@render actionFooter(false)}
 			</div>
@@ -596,8 +606,10 @@
 
 		<!-- Every card stands its row's full height (h-full above), so a row reads as one height and
 		     the byline sits at the foot of each card. With no picture the text column takes the room
-		     the picture would have had (see textOnlyStyle) and no more. Beside a picture the summary is
-		     clamped to three lines, eight while the card is grown. -->
+		     the picture would have had (see textOnlyStyle) and no more — except in a single column
+		     (ONE_COLUMN, against EntryList's @container/cardlist), where there is no row to match and
+		     it takes three lines like the rest. Beside a picture the summary is clamped to three lines,
+		     eight while the card is grown. -->
 		<div bind:this={bodyEl} class="px-3.5 py-2.5 flex-1 flex flex-col {thumbnailUrl ? '' : 'min-h-0'}">
 			<h3 class="text-[15px] leading-[1.35] tracking-[-0.005em] {expanded ? 'line-clamp-none' : 'line-clamp-3'} mb-1.5 font-[650]" {lang}>{entry.title}</h3>
 			{#if description}
@@ -608,7 +620,7 @@
 				{:else}
 					<div
 						bind:this={textEl}
-						class="text-[13px] text-n-600 leading-[1.45] mb-2.5 flex-1 overflow-hidden"
+						class="text-[13px] text-n-600 leading-[1.45] mb-2.5 flex-1 overflow-hidden {ONE_COLUMN}"
 						style={clipped ? `${textOnlyStyle}; ${FADE_OUT}` : textOnlyStyle}
 						{lang}
 					>
