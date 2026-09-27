@@ -340,6 +340,9 @@
 		const rise = (imageEl?.getBoundingClientRect().height ?? 0) - frozenImageHeight;
 		const grown = { left: `${-GROW_X}px`, right: `${-GROW_X}px`, top: `${-rise}px` };
 		// An auto height can't animate either, so measure the one the grown card wants, padding and all…
+		// A card stretched to a taller neighbour's row height may hold less than it stands: never let
+		// the grown card end above the bottom of its cell.
+		el.style.minHeight = `${frozenHeight + rise}px`;
 		setRect(el, { ...grown, height: 'auto' });
 		const grownHeight = el.getBoundingClientRect().height;
 		const toRect = { ...grown, height: `${grownHeight}px` };
@@ -382,6 +385,7 @@
 		el.style.transition = 'none';
 		body.style.transition = 'none';
 		setRect(el, currentRect(el));
+		el.style.minHeight = ''; // the height is pinned now; the floor would stop it reaching the cell
 		setPad(body, currentPad(body));
 		void el.offsetHeight;
 		el.style.transition = ease('ease-in', RECT_PROPS);
@@ -587,7 +591,7 @@
 		href={articleHref}
 		onmouseenter={hoverEnter}
 		onmouseleave={hoverLeave}
-		class="{thumbnailUrl ? 'block' : 'flex flex-col h-full @container'} rounded-xl bg-surface overflow-hidden cursor-pointer transition-[opacity,box-shadow] {isRead && !expanded ? 'opacity-55 hover:opacity-100' : ''} {isSelected ? 'shadow-[0_0_0_2px_var(--color-a-500)]' : expanded ? 'shadow-card-grown' : 'shadow-card'} {expanded ? 'absolute z-20' : ''}"
+		class="flex flex-col h-full {thumbnailUrl ? '' : '@container'} rounded-xl bg-surface overflow-hidden cursor-pointer transition-[opacity,box-shadow] {isRead && !expanded ? 'opacity-55 hover:opacity-100' : ''} {isSelected ? 'shadow-[0_0_0_2px_var(--color-a-500)]' : expanded ? 'shadow-card-grown' : 'shadow-card'} {expanded ? 'absolute z-20' : ''}"
 		onclick={openInPlace}
 		onauxclick={onAuxClick}
 		oncontextmenu={openContextMenu}
@@ -597,7 +601,7 @@
 		{#if thumbnailUrl}
 			<div
 				bind:this={imageEl}
-				class="relative w-full overflow-hidden bg-n-100"
+				class="relative w-full shrink-0 overflow-hidden bg-n-100"
 				style="aspect-ratio: {boxAspect}"
 			>
 				<!-- blurred backdrop: same image, enlarged + blurred to fill letterbox bars -->
@@ -620,11 +624,11 @@
 			</div>
 		{/if}
 
-		<!-- With no picture the text column takes the room the picture would have had (see
-		     textOnlyStyle) and no more, the card stands its row's full height if a neighbour is taller
-		     (h-full above), and the byline stays at the foot of the card either way. Beside a picture
-		     the same summary is clamped to three lines, eight while the card is grown. -->
-		<div bind:this={bodyEl} class="px-3.5 py-2.5 {thumbnailUrl ? '' : 'flex-1 flex flex-col min-h-0'}">
+		<!-- Every card stands its row's full height (h-full above), so a row reads as one height and
+		     the byline sits at the foot of each card. With no picture the text column takes the room
+		     the picture would have had (see textOnlyStyle) and no more. Beside a picture the summary is
+		     clamped to three lines, eight while the card is grown. -->
+		<div bind:this={bodyEl} class="px-3.5 py-2.5 flex-1 flex flex-col {thumbnailUrl ? '' : 'min-h-0'}">
 			<h3 class="text-[15px] leading-[1.35] tracking-[-0.005em] {expanded ? 'line-clamp-none' : 'line-clamp-3'} mb-1.5 font-[650]" {lang}>{entry.title}</h3>
 			{#if description}
 				{#if thumbnailUrl}
@@ -644,7 +648,7 @@
 					</div>
 				{/if}
 			{/if}
-			<div class="flex justify-between items-center gap-1.5 pt-2 border-t border-n-200/60 {thumbnailUrl ? '' : 'mt-auto'}">
+			<div class="flex justify-between items-center gap-1.5 pt-2 border-t border-n-200/60 mt-auto">
 				<p class="min-w-0 text-xs text-n-500 flex items-center gap-1.5">
 					{#if feedIcon}
 						<img src={feedIcon} alt="" class="size-4 rounded-[4px] shrink-0" />
