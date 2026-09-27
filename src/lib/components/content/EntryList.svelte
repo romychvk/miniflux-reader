@@ -27,14 +27,13 @@
 		</div>
 
 	{:else if ui.viewMode === 'magazine'}
-		<!-- One column until the content area is genuinely wide enough for two (@6xl = 1152px,
-		     which leaves each column above the @lg/mag threshold the row layout wants). The
-		     container is this outer div, so it measures the available width; each row carries its
-		     own @container/mag and so responds to its column, not to the window. items-start keeps
-		     a short entry from stretching to the height of a tall one beside it. -->
+		<!-- Cards' spacing. One column until the content area is genuinely wide enough for two
+		     (@6xl = 1152px). The container is this outer div, so it measures the available width;
+		     each row carries its own @container/mag and so responds to its column (a narrow card
+		     drops its picture), not to the window. items-stretch: a row of two reads as one height. -->
 		<div class="@container/maglist">
 			<div
-				class="grid grid-cols-1 items-start max-w-screen-md
+				class="grid grid-cols-1 gap-4 p-4 items-stretch
 				       @6xl/maglist:grid-cols-2 @6xl/maglist:max-w-[1600px]"
 			>
 				{#each entries.entries as entry (entry.id)}
@@ -51,8 +50,14 @@
 			{/each}
 		</div>
 	{:else}
-		{#each entries.entries as entry (entry.id)}
-			<EntryRow {entry} />
-		{/each}
+		<!-- List: the rows share one sheet. It is also the @container that drops the rows'
+		     feed · time meta when the list gets narrow. -->
+		<div class="p-4">
+			<div class="@container rounded-xl bg-surface shadow-card overflow-hidden">
+				{#each entries.entries as entry (entry.id)}
+					<EntryRow {entry} />
+				{/each}
+			</div>
+		</div>
 	{/if}
 </div>

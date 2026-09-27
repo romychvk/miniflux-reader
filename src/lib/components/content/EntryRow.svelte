@@ -428,156 +428,126 @@
 
 </script>
 
+<!-- The same two actions in every view: Bookmark, then Mark as read. `hot` lends them the hover
+     colour while a card is grown (the pointer is on it). -->
+{#snippet actions(hot: boolean)}
+	<div class="shrink-0 flex items-center gap-0.5">
+		<button
+			type="button"
+			onclick={toggleBookmark}
+			aria-label={isStarred ? 'Remove bookmark' : 'Bookmark'}
+			title={isStarred ? 'Remove bookmark' : 'Bookmark'}
+			class="grid place-items-center size-6 rounded-full cursor-pointer transition-colors hover:bg-a-50 hover:text-a-700 {isStarred || hot ? 'text-a-700' : 'text-n-400/80'}"
+		>
+			<Bookmark size={15} fill={isStarred ? 'currentColor' : 'none'} />
+		</button>
+		<button
+			type="button"
+			onclick={toggleRead}
+			aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
+			title={isRead ? 'Mark as unread' : 'Mark as read'}
+			class="grid place-items-center size-6 rounded-full cursor-pointer transition-colors hover:bg-a-50 hover:text-a-700 {hot ? 'text-a-700' : isRead ? 'text-n-400/80' : 'text-n-500'}"
+		>
+			{#if isRead}
+				<span class="block size-4 rounded-full border-[1.5px] border-current"></span>
+			{:else}
+				<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4">
+					<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+					<circle cx="8" cy="8" r="3" fill="currentColor" />
+				</svg>
+			{/if}
+		</button>
+	</div>
+{/snippet}
+
+<!-- The footer a card ends on (Cards, Magazine): feed · time on the left, the actions right. -->
+{#snippet actionFooter(hot: boolean)}
+	<div class="flex justify-between items-center gap-1.5 pt-2 border-t border-n-200/60 mt-auto">
+		<p class="min-w-0 text-xs text-n-500 flex items-center gap-1.5">
+			{#if feedIcon}
+				<img src={feedIcon} alt="" class="size-4 rounded-[4px] shrink-0" />
+			{/if}
+			<span class="truncate">{entry.feed.title}</span>
+			<span class="shrink-0">&middot;</span>
+			<span class="shrink-0">{relaTimestamp(entry.published_at)}</span>
+		</p>
+		{@render actions(hot)}
+	</div>
+{/snippet}
+
 {#if viewMode === 'list'}
-	<!-- List: compact single-line rows, no images -->
-	<div
-		class="border-b border-n-100"
-		bind:this={rowEl}
-		use:autoMarkRead={entry}
-	>
+	<!-- List: one-line rows on a shared sheet (EntryList). The card footer folds into a trailing
+	     cluster; the divider is a 1px shadow, which the sheet's overflow clips under the last row. -->
+	<div bind:this={rowEl} use:autoMarkRead={entry}>
 		<a
 			href={articleHref}
-			class="flex items-center gap-3 px-4 py-2 cursor-pointer hover:bg-n-200 {isSelected ? 'bg-a-50' : ''}"
+			class="flex items-center gap-3 h-11 pl-4 pr-2.5 cursor-pointer shadow-[0_1px_0_var(--color-n-200)] transition-[opacity,background-color] hover:bg-n-50 {isSelected ? 'bg-a-50' : ''} {isRead ? 'opacity-55 hover:opacity-100' : ''}"
 			onclick={openInPlace}
 			onauxclick={onAuxClick}
 			oncontextmenu={openContextMenu}
 		>
-			<button
-				type="button"
-				onclick={toggleRead}
-				aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
-				title={isRead ? 'Mark as unread' : 'Mark as read'}
-				class="shrink-0 grid place-items-center size-5 rounded-full cursor-pointer group/dot"
-			>
-				{#if isRead}
-					<span class="block size-4 group-hover/dot:size-[18px] rounded-full border-2 border-n-300 transition-[width,height] duration-150 ease-out"></span>
-				{:else}
-					<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4 group-hover/dot:size-[18px] text-n-700 transition-[width,height] duration-150 ease-out">
-						<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
-						<circle cx="8" cy="8" r="3" fill="currentColor" />
-					</svg>
-				{/if}
-			</button>
-
 			{#if feedIcon}
-				<img src={feedIcon} alt="" class="size-5 shrink-0" />
+				<img src={feedIcon} alt="" class="size-4 rounded-[4px] shrink-0" />
 			{/if}
 
-			<div class="flex-1 min-w-0 truncate" {lang}>
-				<span class="text-sm {isRead ? '' : 'font-bold'}">{entry.title}</span>
+			<div class="flex-1 min-w-0 truncate text-sm leading-5" {lang}>
+				<span class="tracking-[-0.005em] {isRead ? 'font-medium' : 'font-[650]'}">{entry.title}</span>
 				{#if description}
-					<span class="text-sm text-n-500">&nbsp;-&nbsp;{description}</span>
+					<span class="text-n-300 mx-2">—</span>
+					<span class="text-n-500">{description}</span>
 				{/if}
 			</div>
-			<span class="text-xs text-n-500 shrink-0">{entry.feed.title}</span>
-			<span class="text-xs text-n-500 shrink-0">&middot;</span>
-			<span class="text-xs text-n-500 shrink-0">{relaTimestamp(entry.published_at)}</span>
-
-			<button
-				type="button"
-				onclick={toggleBookmark}
-				aria-label={isStarred ? 'Remove bookmark' : 'Bookmark'}
-				title={isStarred ? 'Remove bookmark' : 'Bookmark'}
-				class="shrink-0 grid place-items-center size-5 rounded-full cursor-pointer transition-colors {isStarred ? 'text-a-600' : 'text-n-400 hover:text-n-700'}"
-			>
-				<Bookmark size={16} fill={isStarred ? 'currentColor' : 'none'} />
-			</button>
+			<span class="shrink-0 hidden @lg:flex items-center gap-1.5 text-xs text-n-500">
+				<span>{entry.feed.title}</span>
+				<span>&middot;</span>
+				<span class="min-w-6 text-right tabular-nums">{relaTimestamp(entry.published_at)}</span>
+			</span>
+			<div class="ml-1 shrink-0">
+				{@render actions(false)}
+			</div>
 		</a>
 	</div>
 
 {:else if viewMode === 'magazine'}
-	<!-- Magazine: image left, title/date/description right -->
-	<div
-		class="@container/mag"
-		bind:this={rowEl}
-		use:autoMarkRead={entry}
-	>
+	<!-- Magazine: a card with the picture down its left side (full height, contained over its own
+	     blurred copy, as in Cards) and the Cards footer at the foot of the text. Without a picture
+	     the text takes the whole width and the summary two more lines. -->
+	<div class="@container/mag h-full" bind:this={rowEl} use:autoMarkRead={entry}>
 		<a
 			href={articleHref}
-			class="flex items-start gap-4 px-4 py-3 @lg/mag:py-4 cursor-pointer hover:bg-n-100 transition-colors {isSelected ? 'bg-a-50' : ''}"
+			class="flex h-full rounded-xl bg-surface overflow-hidden cursor-pointer transition-[opacity,box-shadow] duration-150 {isRead ? 'opacity-55 hover:opacity-100' : ''} {isSelected ? 'shadow-[0_0_0_2px_var(--color-a-500)]' : 'shadow-card hover:shadow-card-hover'}"
 			onclick={openInPlace}
 			onauxclick={onAuxClick}
 			oncontextmenu={openContextMenu}
 		>
-			<div class="shrink-0 flex flex-col items-center gap-2 mt-1">
-				<button
-					type="button"
-					onclick={toggleRead}
-					aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
-					title={isRead ? 'Mark as unread' : 'Mark as read'}
-					class="grid place-items-center size-5 rounded-full cursor-pointer group/dot"
-				>
-					{#if isRead}
-						<span class="block size-4 group-hover/dot:size-[18px] rounded-full border-2 border-n-300 transition-[width,height] duration-150 ease-out"></span>
-					{:else}
-						<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4 group-hover/dot:size-[18px] text-n-700 transition-[width,height] duration-150 ease-out">
-							<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
-							<circle cx="8" cy="8" r="3" fill="currentColor" />
-						</svg>
-					{/if}
-				</button>
-				<button
-					type="button"
-					onclick={toggleBookmark}
-					aria-label={isStarred ? 'Remove bookmark' : 'Bookmark'}
-					title={isStarred ? 'Remove bookmark' : 'Bookmark'}
-					class="grid place-items-center size-5 rounded-full cursor-pointer transition-colors {isStarred ? 'text-a-600' : 'text-n-400 hover:text-n-700'}"
-				>
-					<Bookmark size={16} fill={isStarred ? 'currentColor' : 'none'} />
-				</button>
+			{#if thumbnailUrl}
+				<div class="relative w-60 shrink-0 self-stretch overflow-hidden bg-n-100 hidden @md/mag:block">
+					<img
+						src={thumbnailUrl}
+						alt=""
+						aria-hidden="true"
+						class="absolute inset-0 w-full h-full object-cover scale-110 blur brightness-70"
+						loading="lazy"
+					/>
+					<img
+						src={thumbnailUrl}
+						alt=""
+						class="absolute inset-0 w-full h-full object-contain"
+						loading="lazy"
+						onerror={thumbnailFailed}
+					/>
+				</div>
+			{/if}
+
+			<div class="px-4 pt-3 pb-2.5 flex-1 min-w-0 flex flex-col">
+				<h3 class="text-[16px] leading-[1.35] tracking-[-0.005em] font-[650] line-clamp-3 mb-1.5" {lang}>{entry.title}</h3>
+				{#if description}
+					<p class="text-[13px] text-n-600 leading-[1.45] mb-2.5 {thumbnailUrl ? 'line-clamp-2' : 'line-clamp-4'}" {lang}>{description}</p>
+				{/if}
+				{@render actionFooter(false)}
 			</div>
-
-			<div class="flex-1 min-w-0">
-
-  		  <h3 class="leading-snug mb-2 font-bold {isRead ? 'text-n-500' : ''}" {lang}>{entry.title}</h3>
-        <p class="text-xs @lg/mag:text-sm text-n-600 mb-2 @lg/mag:mb-3 flex items-center gap-2">
-   					{#if feedIcon}
-  						<img src={feedIcon} alt="" class="size-3 mt-px shrink-0 {isRead ? 'opacity-80' : ''}" />
-   					{/if}
-   					{entry.feed.title} &nbsp;&middot;&nbsp; {relaTimestamp(entry.published_at)}
-  				</p>
-
-          <div class="grow flex gap-4 @lg/mag:gap-6 w-full justify-between">
-            {#if thumbnailUrl}
-      		    <div
-      		    	class="relative self-start shrink-0 w-56 @2xl/mag:w-64 max-h-[150px] @2xl/mag:max-h-[240px] mt-1 rounded overflow-hidden bg-n-100 flex items-center justify-center"
-      		    >
-       					<!-- blurred backdrop: only fills the side gaps of a portrait image; a full-width
-       					     landscape image covers it entirely, so no top/bottom bars ever show -->
-       					<img
-        						src={thumbnailUrl}
-        						alt=""
-        						aria-hidden="true"
-        						class="absolute inset-0 w-full h-full object-cover scale-110 blur brightness-70"
-        						loading="lazy"
-       					/>
-       					<!-- full image, never cropped; width caps at 224px (w-56), height caps at 150px so
-       					     tall images stay compact and the box hugs the rendered image height -->
-       					<img
-        						src={thumbnailUrl}
-        						alt=""
-        						class="relative block max-h-[150px] @2xl/mag:max-h-[240px] max-w-full w-auto"
-        						loading="lazy"
-        						onerror={thumbnailFailed}
-       					/>
-      				</div>
-       			{/if}
-            <div class="grow">
-
-      				{#if description}
-       					<p class="text-xs @lg/mag:text-sm leading-normal text-n-800 {thumbnailUrl ? 'line-clamp-5' : 'line-clamp-6'}" {lang}>{description}</p>
-      				{/if}
-            </div>
-
-          </div>
-			</div>
-
-
-
-
 		</a>
 	</div>
-
 {:else}
 	<!-- Cards: vertical card, image on top -->
 	<div
@@ -648,43 +618,7 @@
 					</div>
 				{/if}
 			{/if}
-			<div class="flex justify-between items-center gap-1.5 pt-2 border-t border-n-200/60 mt-auto">
-				<p class="min-w-0 text-xs text-n-500 flex items-center gap-1.5">
-					{#if feedIcon}
-						<img src={feedIcon} alt="" class="size-4 rounded-[4px] shrink-0" />
-					{/if}
-					<span class="truncate">{entry.feed.title}</span>
-					<span class="shrink-0">&middot;</span>
-					<span class="shrink-0">{relaTimestamp(entry.published_at)}</span>
-				</p>
-				<div class="shrink-0 flex items-center gap-0.5">
-					<button
-						type="button"
-						onclick={toggleBookmark}
-						aria-label={isStarred ? 'Remove bookmark' : 'Bookmark'}
-						title={isStarred ? 'Remove bookmark' : 'Bookmark'}
-						class="grid place-items-center size-6 rounded-full cursor-pointer transition-colors hover:bg-a-50 hover:text-a-700 {isStarred ? 'text-a-700' : expanded ? 'text-a-700' : 'text-n-400/80'}"
-					>
-						<Bookmark size={15} fill={isStarred ? 'currentColor' : 'none'} />
-					</button>
-					<button
-						type="button"
-						onclick={toggleRead}
-						aria-label={isRead ? 'Mark as unread' : 'Mark as read'}
-						title={isRead ? 'Mark as unread' : 'Mark as read'}
-						class="grid place-items-center size-6 rounded-full cursor-pointer transition-colors hover:bg-a-50 hover:text-a-700 {expanded ? 'text-a-700' : isRead ? 'text-n-400/80' : 'text-n-500'}"
-					>
-						{#if isRead}
-							<span class="block size-4 rounded-full border-[1.5px] border-current"></span>
-						{:else}
-							<svg viewBox="0 0 16 16" fill="none" aria-hidden="true" class="size-4">
-								<circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
-								<circle cx="8" cy="8" r="3" fill="currentColor" />
-							</svg>
-						{/if}
-					</button>
-				</div>
-			</div>
+			{@render actionFooter(expanded)}
 		</div>
 	</a>
 	{#if bottomReach > 0}
@@ -703,7 +637,7 @@
 {/if}
 
 {#if ui.layoutMode === 'expanded' && isSelected && !ui.isMobile}
-	<div class="{viewMode === 'cards' ? 'col-span-full' : 'border-b border-n-100'} bg-surface">
+	<div class="{viewMode === 'list' ? 'shadow-[0_1px_0_var(--color-n-200)]' : viewMode === 'magazine' ? 'col-span-full rounded-xl shadow-card overflow-hidden' : 'col-span-full'} bg-surface">
 		<ArticleView {entry} onClose={() => ui.selectEntry(null)} />
 	</div>
 {/if}
