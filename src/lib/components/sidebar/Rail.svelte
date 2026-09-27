@@ -12,7 +12,6 @@
 	// these itself.
 
 	const allUnread = $derived(feeds.feedTree.find((n) => n.id === -1)?.unread ?? 0);
-	const badge = $derived(allUnread >= 1000 ? `${Math.floor(allUnread / 1000)}k` : String(allUnread));
 
 	const routeId = $derived(page.route.id ?? '');
 	const isAll = $derived(routeId === '/(app)');
@@ -69,7 +68,7 @@
 	}
 </script>
 
-{#snippet railLink(href: string, label: string, active: boolean, Icon: typeof House, count?: string)}
+{#snippet railLink(href: string, label: string, active: boolean, Icon: typeof House)}
 	<a
 		{href}
 		title={label}
@@ -80,17 +79,10 @@
 			: 'hover:bg-rail-strong/16 hover:text-rail-strong'}"
 	>
 		<Icon size={20} strokeWidth={2} />
-		{#if count}
-			<span
-				class="absolute -top-0.5 -right-1.5 min-w-[18px] h-4 px-1 rounded-full bg-rail-active text-rail-active-fg text-[9.5px] font-bold leading-4 text-center tabular-nums"
-			>
-				{count}
-			</span>
-		{/if}
 	</a>
 {/snippet}
 
-<div class="w-14 shrink-0 bg-rail text-rail-fg flex flex-col items-center gap-1.5 pt-2.5 pb-3">
+<div class="w-13 shrink-0 bg-rail text-rail-fg flex flex-col items-center gap-1.5 pt-2.5 pb-3">
 	<a
 		href="/"
 		title="Miniflux Reader"
@@ -99,7 +91,7 @@
 	>
 		<Rss size={17} strokeWidth={2.5} />
 	</a>
-	{@render railLink('/', allUnread > 0 ? `All · ${allUnread}` : 'All', isAll, House, allUnread > 0 ? badge : undefined)}
+	{@render railLink('/', allUnread > 0 ? `All · ${allUnread}` : 'All', isAll, House)}
 	{@render railLink('/starred', 'Bookmarks', isStarred, Bookmark)}
 	<span class="flex-1"></span>
 	{@render railLink('/settings', 'Settings', isSettings, Settings)}
@@ -110,7 +102,7 @@
 		aria-label="Account"
 		aria-haspopup="menu"
 		aria-expanded={accountOpen}
-		class="mt-1.5 grid place-items-center size-8 rounded-full bg-rail-active text-rail-active-fg text-[13px] font-bold shadow-[0_0_0_2px_var(--color-rail),0_0_0_4px_var(--color-rail-active)]"
+		class="mt-1.5 grid place-items-center size-7 rounded-full bg-rail-active text-rail-active-fg text-[12px] font-bold shadow-[0_0_0_2px_var(--color-rail),0_0_0_3.5px_var(--color-rail-active)]"
 	>
 		{initial}
 	</button>
@@ -120,7 +112,7 @@
 	<div
 		bind:this={popoverEl}
 		role="menu"
-		class="fixed left-16 bottom-2.5 z-50 w-58 bg-surface text-n-900 rounded-xl p-1.5 shadow-pop"
+		class="fixed left-15 bottom-2.5 z-50 w-58 bg-surface text-n-900 rounded-xl p-1.5 shadow-pop"
 	>
 		<div class="flex items-center gap-2.5 px-2 pt-2 pb-2.5">
 			<span

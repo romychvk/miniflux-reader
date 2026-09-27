@@ -315,7 +315,7 @@
 			{/if}
 
 			<!-- Content actions: they act on what the list shows. -->
-			<div class="md:ml-1.5 h-8.5 shrink-0 flex items-center rounded-full bg-a-50 text-a-700 overflow-hidden">
+			<div class="group md:ml-1.5 h-8.5 shrink-0 flex items-center rounded-full bg-a-50 text-a-700 overflow-hidden">
 				<button
 					onclick={() => { void refresh.refreshCurrent(); }}
 					disabled={refresh.refreshing}
@@ -325,7 +325,7 @@
 				>
 					<RotateCw size={16} class={refresh.refreshing ? 'animate-spin' : ''} />
 				</button>
-				<span class="w-px h-4.5 bg-a-600/20"></span>
+				<span class="w-px h-4.5 bg-a-600/20 transition-colors group-hover:bg-transparent"></span>
 				<button
 					onclick={markAllAsRead}
 					disabled={markingAllRead || !hasUnread}
@@ -356,7 +356,7 @@
 						aria-expanded={viewDropdownOpen}
 						class="h-7.5 pl-1.5 pr-2 flex items-center gap-1 rounded-full transition-colors {viewDropdownOpen
 							? 'bg-a-600 text-on-accent'
-							: 'bg-navbar text-nb-900 shadow-[0_1px_2px_color-mix(in_oklab,var(--color-n-900)_10%,transparent)]'}"
+							: 'bg-navbar text-nb-900 shadow-[0_1px_2px_color-mix(in_oklab,var(--color-n-900)_10%,transparent)] hover:shadow-[0_0_0_1.5px_var(--color-nb-300),0_1px_2px_color-mix(in_oklab,var(--color-n-900)_10%,transparent)] transition-shadow'}"
 					>
 						<currentViewMode.icon size={18} />
 						<!-- One icon, turned — not swapped: a swap detaches the clicked node mid-click. -->

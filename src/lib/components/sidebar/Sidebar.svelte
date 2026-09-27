@@ -25,7 +25,7 @@
 	// opts out via translate="no" (with the legacy .notranslate class Google Translate also honours).
 	let { collapsed = false }: { collapsed?: boolean } = $props();
 
-	const RAIL_WIDTH = 56; // Rail.svelte's w-14
+	const RAIL_WIDTH = 52; // Rail.svelte's w-13
 
 	let showAddModal = $state(false);
 	// The two "feed from a page" wizards: Miniflux Reader's own page feed (default) and the RSS-Bridge
