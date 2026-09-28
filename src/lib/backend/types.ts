@@ -41,6 +41,12 @@ export interface BackendCapabilities {
 	rssBridge: boolean;
 	// OPML export/import in Settings → Backup & Restore.
 	opml: boolean;
+	// The engine applies a feed's block/keep rules itself: a match is stored but marked read on
+	// arrival, a rule change is re-applied to the entries already stored, and an entry hidden by a
+	// rule that goes away comes back as unread. The client then neither matches rules nor sweeps
+	// backlogs, and the "hide (mark read)" mode that keeps rules in localStorage has no reason to
+	// exist. Miniflux's rules drop the entry at download and this app emulates hiding client-side.
+	serverHideRules: boolean;
 }
 
 // What an OPML import did. A backend that subscribes feed by feed reports counts and rows;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { needsBacklogSweep, reducesUnread } from '../src/lib/backlogSweep.ts';
+import { loadBacklogSettings, needsBacklogSweep, reducesUnread } from '../src/lib/backlogSweep.ts';
 import type { FilterRule } from '../src/lib/contentFilter.ts';
 
 const hideRule: FilterRule = { list: 'block', field: 'title', mode: 'contains', value: 'ad' };
@@ -27,4 +27,10 @@ test('only feeds that hide something are worth reconciling', () => {
 	assert.equal(reducesUnread({ hideRules: [], dedupMode: 'url' }), true);
 	assert.equal(reducesUnread({ hideRules: [], dedupMode: 'url-title' }), true);
 	assert.equal(reducesUnread({ hideRules: [hideRule], dedupMode: 'url' }), true);
+});
+
+test('an engine that hides matches itself leaves the sweep only the duplicates', () => {
+	// localStorage is absent under node:test: the reads fall back, so this checks the flag alone.
+	assert.deepEqual(loadBacklogSettings(7, { serverHideRules: true }), { hideRules: [], dedupMode: 'off' });
+	assert.deepEqual(loadBacklogSettings(7), { hideRules: [], dedupMode: 'off' });
 });

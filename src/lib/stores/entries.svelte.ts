@@ -1,5 +1,5 @@
 import { authedFetch } from "$lib/api";
-import { backend, feedIdOf } from "$lib/backend";
+import { backend, caps, feedIdOf } from "$lib/backend";
 import type { Entry, EntryScope } from "$lib/types";
 import type { FilterRule } from "$lib/contentFilter";
 import { storageGet, storageGetString, storageSet } from "$lib/storage";
@@ -179,8 +179,11 @@ function createEntriesStore() {
 
       // A feed set to "hide (mark read)" filters its own view here; applyClientHide is for the
       // aggregate views, where each entry's feed decides.
+      // On an engine that hides matches itself there is nothing client-side to apply.
       const singleFeedId = feedIdOf(scope);
-      if (singleFeedId !== null && loadFilterAction(singleFeedId) === "mark-read") {
+      if (caps().serverHideRules) {
+        entries = deduped;
+      } else if (singleFeedId !== null && loadFilterAction(singleFeedId) === "mark-read") {
         const matchers = compileMatchers(loadHideRules(singleFeedId));
         entries = showAll
           ? deduped
@@ -692,7 +695,7 @@ function createEntriesStore() {
   // leave the list entirely), then duplicates among what survives. Unconditional — callers that
   // only want it when something has changed go through reconcileIfStale.
   async function reconcileBacklog(feedId: number): Promise<number> {
-    const settings = loadBacklogSettings(feedId);
+    const settings = loadBacklogSettings(feedId, { serverHideRules: caps().serverHideRules });
     if (!reducesUnread(settings)) {
       rememberSwept(feedId); // nothing to reconcile, and now we know not to look again
       return 0;

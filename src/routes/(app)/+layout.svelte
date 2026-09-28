@@ -10,6 +10,10 @@
 	import { entries } from '$lib/stores/entries.svelte';
 	import { refresh } from '$lib/stores/refresh.svelte';
 	import { settingsSync } from '$lib/settingsSync.svelte';
+	import { caps } from '$lib/backend';
+	import { storageGet, storageGetString, storageRemove } from '$lib/storage';
+	import { FILTER_ACTION_PREFIX } from '$lib/filterHide';
+	import { collectLegacyHideRules, legacyKeys, migrationChanges } from '$lib/hideRulesMigration';
 	import Sidebar from '$lib/components/sidebar/Sidebar.svelte';
 	import TopBar from '$lib/components/topbar/TopBar.svelte';
 	import ArticlePanel from '$lib/components/content/ArticlePanel.svelte';
@@ -95,7 +99,31 @@
 		// down to what the reader will show. Not awaited — it costs a request per feed with a
 		// backlog to reconcile, and the first paint shouldn't wait on it.
 		void entries.sweepBacklogs();
+		if (caps().serverHideRules) void migrateHideRules();
 		ready = true;
+	}
+
+	// "Hide (mark read)" rules kept in localStorage under Miniflux move into the feed's own rule
+	// fields on an engine that applies them itself; the local keys go once the server has them, so
+	// this is a no-op from the second boot on. A failed update leaves the keys for the next boot.
+	async function migrateHideRules() {
+		const legacy = collectLegacyHideRules(
+			feeds.rawFeeds.map((f) => f.id),
+			// The action is a bare string (storageGetString reads both quoted and raw), the rules JSON.
+			(key) => (key.startsWith(FILTER_ACTION_PREFIX) ? storageGetString(key, '') : storageGet<unknown>(key, null))
+		);
+		let migrated = 0;
+		for (const { feedId, rules } of legacy) {
+			const feed = feeds.getRawFeed(feedId);
+			try {
+				await feeds.updateFeed(feedId, migrationChanges(rules, feed ?? {}));
+				for (const key of legacyKeys(feedId)) storageRemove(key);
+				migrated++;
+			} catch {
+				// Left in place; the next boot retries.
+			}
+		}
+		if (migrated > 0) console.log(`[hide-rules] migrated ${migrated} feed${migrated === 1 ? '' : 's'} to server rules`);
 	}
 </script>
 

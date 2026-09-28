@@ -17,6 +17,18 @@ export interface FilterRule {
 	value: string;
 }
 
+// A stored rule, as localStorage, the settings blob or a Research topic may hold it.
+export function isFilterRule(x: unknown): x is FilterRule {
+	const r = x as FilterRule;
+	return (
+		!!r &&
+		(r.list === 'block' || r.list === 'keep') &&
+		(r.field === 'title' || r.field === 'content' || r.field === 'url' || r.field === 'author') &&
+		(r.mode === 'contains' || r.mode === 'regex') &&
+		typeof r.value === 'string'
+	);
+}
+
 // Field options offered in the UI (label = what the user sees).
 export const FILTER_FIELDS: { value: FilterField; label: string }[] = [
 	{ value: 'title', label: 'Title' },

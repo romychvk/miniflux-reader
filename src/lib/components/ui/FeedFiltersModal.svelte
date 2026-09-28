@@ -3,7 +3,8 @@
 	import { ui } from '$lib/stores/ui.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { entries } from '$lib/stores/entries.svelte';
-	import { storageGetString, storageSet } from '$lib/storage';
+	import { storageGetString, storageRemove, storageSet } from '$lib/storage';
+	import { caps } from '$lib/backend';
 	import { Filter, ExternalLink, X, Plus } from 'lucide-svelte';
 	import {
 		DEDUP_STORAGE_PREFIX,
@@ -22,6 +23,7 @@
 		loadHideRules,
 		saveHideRules,
 		FILTER_ACTION_PREFIX,
+		FILTER_HIDE_PREFIX,
 		FILTER_ACTION_OPTIONS,
 		type FilterAction
 	} from '$lib/filterHide';
@@ -50,26 +52,41 @@
 	//                  blocklist/keeplist is migrated into Title rows and cleared on save.
 	//   'mark-read'  → rows live in localStorage; the app marks matches read on load (see
 	//                  filterHide + entries store). Miniflux rules are cleared so it downloads all.
+	// On an engine with caps.serverHideRules there is one place for rules — the feed's fields —
+	// and one behaviour: a match is stored but marked read on arrival, and comes back when the
+	// rule goes. The action switch disappears. Rules still sitting in localStorage from the
+	// Miniflux days (the boot migration failed, or ran on another device) are shown as rows
+	// so that Save carries them over and drops the local copy.
+	const serverRules = caps().serverHideRules;
 	// svelte-ignore state_referenced_locally
 	const action0 = loadFilterAction(feedId);
-	const usingClient0 = action0 === 'mark-read';
+	const usingClient0 = !serverRules && action0 === 'mark-read';
 	// svelte-ignore state_referenced_locally
 	const hideRules0 = loadHideRules(feedId);
+	const legacyLocal = serverRules && action0 === 'mark-read' ? hideRules0 : [];
 	const parsedFilters = parseRules(initial);
+	const notAlready = (rows: FilterRule[]) => (r: FilterRule) =>
+		!rows.some((x) => x.list === r.list && x.field === r.field && x.mode === r.mode && x.value === r.value);
 
-	let filterAction = $state<FilterAction>(action0);
+	let filterAction = $state<FilterAction>(serverRules ? 'block' : action0);
 	let blockRows = $state<FilterRule[]>(
 		usingClient0
 			? hideRules0.filter((r) => r.list === 'block')
 			: parsedFilters.blockClean
-				? parsedFilters.rules.filter((r) => r.list === 'block')
+				? [
+						...parsedFilters.rules.filter((r) => r.list === 'block'),
+						...legacyLocal.filter((r) => r.list === 'block').filter(notAlready(parsedFilters.rules))
+					]
 				: []
 	);
 	let keepRows = $state<FilterRule[]>(
 		usingClient0
 			? hideRules0.filter((r) => r.list === 'keep')
 			: parsedFilters.keepClean
-				? parsedFilters.rules.filter((r) => r.list === 'keep')
+				? [
+						...parsedFilters.rules.filter((r) => r.list === 'keep'),
+						...legacyLocal.filter((r) => r.list === 'keep').filter(notAlready(parsedFilters.rules))
+					]
 				: []
 	);
 	let blockRaw = $state(!usingClient0 && !parsedFilters.blockClean);
@@ -78,7 +95,7 @@
 	let blockFilterText = $state(initial.block_filter_entry_rules);
 	let keepFilterText = $state(initial.keep_filter_entry_rules);
 
-	const isMarkRead = $derived(filterAction === 'mark-read');
+	const isMarkRead = $derived(!serverRules && filterAction === 'mark-read');
 	const compiledFilters = $derived(compileRules([...blockRows, ...keepRows]));
 	// Miniflux fields: emptied entirely in mark-read mode (the app filters client-side instead).
 	const effBlockFilter = $derived(isMarkRead ? '' : blockRaw ? blockFilterText : compiledFilters.block_filter_entry_rules);
@@ -165,7 +182,8 @@
 		effBlocklist !== initial.blocklist_rules ||
 		effKeeplist !== initial.keeplist_rules ||
 		filterAction !== initialFilterAction ||
-		effHideSig !== initialHideSig
+		effHideSig !== initialHideSig ||
+		legacyLocal.length > 0
 	);
 
 	function onclose() {
@@ -194,8 +212,14 @@
 			// Client-side settings (localStorage). In block mode the rules live in Miniflux, so the
 			// client hide list is cleared.
 			storageSet(dedupKey, dedupMode);
-			storageSet(FILTER_ACTION_PREFIX + feedId, filterAction);
-			saveHideRules(feedId, effHideRules);
+			if (serverRules) {
+				// The engine holds the rules now; a local copy would only confuse the next migration.
+				storageRemove(FILTER_ACTION_PREFIX + feedId);
+				storageRemove(FILTER_HIDE_PREFIX + feedId);
+			} else {
+				storageSet(FILTER_ACTION_PREFIX + feedId, filterAction);
+				saveHideRules(feedId, effHideRules);
+			}
 
 			// Settle the existing backlog against the settings just saved — hide-rule matches and,
 			// with dedup on, duplicate copies — so the choice takes effect now rather than on the
@@ -274,6 +298,13 @@
 				     download (Miniflux rules) or kept but marked read (client-side). Each row targets one
 				     field (title, content, link, author). -->
 				<div class="rounded-md border border-n-200 bg-n-50 px-3 py-2">
+					{#if serverRules}
+						<p class="text-xs text-n-500">
+							Matching posts are stored but marked read on arrival, so they never show as unread
+							(they stay under “show all”). Remove a rule and its posts come back. Changing the rules
+							re-applies them to the posts already here.
+						</p>
+					{:else}
 					<div class="flex flex-wrap items-center gap-2">
 						<span class="text-sm font-medium text-n-700">On match:</span>
 						<select
@@ -297,6 +328,7 @@
 							new entries.
 						{/if}
 					</p>
+					{/if}
 				</div>
 
 				<div>

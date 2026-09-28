@@ -15,9 +15,11 @@ export interface BacklogSettings {
 	dedupMode: DedupMode;
 }
 
-export function loadBacklogSettings(feedId: number): BacklogSettings {
+// With `serverHideRules` the engine hides rule matches itself (caps.serverHideRules), so the
+// sweep has only duplicates left to reconcile.
+export function loadBacklogSettings(feedId: number, opts: { serverHideRules?: boolean } = {}): BacklogSettings {
 	return {
-		hideRules: loadFilterAction(feedId) === 'mark-read' ? loadHideRules(feedId) : [],
+		hideRules: !opts.serverHideRules && loadFilterAction(feedId) === 'mark-read' ? loadHideRules(feedId) : [],
 		dedupMode: asDedupMode(storageGetString(DEDUP_STORAGE_PREFIX + feedId, 'off'))
 	};
 }

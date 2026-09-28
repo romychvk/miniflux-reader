@@ -1,6 +1,6 @@
 import type { Entry } from './types';
 import { storageGet, storageGetString, storageSet } from './storage';
-import { type FilterRule, type FilterField, rulePattern, toJsRegex } from './contentFilter';
+import { type FilterRule, type FilterField, isFilterRule, rulePattern, toJsRegex } from './contentFilter';
 
 // Per-feed "filter action" — what happens to entries matching the feed's filters:
 //   'block'      → compile to Miniflux's server rules; matches are never downloaded (default).
@@ -25,17 +25,6 @@ export function asFilterAction(raw: string | null | undefined): FilterAction {
 
 export function loadFilterAction(feedId: number): FilterAction {
 	return asFilterAction(storageGetString(FILTER_ACTION_PREFIX + feedId, 'block'));
-}
-
-function isFilterRule(x: unknown): x is FilterRule {
-	const r = x as FilterRule;
-	return (
-		!!r &&
-		(r.list === 'block' || r.list === 'keep') &&
-		(['title', 'content', 'url', 'author'] as FilterField[]).includes(r.field) &&
-		(r.mode === 'contains' || r.mode === 'regex') &&
-		typeof r.value === 'string'
-	);
 }
 
 export function loadHideRules(feedId: number): FilterRule[] {

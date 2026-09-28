@@ -12,6 +12,7 @@
 		type FilterField
 	} from '$lib/contentFilter';
 	import { loadFilterAction, appendHideRule } from '$lib/filterHide';
+	import { caps } from '$lib/backend';
 	import { Ban } from 'lucide-svelte';
 
 	let { seed }: { seed: FilterSeed } = $props();
@@ -19,6 +20,9 @@
 	// svelte-ignore state_referenced_locally
 	let phrase = $state(suggestFilterPhrase(seed.seedTitle));
 	let field = $state<FilterField>('title');
+	// An engine that applies rules itself re-applies a new rule to the whole backlog, so there
+	// is nothing to ask and nothing to do client-side after the update.
+	const serverRules = caps().serverHideRules;
 	let hideExisting = $state(true);
 	let saving = $state(false);
 
@@ -37,7 +41,7 @@
 		try {
 			// Honour the feed's filter action: 'mark-read' keeps the rule client-side (localStorage),
 			// 'block' writes a Miniflux server rule. Either way we can hide already-downloaded matches.
-			if (loadFilterAction(seed.feedId) === 'mark-read') {
+			if (!serverRules && loadFilterAction(seed.feedId) === 'mark-read') {
 				appendHideRule(seed.feedId, { list: 'block', field, mode: 'contains', value: term });
 			} else {
 				const feed = feeds.getRawFeed(seed.feedId);
@@ -46,7 +50,7 @@
 			}
 
 			let hidden = 0;
-			if (hideExisting)
+			if (hideExisting && !serverRules)
 				hidden = await entries.blockExistingMatches(
 					seed.feedId,
 					field,
@@ -55,8 +59,13 @@
 			ui.showSuccess(
 				hidden > 0
 					? `Filter added — hid ${hidden} existing ${hidden === 1 ? 'post' : 'posts'}.`
-					: 'Filter added.'
+					: serverRules
+						? 'Filter added — matching posts are hidden.'
+						: 'Filter added.'
 			);
+			if (serverRules && ui.selectedFeed && ui.selectedFeed.id === seed.feedId) {
+				await entries.loadEntries(ui.selectedFeed.scope);
+			}
 			onclose();
 		} catch {
 			// Error surfaced by the store
@@ -107,10 +116,12 @@
 				</p>
 			</div>
 
-			<label class="flex items-center gap-2 text-sm text-n-700">
-				<input type="checkbox" bind:checked={hideExisting} class="rounded border-n-300" />
-				Also hide already-downloaded posts that match
-			</label>
+			{#if !serverRules}
+				<label class="flex items-center gap-2 text-sm text-n-700">
+					<input type="checkbox" bind:checked={hideExisting} class="rounded border-n-300" />
+					Also hide already-downloaded posts that match
+				</label>
+			{/if}
 
 			<div class="flex justify-end gap-2 pt-2">
 				<button
