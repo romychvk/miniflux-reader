@@ -27,10 +27,6 @@ function createSettingsSync() {
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
-	function authHeaders(): Record<string, string> {
-		return authHeaders();
-	}
-
 	function collectSyncable(): Record<string, string> {
 		const data: Record<string, string> = {};
 		for (let i = 0; i < localStorage.length; i++) {
