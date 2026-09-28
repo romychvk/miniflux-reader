@@ -91,7 +91,7 @@
 	{ondragleave}
 	{ondrop}
 	class="w-full flex items-center gap-2 h-8 pr-2 {parentCatId !== undefined ? 'pl-7.5' : 'pl-2'} text-[13.5px] leading-5 rounded-lg text-left transition-colors {isSelected
-		? 'bg-a-600/12 text-a-700 font-[650]'
+		? `bg-a-600/12 text-a-700 ${feed.unread > 0 ? 'font-[650]' : 'font-[450]'}`
 		: `hover:bg-sb-200/60 hover:text-sb-900 ${feed.unread > 0 ? 'text-sb-900 font-semibold' : 'text-sb-600 font-[450]'}`} {isDragged ? 'opacity-40' : ''}"
 >
 	{#if feed.iconData}

@@ -143,7 +143,7 @@
 				role="listitem"
 				class="flex items-center gap-2 h-8 px-2 rounded-lg text-[13.5px] leading-5 transition-colors
 					{isSelected
-						? 'bg-a-600/12 text-a-700 font-[650]'
+						? `bg-a-600/12 text-a-700 ${node.unread > 0 ? 'font-[650]' : 'font-[450]'}`
 						: `hover:bg-sb-200/60 hover:text-sb-900 ${node.unread > 0 ? 'text-sb-900 font-semibold' : 'text-sb-600 font-[450]'}`}
 					{isCatDragged ? 'opacity-40' : ''}
 					{isCatTarget ? 'ring-2 ring-a-400 bg-a-50' : ''}"
