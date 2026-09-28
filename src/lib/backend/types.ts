@@ -39,6 +39,21 @@ export interface BackendCapabilities {
 	// wizard: a feed_url pointing at a bridge instance is only meaningful when the engine polls it
 	// like any other feed and knows nothing about it, which is Miniflux's case.
 	rssBridge: boolean;
+	// OPML export/import in Settings → Backup & Restore.
+	opml: boolean;
+}
+
+// What an OPML import did. A backend that subscribes feed by feed reports counts and rows;
+// one that hands the file to its server (Miniflux: POST /v1/import) has only a message.
+export interface OpmlImportReport {
+	added?: number;
+	exists?: number;
+	invalid?: number;
+	limit?: number;
+	categoriesCreated?: number;
+	rows?: { xmlUrl: string; title: string; status: 'added' | 'exists' | 'invalid' | 'limit' }[];
+	warnings?: string[];
+	message?: string;
 }
 
 export interface CurrentUser {
@@ -52,6 +67,10 @@ export interface ReaderBackend {
 	readonly caps: BackendCapabilities;
 
 	me(signal?: AbortSignal): Promise<CurrentUser>;
+	// Subscriptions as an OPML document, and the reverse (caps.opml). The caller reloads the
+	// feed tree after an import.
+	exportOpml?(): Promise<string>;
+	importOpml?(xml: string): Promise<OpmlImportReport>;
 
 	listFeeds(signal?: AbortSignal): Promise<Feed[]>;
 	listCategories(signal?: AbortSignal): Promise<Category[]>;

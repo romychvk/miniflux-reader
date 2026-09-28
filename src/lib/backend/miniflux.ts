@@ -1,4 +1,4 @@
-import { apiCall } from '$lib/api';
+import { apiCall, authHeaders } from '$lib/api';
 import { auth } from '$lib/stores/auth.svelte';
 import { decodeContent } from '$lib/enrichment';
 import type {
@@ -13,7 +13,7 @@ import type {
 	FoundFeed
 } from '$lib/types';
 import { entriesPath, markAllReadPath } from './minifluxPaths';
-import type { CurrentUser, EntryPage, EntryQuery, ReaderBackend } from './types';
+import type { CurrentUser, EntryPage, EntryQuery, OpmlImportReport, ReaderBackend } from './types';
 
 // Miniflux over its REST API, one method per endpoint the reader uses. Everything goes through
 // the /api/proxy transport in $lib/api, which adds the credential headers.
@@ -32,10 +32,22 @@ async function currentUserId(): Promise<number> {
 
 export const minifluxBackend: ReaderBackend = {
 	kind: 'miniflux',
-	caps: { rssBridge: true },
+	caps: { rssBridge: true, opml: true },
 
 	me(signal) {
 		return apiCall<CurrentUser>('me', { signal });
+	},
+	// /v1/export answers with the OPML document itself, not JSON, so it bypasses apiCall's parse.
+	async exportOpml() {
+		const res = await fetch('/api/proxy/export', { headers: authHeaders() });
+		if (!res.ok) throw new Error(`Export failed (HTTP ${res.status})`);
+		return res.text();
+	},
+	// /v1/import takes the document as the body and answers {message}; Miniflux creates the
+	// feeds, skips the ones already subscribed and fetches on its own schedule.
+	async importOpml(xml): Promise<OpmlImportReport> {
+		const r = await apiCall<{ message?: string }>('import', { method: 'POST', body: xml });
+		return { message: r?.message ?? 'Feeds imported' };
 	},
 
 	listFeeds(signal) {

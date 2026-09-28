@@ -1,6 +1,9 @@
 <script lang="ts">
-	import { X, Download, Upload } from 'lucide-svelte';
+	import { X, Download, Upload, RotateCw, Rss } from 'lucide-svelte';
 	import type { AiProvider } from '$lib/types';
+	import { backend, caps } from '$lib/backend';
+	import type { OpmlImportReport } from '$lib/backend/types';
+	import { feeds } from '$lib/stores/feeds.svelte';
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { authedFetch } from '$lib/api';
 	import { ui } from '$lib/stores/ui.svelte';
@@ -97,6 +100,47 @@
 	// --- Backup & restore --------------------------------------------------------------
 	let includeSecrets = $state(true);
 	let fileInput = $state<HTMLInputElement | null>(null);
+
+	// Subscriptions as OPML: a download, and an upload the backend subscribes from. What comes
+	// back is counts per feed or just a message, depending on the backend.
+	const hasOpml = caps().opml;
+	let opmlInput = $state<HTMLInputElement | null>(null);
+	let opmlBusy = $state(false);
+	let opmlReport = $state<OpmlImportReport | null>(null);
+	let opmlError = $state<string | null>(null);
+	async function exportOpml() {
+		opmlError = null;
+		try {
+			const xml = await backend().exportOpml!();
+			const url = URL.createObjectURL(new Blob([xml], { type: 'text/x-opml' }));
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `miniflux-reader-${new Date().toISOString().slice(0, 10)}.opml`;
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			opmlError = e instanceof Error ? e.message : 'Export failed';
+		}
+	}
+	async function onOpmlFile(e: Event) {
+		const input = e.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file) return;
+		opmlBusy = true;
+		opmlError = null;
+		opmlReport = null;
+		try {
+			opmlReport = await backend().importOpml!(await file.text());
+			if (opmlReport.added === undefined || opmlReport.added > 0) await feeds.loadFeeds();
+		} catch (err) {
+			opmlError = err instanceof Error ? err.message : 'Import failed';
+		} finally {
+			opmlBusy = false;
+		}
+	}
 
 	function doExport() {
 		exportSettings(includeSecrets);
@@ -348,6 +392,56 @@
 						Overwrites matching settings in this browser, then reloads. Other data (caches) is kept.
 					</p>
 				</div>
+
+				{#if hasOpml}
+					<div class="border-t border-n-100 pt-4">
+						<h4 class="mb-1 text-sm font-medium text-n-700">Subscriptions (OPML)</h4>
+						<p class="mb-3 text-xs text-n-500">
+							Your categories and feeds as an OPML file — the format every reader exchanges. Importing subscribes to
+							each feed in the file (folders become categories, feeds you already have are skipped); the entries
+							arrive with the next fetch.
+						</p>
+						<div class="flex flex-wrap items-center gap-3">
+							<button
+								type="button"
+								onclick={exportOpml}
+								class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100"
+							>
+								<Rss class="h-4 w-4" />
+								Export OPML
+							</button>
+							<button
+								type="button"
+								onclick={() => opmlInput?.click()}
+								disabled={opmlBusy}
+								class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100 disabled:opacity-50"
+							>
+								{#if opmlBusy}<RotateCw class="h-4 w-4 animate-spin" />{:else}<Upload class="h-4 w-4" />{/if}
+								Import OPML…
+							</button>
+							<input bind:this={opmlInput} type="file" accept=".opml,.xml,text/xml,application/xml,text/x-opml" class="hidden" onchange={onOpmlFile} />
+						</div>
+						{#if opmlError}
+							<p class="mt-2 text-xs text-danger">{opmlError}</p>
+						{/if}
+						{#if opmlReport}
+							{#if opmlReport.added !== undefined}
+								<p class="mt-2 text-xs {opmlReport.added > 0 ? 'text-success' : 'text-n-600'}">
+									Added {opmlReport.added}{opmlReport.categoriesCreated ? ` (${opmlReport.categoriesCreated} new categories)` : ''}{opmlReport.exists ? `, already subscribed ${opmlReport.exists}` : ''}{opmlReport.invalid ? `, invalid URL ${opmlReport.invalid}` : ''}{opmlReport.limit ? `, over the plan's feed limit ${opmlReport.limit}` : ''}.
+								</p>
+								{#if opmlReport.rows?.some((r) => r.status !== 'added')}
+									<ul class="mt-1 max-h-40 overflow-y-auto text-xs text-n-500">
+										{#each opmlReport.rows.filter((r) => r.status !== 'added') as r (r.xmlUrl)}
+											<li class="truncate"><span class="text-n-400">{r.status}</span> · {r.title} <span class="text-n-400">{r.xmlUrl}</span></li>
+										{/each}
+									</ul>
+								{/if}
+							{:else}
+								<p class="mt-2 text-xs text-success">{opmlReport.message ?? 'Imported.'}</p>
+							{/if}
+						{/if}
+					</div>
+				{/if}
 			</div>
 		</section>
 	</div>
