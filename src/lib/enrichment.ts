@@ -27,12 +27,15 @@ export function decodeContent(html: string): string {
   return html;
 }
 
-const domParser = new DOMParser();
+// Created on first use, not at import: the login page pulls this module into its server
+// render (through the backend adapter), and Node has no DOMParser.
+let parser: DOMParser | undefined;
+const domParser = () => (parser ??= new DOMParser());
 
 // Parse (decoded) article HTML into a Document. Exposed so the re-fetch path shares the same
 // single-parse pass the enrichEntries loop uses internally.
 export function parseContent(html: string): Document {
-  return domParser.parseFromString(html, "text/html");
+  return domParser().parseFromString(html, "text/html");
 }
 
 function isPlaceholderUrl(url: string): boolean {
@@ -179,7 +182,7 @@ export function enrichEntries(
     // Previously each of thumbnail / description / date extraction parsed independently
     // (2–3 DOMParser passes per entry, ~200–300 on a 100-entry page); now it's one per entry.
     const doc = entry.content
-      ? domParser.parseFromString(entry.content, "text/html")
+      ? domParser().parseFromString(entry.content, "text/html")
       : null;
 
     // Read-only extractions first; extractDescription mutates the shared doc, so it runs last.

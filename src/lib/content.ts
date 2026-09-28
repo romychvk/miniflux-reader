@@ -1,6 +1,9 @@
 import { highlightCodeBlocks } from '$lib/highlight';
 
-const domParser = new DOMParser();
+// Created on first use, not at import: the login page pulls this module into its server
+// render (through the backend adapter), and Node has no DOMParser.
+let parser: DOMParser | undefined;
+const domParser = () => (parser ??= new DOMParser());
 
 const IMAGE_URL_RE = /\.(?:jpe?g|png|gif|webp|avif|bmp|svg)(?:[?#]|$)/i;
 
@@ -41,7 +44,7 @@ function imageKey(url: string): string {
 export function contentContainsImage(html: string, url: string): boolean {
 	if (!html || !url) return false;
 	const target = imageKey(url);
-	const doc = domParser.parseFromString(html, 'text/html');
+	const doc = domParser().parseFromString(html, 'text/html');
 	for (const img of doc.querySelectorAll('img')) {
 		if (imageKey(effectiveImageSrc(img)) === target) return true;
 	}
@@ -283,7 +286,7 @@ function collapseConsecutiveHrs(doc: Document): boolean {
 // consecutive rules, then color code blocks. Covers every path that shows content.
 export function processArticleHtml(html: string): string {
 	if (!html) return html;
-	const doc = domParser.parseFromString(html, 'text/html');
+	const doc = domParser().parseFromString(html, 'text/html');
 	const upgraded = upgradeGalleryImages(doc);
 	const deduped = dedupeImages(doc);
 	const inlineStripped = dropEmptyInlineTags(doc);

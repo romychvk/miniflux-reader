@@ -17,7 +17,10 @@ export interface RewriteCall {
 // Only these are simulated; everything else is reported by unsupportedFunctions().
 const SUPPORTED = new Set(['remove', 'replace']);
 
-const domParser = new DOMParser();
+// Created on first use, not at import: the login page pulls this module into its server
+// render (through the backend adapter), and Node has no DOMParser.
+let parser: DOMParser | undefined;
+const domParser = () => (parser ??= new DOMParser());
 
 // Parse a rewrite_rules string into ordered calls, mirroring Miniflux's own parser
 // (Go text/scanner): arguments are DOUBLE-quoted strings, `|` separates the two args of
@@ -98,7 +101,7 @@ export function parseRewriteRules(rules: string): RewriteCall[] {
 }
 
 function applyRemove(html: string, selector: string): string {
-	const doc = domParser.parseFromString(html, 'text/html');
+	const doc = domParser().parseFromString(html, 'text/html');
 	let matched = false;
 	try {
 		for (const el of doc.querySelectorAll(selector)) {
