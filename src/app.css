@@ -286,6 +286,16 @@
 	}
 }
 
+/* Settings-card form fields: the accent border plus a soft accent halo on focus (both settings
+   screens). The search field in the top bar draws the same halo. */
+@utility field-focus {
+	&:focus {
+		outline: none;
+		border-color: var(--color-a-600);
+		box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-a-600) 14%, transparent);
+	}
+}
+
 @utility brdr {
 	@apply border border-red-500;
 }

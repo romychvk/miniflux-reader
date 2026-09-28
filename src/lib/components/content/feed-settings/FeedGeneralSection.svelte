@@ -3,6 +3,7 @@
 	import { AlertTriangle } from 'lucide-svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { normalizeLang } from '$lib/lang';
+	import { caps } from '$lib/backend';
 	import CategorySelect from '$lib/components/ui/CategorySelect.svelte';
 
 	let {
@@ -40,92 +41,83 @@
 			? 'Declared by the feed. Its titles and article text are tagged with this language, so screen readers, hyphenation and translation offers follow it.'
 			: 'Not declared by the feed — or the feed has not been re-parsed since Miniflux 2.3.3, which is the first version to read it. Its text keeps the page language.'
 	);
+
+	const label = 'mb-1.5 block text-[13px] font-medium text-n-700';
+	const field = 'h-9.5 w-full rounded-lg border border-n-300 bg-surface px-3 text-sm text-n-900 field-focus';
+	const bigField = 'h-10 w-full rounded-lg border border-n-300 bg-surface px-3 text-[15px] text-n-900 field-focus';
+	const stat = 'font-semibold text-n-700';
 </script>
 
-<section class:hidden={!active} class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl">
-	<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">General</h3>
-
-	<!-- Stats -->
-	<div class="flex gap-5 mb-4">
-	  <div><span class="font-semibold text-n-500 uppercase text-xs">Last refresh:</span> <span class="" title={feed.checked_at ?? ''}>{feed.checked_at ? `${relaTimestamp(feed.checked_at)} ago` : '—'}</span></div>
-	  <div><span class="font-semibold text-n-500 uppercase text-xs">Total entries:</span> <span class="text-n-800">{entryCount ?? '—'}</span></div>
-	  <div title={languageHint}><span class="font-semibold text-n-500 uppercase text-xs">Language:</span> <span class="text-n-800">{language ?? '—'}</span></div>
+<section class:hidden={!active} class="rounded-xl bg-surface px-8 py-7 shadow-card max-md:px-5 max-md:py-5">
+	<div class="mb-4.5">
+		<h3 class="text-base font-bold text-n-900">General</h3>
+		<p class="mt-0.5 text-[12.5px] text-n-500">
+			Last refresh <b class={stat} title={feed.checked_at ?? ''}>{feed.checked_at ? `${relaTimestamp(feed.checked_at)} ago` : '—'}</b>
+			· <b class={stat}>{entryCount ?? '—'}</b> entries
+			· <span title={languageHint}>Language <b class={stat}>{language ?? '—'}</b></span>
+		</p>
 	</div>
+
 	{#if feed.parsing_error_count && feed.parsing_error_count > 0}
-		<div class="text-danger mb-4 bg-danger/10 border border-danger rounded px-4 py-2">
-			<p class="flex items-center gap-1.5 ">
+		<div class="mb-4.5 rounded-lg border border-danger/40 bg-danger/10 px-4 py-2.5 text-danger">
+			<p class="flex items-center gap-1.5 text-sm font-medium">
 				<AlertTriangle class="h-4 w-4 shrink-0" />
-				<span class="">Parsing errors</span>
-  			  <span class="">{feed.parsing_error_count}×</span>
+				Parsing errors {feed.parsing_error_count}×
 			</p>
-				{#if feed.parsing_error_message}
-					<p class="text-sm mt-1">{feed.parsing_error_message}</p>
-				{/if}
+			{#if feed.parsing_error_message}
+				<p class="mt-1 text-[13px]">{feed.parsing_error_message}</p>
+			{/if}
 		</div>
 	{/if}
 
-	<div class="space-y-4 pb-2">
-      <div class="flex gap-4 flex-wrap">
-			<div class="w-full lg:w-2/3">
-				<label for="feed-title" class="mb-1 block text-sm font-medium text-n-700">Title</label>
-				<input
-					id="feed-title"
-					type="text"
-					bind:value={title}
-					class="w-full rounded-md border border-n-300 px-3 py-2 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-n-400"
-				/>
+	<div class="flex flex-col gap-4.5">
+		<div class="grid gap-4 sm:grid-cols-[2fr_1fr]">
+			<div class="min-w-0">
+				<label for="feed-title" class={label}>Title</label>
+				<input id="feed-title" type="text" bind:value={title} class="{bigField} font-semibold" />
 			</div>
-			<div class="grow">
-				<label for="feed-category" class="mb-1 block text-sm font-medium text-n-700">Category</label>
+			<div class="min-w-0">
+				<label for="feed-category" class={label}>Category</label>
 				<CategorySelect
 					id="feed-category"
 					bind:value={categoryId}
 					bind:newName={newCategoryName}
-					selectClass="w-full text-base rounded-md border border-n-300 bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-400"
-					inputClass="mt-2 w-full text-base rounded-md border border-n-300 bg-surface px-3 py-2 focus:outline-none focus:ring-2 focus:ring-n-400"
+					selectClass={bigField}
+					inputClass="mt-2 {bigField}"
 				/>
 			</div>
 		</div>
 
 		<div>
-			<label for="feed-feed-url" class="mb-1 block text-sm font-medium text-n-700">Feed URL</label>
+			<label for="feed-feed-url" class={label}>Feed URL</label>
 			{#if feedUrlManagedBy}
 				<input
 					id="feed-feed-url"
 					type="url"
 					value={effectiveFeedUrl || '— preview in the Page Feed tab to generate —'}
 					readonly
-					class="w-full rounded-md border border-n-200 bg-n-50 px-3 py-2 text-sm text-n-500 focus:outline-none"
+					class="h-9.5 w-full rounded-lg border border-n-200 bg-n-50 px-3 text-sm text-n-500 outline-none"
 				/>
-				<p class="mt-1 text-xs text-n-500">
+				<p class="mt-1.5 text-xs text-n-500">
 					{#if feedUrlManagedBy === 'page-feed'}
 						Generated by Miniflux Reader from a listing page — edit the page and selectors in the Page Feed tab.
 					{:else}
-						Managed by RSS-Bridge — edit the parameters below, or disable it to set a direct URL.
+						Managed by RSS-Bridge — edit its parameters in the RSS-Bridge tab, or disable it there to set a direct URL.
 					{/if}
 				</p>
 			{:else}
-				<input
-					id="feed-feed-url"
-					type="url"
-					bind:value={rssSourceUrl}
-					class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-				/>
+				<input id="feed-feed-url" type="url" bind:value={rssSourceUrl} class={field} />
+				{#if caps().rssBridge}
+					<p class="mt-1.5 text-xs text-n-500">
+						Direct URL. Enable RSS-Bridge to assemble it from bridge parameters instead.
+					</p>
+				{/if}
 			{/if}
 		</div>
+
 		<div>
- 					<label for="feed-site-url" class="mb-1 block text-sm font-medium text-n-700">Site URL</label>
- 					<input
-						id="feed-site-url"
-						type="url"
-						bind:value={siteUrl}
-						class="w-full rounded-md border border-n-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
- 					/>
+			<label for="feed-site-url" class={label}>Site URL</label>
+			<input id="feed-site-url" type="url" bind:value={siteUrl} class={field} />
 		</div>
-
-
-
 	</div>
-
-
 </section>

@@ -81,7 +81,7 @@
 	}
 </script>
 
-<div class="mt-4 rounded-md border border-n-200 bg-n-50 p-4 space-y-4">
+<div class="rounded-lg border border-n-200 bg-n-50 p-4 space-y-4">
 	<div class="flex flex-wrap items-end gap-4">
 		<div>
 			<label for="theme-name" class="block text-sm font-medium text-n-700 mb-1">Name</label>
@@ -90,7 +90,7 @@
 				type="text"
 				bind:value={draft.label}
 				oninput={() => (error = '')}
-				class="w-44 rounded-md border border-n-300 bg-surface px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+				class="w-44 rounded-lg border border-n-300 bg-surface px-3 py-1.5 text-sm field-focus"
 			/>
 		</div>
 

@@ -20,8 +20,8 @@
 	}
 </script>
 
-<section class:hidden={!active} class="rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-	<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-danger">Danger Zone</h3>
+<section class:hidden={!active} class="rounded-xl bg-surface px-8 py-7 shadow-card max-md:px-5 max-md:py-5">
+	<h3 class="mb-4.5 text-base font-bold text-danger">Danger Zone</h3>
 	{#if confirmDelete}
 		<div class="flex flex-wrap items-center gap-3">
 			<span class="text-sm text-n-700">Unsubscribe from <strong>{feed.title}</strong>? This removes the feed and all its entries.</span>

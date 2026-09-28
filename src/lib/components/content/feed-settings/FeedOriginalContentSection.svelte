@@ -30,8 +30,8 @@
 	} = $props();
 </script>
 
-<section class:hidden={!active} class="rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-	<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Original Content</h3>
+<section class:hidden={!active} class="rounded-xl bg-surface px-8 py-7 shadow-card max-md:px-5 max-md:py-5">
+	<h3 class="mb-4.5 text-base font-bold text-n-900">Original Content</h3>
 	<div class="flex flex-col xl:flex-row gap-4 items-start">
 		<div class="flex items-center gap-2 xl:w-1/2">
 			<input id="feed-crawler" type="checkbox" bind:checked={crawler} class="rounded border-n-300" />
@@ -43,7 +43,7 @@
 					type="button"
 					onclick={onRefetch}
 					disabled={refetching || !crawler}
-					class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-3 py-1.5 text-sm hover:bg-n-700 bg-n-600 disabled:opacity-50 text-n-50"
+					class="inline-flex items-center gap-1.5 rounded-lg border border-n-300 px-3 py-1.5 text-sm hover:bg-n-700 bg-n-600 disabled:opacity-50 text-n-50"
 				>
 					<RotateCw class={`h-3.5 w-3.5 ${refetching ? 'animate-spin' : ''}`} />
 					{refetching ? `Re-fetching ${progress.done}/${progress.total}…` : 'Re-fetch latest'}
@@ -54,13 +54,13 @@
 					min="1"
 					max="100"
 					disabled={refetching || !crawler}
-					class="w-14 rounded-md border border-n-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+					class="w-14 rounded-lg border border-n-300 px-2 py-1.5 text-sm field-focus disabled:opacity-50"
 				/>
 				<div>
   						<select
   							bind:value={refetchStatus}
   							disabled={refetching || !crawler}
-  							class="rounded-md border border-n-300 bg-surface px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 disabled:opacity-50"
+  							class="rounded-lg border border-n-300 bg-surface px-2 py-1.5 text-sm field-focus disabled:opacity-50"
   						>
   							<option value="unread">unread</option>
   							<option value="all">all</option>
@@ -77,7 +77,7 @@
 
 		<div class={`transition-opacity ${crawler ? '' : 'pointer-events-none opacity-50'}`}>
 			<div>
-				<label for="feed-scraper" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
+				<label for="feed-scraper" class="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-n-700">
 					Scraper Rules
 					<a
 						href="https://miniflux.app/docs/rules.html#scraper-rules"
@@ -96,14 +96,14 @@
 					spellcheck="false"
 					disabled={!crawler}
 					placeholder='article, div[itemprop="articleBody"]'
-					class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+					class="w-full resize-y rounded-lg border border-n-300 px-3 py-2 font-mono text-sm field-focus"
 				></textarea>
 				<p class="mt-1 text-xs text-n-500">CSS selector for the main content. Comma-separated for multiple. Only used when the crawler is on.</p>
 			</div>
 		</div>
 
 		<div>
-			<label for="feed-rewrite" class="mb-1 flex items-center gap-1.5 text-sm font-medium text-n-700">
+			<label for="feed-rewrite" class="mb-1.5 flex items-center gap-1.5 text-[13px] font-medium text-n-700">
 				Content Rewrite Rules
 				<a
 					href="https://miniflux.app/docs/rules.html#rewrite-rules"
@@ -121,7 +121,7 @@
 				rows="2"
 				spellcheck="false"
 				placeholder='remove(".ads, #promo")'
-				class="w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+				class="w-full resize-y rounded-lg border border-n-300 px-3 py-2 font-mono text-sm field-focus"
 			></textarea>
 			<p class="mt-1 text-xs text-n-500">Cleanup functions, e.g. remove("…"), replace("a"|"b"). Applied to both fetched and default feed content.</p>
 		</div>

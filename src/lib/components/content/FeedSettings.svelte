@@ -1,6 +1,14 @@
 <script lang="ts">
 	import type { Feed, FeedUpdate } from '$lib/types';
-	import { X } from 'lucide-svelte';
+	import {
+		SlidersHorizontal,
+		Globe,
+		Link,
+		FileText,
+		Image,
+		Database,
+		Trash2
+	} from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { backend, caps } from '$lib/backend';
 	import { entries } from '$lib/stores/entries.svelte';
@@ -46,25 +54,22 @@
 	const isPageFeed = pageFeed0 !== null;
 
 	const navItems = [
-		{ id: 'general', label: 'General' },
-		{ id: 'network', label: 'Network Settings' },
-		isPageFeed ? { id: 'page-feed', label: 'Page Feed' }
-		: caps().rssBridge ? { id: 'rss-bridge', label: 'RSS-Bridge' }
+		{ id: 'general', label: 'General', icon: SlidersHorizontal },
+		{ id: 'network', label: 'Network Settings', icon: Globe },
+		isPageFeed ? { id: 'page-feed', label: 'Page Feed', icon: Link }
+		: caps().rssBridge ? { id: 'rss-bridge', label: 'RSS-Bridge', icon: Link }
 		: null,
-		{ id: 'original-content', label: 'Original Content' },
-		{ id: 'cover-image', label: 'Cover Image' },
-		{ id: 'image-archive', label: 'Image Archive' },
-		{ id: 'danger-zone', label: 'Danger Zone' }
+		{ id: 'original-content', label: 'Original Content', icon: FileText },
+		{ id: 'cover-image', label: 'Cover Image', icon: Image },
+		{ id: 'image-archive', label: 'Image Archive', icon: Database },
+		{ id: 'danger-zone', label: 'Danger Zone', icon: Trash2 }
 	].filter((item) => item !== null);
 	let activeSection = $state('general');
 
-	function goBack() {
-		history.back();
-	}
-
 	// Capture initial values — the screen is keyed by feed id upstream so props are stable.
+	// Reactive: Save moves this baseline, and `dirty` has to see it move.
 	// svelte-ignore state_referenced_locally
-	const initial = {
+	const initial = $state({
 		title: feed.title,
 		site_url: feed.site_url,
 		feed_url: feed.feed_url,
@@ -75,7 +80,7 @@
 		disabled: feed.disabled ?? false,
 		ignore_http_cache: feed.ignore_http_cache ?? false,
 		user_agent: feed.user_agent ?? ''
-	};
+	});
 	let title = $state(initial.title);
 	let siteUrl = $state(initial.site_url);
 	let categoryId = $state(initial.category_id);
@@ -120,6 +125,9 @@
 
 	let pageFeedConfig = $state<PageFeedConfig>(pageFeed0 ?? { pageUrl: '', itemSelector: '' });
 	let initialPageFeedKey = $state(pageFeedConfigKey(pageFeed0));
+	// What Discard puts back; moves with the baseline on save.
+	// svelte-ignore state_referenced_locally
+	let pageFeedBaseline = $state.raw<PageFeedConfig>($state.snapshot(pageFeedConfig));
 	// Set by FeedPageFeedSection after a successful server preview: the signed URL for that config.
 	let pageFeedSigned = $state<PageFeedSigned | null>(null);
 
@@ -203,6 +211,39 @@
 		}
 	});
 
+	// Which sections hold the pending changes — named in the status beside Save/Discard. The
+	// overall `dirty` below stays the source of truth; this only labels it.
+	const dirtySections = $derived.by(() => {
+		const d = new Set<string>();
+		const rss = JSON.parse(initialRssSignature);
+		// The Source URL is edited in General while the bridge is off, in RSS-Bridge while it is on.
+		const sourceChanged = rssSourceUrl !== rss.rssSourceUrl;
+		if (
+			title !== initial.title ||
+			siteUrl !== initial.site_url ||
+			categoryId !== initial.category_id ||
+			(!isPageFeed && !rssEnabled && sourceChanged)
+		)
+			d.add('general');
+		if (userAgent !== initial.user_agent || disabled !== initial.disabled || ignoreHttpCache !== initial.ignore_http_cache)
+			d.add('network');
+		if (isPageFeed) {
+			if (pageFeedConfigKey(pageFeedConfig) !== initialPageFeedKey) d.add('page-feed');
+		} else if (
+			rssEnabled !== rss.rssEnabled ||
+			rssInstance !== rss.rssInstance ||
+			rssBridge !== rss.rssBridge ||
+			JSON.stringify(rssParams) !== JSON.stringify(rss.rssParams) ||
+			(rssEnabled && sourceChanged)
+		)
+			d.add('rss-bridge');
+		if (crawler !== initial.crawler || scraperRules !== initial.scraper_rules || rewriteRules !== initial.rewrite_rules)
+			d.add('original-content');
+		if (coverSelector !== initialCoverSelector || coverAttr !== initialCoverAttr) d.add('cover-image');
+		if (archiveImages !== initialArchiveImages) d.add('image-archive');
+		return d;
+	});
+
 	const dirty = $derived(
 		title !== initial.title ||
 		siteUrl !== initial.site_url ||
@@ -270,6 +311,32 @@
 		});
 		initialRssSignature = rssSignature;
 		initialPageFeedKey = pageFeedConfigKey(pageFeedConfig);
+		pageFeedBaseline = $state.snapshot(pageFeedConfig);
+		pageFeedSigned = null;
+	}
+
+	// Put every field back to the saved baseline. Leaving the screen stays on ← / X.
+	function discardChanges() {
+		title = initial.title;
+		siteUrl = initial.site_url;
+		categoryId = initial.category_id;
+		newCategoryName = '';
+		crawler = initial.crawler;
+		scraperRules = initial.scraper_rules;
+		rewriteRules = initial.rewrite_rules;
+		disabled = initial.disabled;
+		ignoreHttpCache = initial.ignore_http_cache;
+		userAgent = initial.user_agent;
+		const rss = JSON.parse(initialRssSignature);
+		rssEnabled = rss.rssEnabled;
+		rssInstance = rss.rssInstance;
+		rssBridge = rss.rssBridge;
+		rssSourceUrl = rss.rssSourceUrl;
+		rssParams = rss.rssParams;
+		coverSelector = initialCoverSelector;
+		coverAttr = initialCoverAttr;
+		archiveImages = initialArchiveImages;
+		pageFeedConfig = structuredClone(pageFeedBaseline);
 		pageFeedSigned = null;
 	}
 
@@ -294,15 +361,13 @@
 				newCategoryName = '';
 			}
 			const changes = computeChanges();
-			if (
-				Object.keys(changes).length === 0 &&
-				rssSignature === initialRssSignature &&
-				coverSelector === initialCoverSelector &&
-				coverAttr === initialCoverAttr
-			)
-				return;
+			if (!dirty) return;
 			await persistChanges(changes);
-			savedAt = Date.now();
+			const at = (savedAt = Date.now());
+			// "Saved" is a short-lived acknowledgement, not a standing state.
+			setTimeout(() => {
+				if (savedAt === at) savedAt = 0;
+			}, 2000);
 			ui.showSuccess('Feed settings saved.');
 		} catch {
 			// Error shown by store
@@ -340,46 +405,75 @@
 		}
 	}
 
+	// Nav hints: what each section is about, or its live state where that is cheap to show.
+	const pageFeedHost = $derived.by(() => {
+		try {
+			return new URL(pageFeedConfig.pageUrl).host;
+		} catch {
+			return '';
+		}
+	});
+	const hints = $derived<Record<string, string>>({
+		general: 'Title, category, URLs',
+		network: disabled ? 'Updates paused' : 'User agent, cache, pause',
+		'page-feed': pageFeedHost ? `Page Feed · ${pageFeedHost}` : 'Page Feed',
+		'rss-bridge': rssEnabled ? `On · ${rssBridge || 'no bridge'}` : 'Off',
+		'original-content': crawler ? 'Crawler on' : 'Crawler, scraper & rewrite rules',
+		'cover-image': coverSelector ? `Selector: ${coverSelector}` : 'Default (og:image)',
+		'image-archive': archiveImages ? 'On' : 'Off',
+		'danger-zone': 'Unsubscribe from this feed'
+	});
+
+	const dirtyLabel = $derived(
+		navItems.filter((item) => dirtySections.has(item.id)).map((item) => item.label).join(', ')
+	);
+
+	// Why a dirty form can't be saved yet — shown in place of Save (never a disabled button).
+	const blockedReason = $derived(
+		categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim()
+			? 'Name the new category to save'
+			: (rssEnabled || isPageFeed) && !effectiveFeedUrl
+				? isPageFeed
+					? 'Preview the page feed to sign it before saving'
+					: 'Enter an RSS-Bridge instance to save'
+				: null
+	);
 </script>
 
-<!-- Close button, fixed to the top-right corner of the main scroll region -->
-<button
-	type="button"
-	onclick={goBack}
-	title="Close"
-	aria-label="Close"
-	class="fixed right-4 md:right-6 top-14 z-30 rounded-full p-1.75 text-n-700 bg-surface hover:bg-n-100 shadow-md hover:text-n-900"
->
-	<X class="size-6.5" />
-</button>
-
-<div class="flex flex-col md:flex-row w-full max-w-5xl gap-6 py-6 sm:px-6">
-	<!-- Section navigation: sidebar on desktop, horizontal tabs on mobile -->
-	<nav class="w-full shrink-0 md:w-44">
-		<div class="md:sticky md:top-4">
-			<h2 class="mb-4 px-3 text-lg font-semibold text-n-800 max-md:hidden">Edit Feed</h2>
-			<ul class="flex gap-1 overflow-x-auto md:flex-col max-md:pb-1">
-			{#each navItems as item (item.id)}
-				<li class="shrink-0">
-					<button
-						type="button"
-						onclick={() => (activeSection = item.id)}
-						class={`w-full whitespace-nowrap rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
-							activeSection === item.id
-								? 'bg-n-100 font-medium text-a-700'
-								: 'text-n-600 hover:bg-n-100'
-						}`}
-					>
-						{item.label}
-					</button>
-				</li>
-			{/each}
-			</ul>
-		</div>
+<div class="flex w-full flex-col gap-7 py-6 pl-5 pr-6 md:flex-row max-md:gap-4 max-md:px-2 max-md:py-4">
+	<!-- Section navigation: a column on desktop, horizontal tabs on mobile -->
+	<nav
+		class="flex shrink-0 gap-0.5 md:sticky md:top-6 md:w-58 md:flex-col md:self-start max-md:overflow-x-auto max-md:[scrollbar-width:none]"
+	>
+		{#each navItems as item (item.id)}
+			{@const active = activeSection === item.id}
+			{@const danger = item.id === 'danger-zone'}
+			{#if danger}
+				<div class="mx-2.5 my-2 h-px bg-n-200 max-md:hidden"></div>
+			{/if}
+			<button
+				type="button"
+				onclick={() => (activeSection = item.id)}
+				aria-current={active ? 'page' : undefined}
+				class="flex h-11 shrink-0 items-center gap-2.5 rounded-lg px-2.5 text-left transition-colors max-md:h-9 {active
+					? danger
+						? 'bg-danger/8 text-danger'
+						: 'bg-a-600/12 text-a-700'
+					: danger
+						? 'text-danger hover:bg-danger/8'
+						: 'text-n-700 hover:bg-n-200/60'}"
+			>
+				<item.icon size={16} class="shrink-0 {active || danger ? '' : 'text-n-500'}" />
+				<span class="min-w-0">
+					<span class="block truncate whitespace-nowrap text-[13.5px] {active ? 'font-[650]' : 'font-[450]'}">{item.label}</span>
+					<span class="block truncate text-[11.5px] text-n-500 max-md:hidden">{hints[item.id]}</span>
+				</span>
+			</button>
+		{/each}
 	</nav>
 
 	<!-- Sections: only the active one is shown -->
-	<div class="min-w-0 flex-1 max-w-170 max-md:px-2">
+	<div class="flex min-w-0 max-w-180 flex-1 flex-col gap-3.5">
 		<FeedGeneralSection
 			active={activeSection === 'general'}
 			{feed}
@@ -444,30 +538,32 @@
 
 		<FeedDangerZoneSection active={activeSection === 'danger-zone'} {feed} />
 
-
-		<!-- Save bar: sits directly below the active section -->
-		<div class="mt-6 flex max-w-fit items-center gap-3">
-			{#if savedAt && !dirty}
-				<span class="text-sm text-n-500">Saved</span>
-			{/if}
-			<button
-				type="button"
-				onclick={handleSave}
-				disabled={saving ||
-					!dirty ||
-					((rssEnabled || isPageFeed) && !effectiveFeedUrl) ||
-					(categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim())}
-				class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
-			>
-				{saving ? 'Saving…' : 'Save'}
-			</button>
-			<button
-				type="button"
-				onclick={goBack}
-				class="rounded-md px-4 py-2 text-sm text-n-600 bg-n-100 hover:bg-n-200"
-			>
-				Cancel
-			</button>
-		</div>
+		<!-- Action row: directly under the card, and only while something is pending. -->
+		{#if dirty || saving}
+			<div class="flex flex-wrap items-center gap-2.5 px-1">
+				{#if !blockedReason}
+					<button
+						type="button"
+						onclick={handleSave}
+						class="h-9 rounded-lg bg-a-600 px-4.5 text-[13.5px] font-semibold text-on-accent transition-colors hover:bg-a-700 {saving ? 'pointer-events-none' : ''}"
+					>
+						{saving ? 'Saving…' : 'Save'}
+					</button>
+				{/if}
+				<button
+					type="button"
+					onclick={discardChanges}
+					class="h-9 rounded-lg px-3.5 text-[13.5px] font-semibold text-n-700 transition-colors hover:bg-n-200 {saving ? 'pointer-events-none' : ''}"
+				>
+					Discard
+				</button>
+				<span class="ml-1 inline-flex items-center gap-1.5 text-[13px] text-n-500">
+					<span class="size-1.5 shrink-0 rounded-full bg-warning"></span>
+					{blockedReason ?? (dirtyLabel ? `Unsaved changes in ${dirtyLabel}` : 'Unsaved changes')}
+				</span>
+			</div>
+		{:else if savedAt}
+			<div class="px-1 text-sm text-n-500">Saved</div>
+		{/if}
 	</div>
 </div>

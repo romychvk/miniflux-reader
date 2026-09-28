@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { LogOut, Plus, RotateCw, Settings } from 'lucide-svelte';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
@@ -10,6 +11,7 @@
 	import type { FeedCreate } from '$lib/types';
 	import FeedTree from './FeedTree.svelte';
 	import Rail from './Rail.svelte';
+	import SettingsNav from './SettingsNav.svelte';
 	import FeedAddModal from '$lib/components/ui/FeedAddModal.svelte';
 	import ScrapedFeedWizard from '$lib/components/ui/ScrapedFeedWizard.svelte';
 	import BridgeFeedWizard from '$lib/components/ui/BridgeFeedWizard.svelte';
@@ -26,6 +28,9 @@
 	let { collapsed = false }: { collapsed?: boolean } = $props();
 
 	const RAIL_WIDTH = 52; // Rail.svelte's w-13
+
+	// App settings swap the feed tree for their own section list, in the same column.
+	const isAppSettings = $derived(page.route.id === '/(app)/settings');
 
 	let showAddModal = $state(false);
 	// The two "feed from a page" wizards: Miniflux Reader's own page feed (default) and the RSS-Bridge
@@ -97,20 +102,24 @@
 			class="h-full border-r border-r-sb-200 bg-sidebar text-sidebar-fg flex flex-col relative"
 			style="width: {ui.sidebarWidth}px"
 		>
-			<div class="h-13 shrink-0 pl-4 pr-2.5 flex items-center justify-between">
-				<h2 class="text-[15px] font-bold tracking-[-0.01em] text-sb-900">Feeds</h2>
-				<button
-					onclick={() => openAddModal()}
-					class="h-7 pl-1.75 pr-2.5 flex items-center gap-1 rounded-full bg-a-50 text-a-700 text-[12.5px] font-semibold transition-colors hover:bg-a-600/12 hover:text-a-600 active:bg-a-600 active:text-on-accent"
-					title="Add feed"
-				>
-					<Plus size={14} strokeWidth={2.5} />
-					Add
-				</button>
-			</div>
-			<div class="scroll-quiet flex-1">
-				<FeedTree onAddFeed={openAddModal} />
-			</div>
+			{#if isAppSettings}
+				<SettingsNav />
+			{:else}
+				<div class="h-13 shrink-0 pl-4 pr-2.5 flex items-center justify-between">
+					<h2 class="text-[15px] font-bold tracking-[-0.01em] text-sb-900">Feeds</h2>
+					<button
+						onclick={() => openAddModal()}
+						class="h-7 pl-1.75 pr-2.5 flex items-center gap-1 rounded-full bg-a-50 text-a-700 text-[12.5px] font-semibold transition-colors hover:bg-a-600/12 hover:text-a-600 active:bg-a-600 active:text-on-accent"
+						title="Add feed"
+					>
+						<Plus size={14} strokeWidth={2.5} />
+						Add
+					</button>
+				</div>
+				<div class="scroll-quiet flex-1">
+					<FeedTree onAddFeed={openAddModal} />
+				</div>
+			{/if}
 			<!-- Resize handle -->
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div

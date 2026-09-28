@@ -22,16 +22,16 @@
 	}
 </script>
 
-<section class:hidden={!active} class="rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-	<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Network Settings</h3>
+<section class:hidden={!active} class="rounded-xl bg-surface px-8 py-7 shadow-card max-md:px-5 max-md:py-5">
+	<h3 class="mb-4.5 text-base font-bold text-n-900">Network Settings</h3>
 	<div>
-		<label for="feed-user-agent" class="mb-1 block text-sm font-medium text-n-700">User Agent</label>
+		<label for="feed-user-agent" class="mb-1.5 block text-[13px] font-medium text-n-700">User Agent</label>
 		<div class="flex flex-col gap-2">
 			<select
 				aria-label="User Agent preset"
 				value={uaPreset}
 				onchange={(e) => applyUaPreset(e.currentTarget.value)}
-				class="w-full shrink-0 rounded-md border border-n-300 bg-surface px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400 max-w-fit"
+				class="w-full shrink-0 rounded-lg border border-n-300 bg-surface px-2 py-2 text-sm field-focus max-w-fit"
 			>
 				{#each USER_AGENT_PRESETS as p (p.label)}
 					<option value={p.value}>{p.label}</option>
@@ -44,7 +44,7 @@
 				rows="2"
 				spellcheck="false"
 				placeholder="Leave empty to use the Miniflux default"
-				class="min-w-0 w-full resize-y rounded-md border border-n-300 px-3 py-2 font-mono text-xs break-all focus:outline-none focus:ring-2 focus:ring-n-400"
+				class="min-w-0 w-full resize-y rounded-lg border border-n-300 px-3 py-2 font-mono text-xs break-all field-focus"
 			></textarea>
 		</div>
 		<p class="mt-1 text-xs text-n-500">

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X, Download, Upload, RotateCw, Rss } from 'lucide-svelte';
+	import { X, Download, Upload, PlugZap, RotateCw, Rss } from 'lucide-svelte';
 	import type { AiProvider } from '$lib/types';
 	import { backend, caps } from '$lib/backend';
 	import type { OpmlImportReport } from '$lib/backend/types';
@@ -7,18 +7,25 @@
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { authedFetch } from '$lib/api';
 	import { ui } from '$lib/stores/ui.svelte';
+	import { appSettings, APP_SETTINGS_SECTIONS } from '$lib/stores/appSettings.svelte';
 	import { exportSettings, importSettings } from '$lib/settingsBackup';
 	import { settingsSync } from '$lib/settingsSync.svelte';
 	import AppearanceSection from '$lib/components/settings/AppearanceSection.svelte';
 
 	const ANTHROPIC_MODELS = ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'];
 
-	const navItems = [
-		{ id: 'appearance', label: 'Appearance' },
-		{ id: 'ai', label: 'AI Assistant' },
-		{ id: 'backup', label: 'Backup & Restore' }
-	];
-	let activeSection = $state('appearance');
+	// The section list lives in the sidebar (SettingsNav); on phones there is no sidebar column,
+	// so the same list shows as tabs above the card.
+	const activeSection = $derived(appSettings.section);
+
+	// Shared look of the settings cards and their fields.
+	const pageTitle = 'text-[22px] font-bold tracking-[-0.01em] text-n-900';
+	const pageDesc = 'mt-1.5 text-sm text-n-500 text-pretty';
+	const card = 'rounded-xl bg-surface px-8 py-7 shadow-card max-md:px-5 max-md:py-5';
+	const label = 'mb-1.5 block text-[13px] font-medium text-n-700';
+	const field = 'h-9.5 w-full max-w-md rounded-lg border border-n-300 bg-surface px-3 text-sm text-n-900 field-focus';
+	const secondaryBtn = 'inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-[13.5px] font-semibold text-n-700 shadow-[0_0_0_1px_var(--color-n-300)] transition-colors hover:bg-n-100';
+	const primaryBtn = 'inline-flex h-9 items-center gap-1.5 rounded-lg bg-a-600 px-4.5 text-[13.5px] font-semibold text-on-accent transition-colors hover:bg-a-700';
 
 	// aiConfig is initialised in the (app) layout, which gates rendering on `ready`,
 	// so the store values are populated by the time this page mounts.
@@ -29,7 +36,10 @@
 	// svelte-ignore state_referenced_locally
 	let apiKey = $state(aiConfig.apiKey);
 
-	let saving = $state(false);
+	const aiDirty = $derived(
+		provider !== aiConfig.provider || model !== aiConfig.model || apiKey !== aiConfig.apiKey
+	);
+
 	let savedAt = $state(0);
 	let testing = $state(false);
 	// Inline status shown inside the AI Assistant card (instead of a global toast).
@@ -48,13 +58,15 @@
 	}
 
 	function handleSave() {
-		saving = true;
 		status = null;
 		aiConfig.save({ provider, model, apiKey });
 		// Reflect any normalisation (default model fill-in) back into the form.
 		model = aiConfig.model;
-		savedAt = Date.now();
-		saving = false;
+		const at = (savedAt = Date.now());
+		// "Saved" is a short-lived acknowledgement, not a standing state.
+		setTimeout(() => {
+			if (savedAt === at) savedAt = 0;
+		}, 2000);
 		ui.showSuccess('AI settings saved.');
 	}
 
@@ -94,6 +106,7 @@
 		provider = aiConfig.provider;
 		model = aiConfig.model;
 		apiKey = '';
+		savedAt = 0;
 		ui.showSuccess('AI settings cleared.');
 	}
 
@@ -178,187 +191,173 @@
 	<button
 		type="button"
 		onclick={goBack}
-		title="Close"
-		aria-label="Close"
+		title="Close settings"
+		aria-label="Close settings"
 		class="absolute right-2 md:right-4 top-2 rounded-full p-1.75 text-n-700 bg-surface shadow-md hover:bg-n-100 hover:text-n-900"
 	>
 		<X class="size-6.5" />
 	</button>
 </div>
 
-<div class="flex flex-col md:flex-row w-full max-w-5xl gap-6 py-6 sm:px-6">
-	<!-- Section navigation: sidebar on desktop, horizontal tabs on mobile -->
-	<nav class="w-full shrink-0 md:w-44">
-		<div class="md:sticky md:top-4">
-			<h2 class="mb-4 px-3 text-lg font-semibold text-n-800 max-md:hidden">Settings</h2>
-			<!-- The mobile tabs share their row with the floating Close button — keep clear of it. -->
-			<ul class="flex gap-1 overflow-x-auto md:flex-col max-md:pb-1 max-md:pr-11">
-				{#each navItems as item (item.id)}
-					<li class="shrink-0">
-						<button
-							type="button"
-							onclick={() => (activeSection = item.id)}
-							class={`w-full whitespace-nowrap rounded-md px-3 py-1.5 text-left text-sm transition-colors ${
-								activeSection === item.id
-									? 'bg-n-100 font-medium text-a-700'
-									: 'text-n-600 hover:bg-n-100'
-							}`}
-						>
-							{item.label}
-						</button>
-					</li>
-				{/each}
-			</ul>
-		</div>
-	</nav>
+<div class="flex w-full max-w-200 flex-col gap-5 px-10 py-9 max-md:px-3 max-md:py-4">
+	{#if ui.isMobile}
+		<!-- The tabs share their row with the floating Close button — keep clear of it. -->
+		<ul class="flex gap-1 overflow-x-auto pr-11 [scrollbar-width:none]">
+			{#each APP_SETTINGS_SECTIONS as item (item.id)}
+				<li class="shrink-0">
+					<button
+						type="button"
+						onclick={() => (appSettings.section = item.id)}
+						class="h-8.5 whitespace-nowrap rounded-lg px-3 text-[13.5px] transition-colors {activeSection === item.id
+							? 'bg-a-600/12 font-[650] text-a-700'
+							: 'text-n-700 hover:bg-n-200/60'}"
+					>
+						{item.label}
+					</button>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 
-	<!-- Sections: only the active one is shown -->
-	<div class="min-w-0 flex-1 max-w-170 max-md:px-2">
-		<AppearanceSection active={activeSection === 'appearance'} />
+	<AppearanceSection active={activeSection === 'appearance'} />
 
-		<section
-			class:hidden={activeSection !== 'ai'}
-			class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl"
-		>
-			<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">AI Assistant</h3>
-			<p class="mb-4 text-sm text-n-500">
+	<section class:hidden={activeSection !== 'ai'} class="space-y-5">
+		<div>
+			<h1 class={pageTitle}>AI Assistant</h1>
+			<p class={pageDesc}>
 				Used to suggest Scraper &amp; Rewrite rules from a feed's settings screen. Your API key is
 				stored only in this browser and forwarded per request — never saved on the server.
 			</p>
+		</div>
 
-			<div class="space-y-4">
-				<div>
-					<div class="mb-1 block text-sm font-medium text-n-700">Provider</div>
-					<div class="flex gap-2">
-						{#each [{ id: 'anthropic', label: 'Anthropic (Claude)' }, { id: 'openai', label: 'OpenAI' }] as opt (opt.id)}
-							<button
-								type="button"
-								onclick={() => selectProvider(opt.id as AiProvider)}
-								class={`rounded-md border px-3 py-1.5 text-sm transition-colors ${
-									provider === opt.id
-										? 'border-a-600 bg-a-50 font-medium text-a-700'
-										: 'border-n-300 text-n-700 hover:bg-n-100'
-								}`}
-							>
-								{opt.label}
-							</button>
-						{/each}
-					</div>
-				</div>
-
-				<div>
-					<label for="ai-model" class="mb-1 block text-sm font-medium text-n-700">Model</label>
-					{#if provider === 'anthropic'}
-						<select
-							id="ai-model"
-							bind:value={model}
-							class="w-full max-w-md rounded-md border border-n-300 bg-surface px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-						>
-							{#each ANTHROPIC_MODELS as m (m)}
-								<option value={m}>{m}</option>
-							{/each}
-							{#if model && !ANTHROPIC_MODELS.includes(model)}
-								<option value={model}>{model}</option>
-							{/if}
-						</select>
-					{:else}
-						<input
-							id="ai-model"
-							type="text"
-							bind:value={model}
-							spellcheck="false"
-							placeholder="gpt-4o"
-							class="w-full max-w-md rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-						/>
-					{/if}
-				</div>
-
-				<div>
-					<label for="ai-key" class="mb-1 block text-sm font-medium text-n-700">API key</label>
-					<input
-						id="ai-key"
-						type="password"
-						bind:value={apiKey}
-						autocomplete="off"
-						spellcheck="false"
-						placeholder={provider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
-						class="w-full max-w-md rounded-md border border-n-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
-					/>
-				</div>
-
-				<div class="flex flex-wrap items-center gap-3 pt-1">
-					<button
-						type="button"
-						onclick={handleSave}
-						disabled={saving}
-						class="rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700 disabled:opacity-50"
-					>
-						{saving ? 'Saving…' : 'Save'}
-					</button>
-					<button
-						type="button"
-						onclick={testConnection}
-						disabled={testing}
-						class="rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100 disabled:opacity-50"
-					>
-						{testing ? 'Testing…' : 'Test connection'}
-					</button>
-					{#if aiConfig.isConfigured}
+		<div class="{card} space-y-5">
+			<div>
+				<div class={label}>Provider</div>
+				<div class="flex flex-wrap gap-2.5">
+					{#each [{ id: 'anthropic', label: 'Anthropic (Claude)' }, { id: 'openai', label: 'OpenAI' }] as opt (opt.id)}
 						<button
 							type="button"
-							onclick={handleClear}
-							class="rounded-md px-3 py-2 text-sm text-danger hover:bg-danger/10"
+							onclick={() => selectProvider(opt.id as AiProvider)}
+							aria-pressed={provider === opt.id}
+							class="h-9.5 rounded-[10px] px-3.5 text-sm transition-[background-color,box-shadow] {provider === opt.id
+								? 'bg-a-50 font-[650] text-a-700 shadow-[0_0_0_2px_var(--color-a-600)]'
+								: 'text-n-700 shadow-[0_0_0_1px_var(--color-n-200)] hover:bg-n-50 hover:shadow-[0_0_0_1px_var(--color-n-300)]'}"
 						>
-							Clear
+							{opt.label}
 						</button>
-					{/if}
-					{#if savedAt}
-						<span class="text-sm text-n-500">Saved</span>
-					{/if}
+					{/each}
 				</div>
+			</div>
 
-				{#if status}
-					<div
-						class={`rounded-md border px-3 py-2 text-sm ${
-							status.ok
-								? 'border-success/30 bg-success/10 text-success'
-								: 'border-danger/30 bg-danger/10 text-danger'
-						}`}
-					>
-						{status.text}
-					</div>
+			<div>
+				<label for="ai-model" class={label}>Model</label>
+				{#if provider === 'anthropic'}
+					<select id="ai-model" bind:value={model} class={field}>
+						{#each ANTHROPIC_MODELS as m (m)}
+							<option value={m}>{m}</option>
+						{/each}
+						{#if model && !ANTHROPIC_MODELS.includes(model)}
+							<option value={model}>{model}</option>
+						{/if}
+					</select>
+				{:else}
+					<input
+						id="ai-model"
+						type="text"
+						bind:value={model}
+						spellcheck="false"
+						placeholder="gpt-4o"
+						class="{field} font-mono"
+					/>
 				{/if}
 			</div>
-		</section>
 
-		<section
-			class:hidden={activeSection !== 'backup'}
-			class="rounded-lg border border-n-100 bg-surface p-5 shadow-xl"
-		>
-			<h3 class="mb-1 text-sm font-semibold uppercase tracking-wide text-n-500">Backup &amp; Restore</h3>
-			<p class="mb-2 text-sm text-n-500">
+			<div>
+				<label for="ai-key" class={label}>API key</label>
+				<input
+					id="ai-key"
+					type="password"
+					bind:value={apiKey}
+					autocomplete="off"
+					spellcheck="false"
+					placeholder={provider === 'anthropic' ? 'sk-ant-…' : 'sk-…'}
+					class="{field} font-mono"
+				/>
+			</div>
+
+			{#if status}
+				<div
+					class="rounded-lg border px-3 py-2 text-sm {status.ok
+						? 'border-success/30 bg-success/10 text-success'
+						: 'border-danger/30 bg-danger/10 text-danger'}"
+				>
+					{status.text}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Action row under the card: Save only while the form differs from what is stored. -->
+		<div class="flex flex-wrap items-center gap-2.5 px-1">
+			{#if aiDirty}
+				<button type="button" onclick={handleSave} class={primaryBtn}>Save</button>
+			{/if}
+			<button
+				type="button"
+				onclick={testConnection}
+				class="{secondaryBtn} {testing ? 'pointer-events-none' : ''}"
+			>
+				<PlugZap size={14} class={testing ? 'animate-pulse' : ''} />
+				{testing ? 'Testing…' : 'Test connection'}
+			</button>
+			{#if aiConfig.isConfigured}
+				<button
+					type="button"
+					onclick={handleClear}
+					class="h-9 rounded-lg px-3.5 text-[13.5px] font-semibold text-danger transition-colors hover:bg-danger/8"
+				>
+					Clear
+				</button>
+			{/if}
+			{#if aiDirty}
+				<span class="ml-1 inline-flex items-center gap-1.5 text-[13px] text-n-500">
+					<span class="size-1.5 rounded-full bg-warning"></span>
+					Unsaved changes
+				</span>
+			{:else if savedAt}
+				<span class="ml-1 text-sm text-n-500">Saved</span>
+			{/if}
+		</div>
+	</section>
+
+	<section class:hidden={activeSection !== 'backup'} class="space-y-5">
+		<div>
+			<h1 class={pageTitle}>Backup &amp; Restore</h1>
+			<p class={pageDesc}>
 				Your settings (feed RSS-Bridge / duplicate / cover rules, layout &amp; view preferences,
 				feed order, themes) sync to your server automatically and follow you across browsers
 				and devices. Export remains as a manual backup or to move settings between accounts.
 			</p>
-			<p class="mb-4 text-xs">
-				{#if settingsSync.syncError}
-					<span class="text-danger">{settingsSync.syncError} — settings are kept in this browser and will sync when the server is reachable.</span>
-				{:else if settingsSync.lastSyncAt}
-					<span class="text-success">Synced with server at {new Date(settingsSync.lastSyncAt).toLocaleTimeString()}.</span>
-				{:else}
-					<span class="text-n-500">Not synced yet in this session.</span>
-				{/if}
-			</p>
+		</div>
 
-			<div class="space-y-4">
-				<div class="flex flex-wrap items-center gap-3">
-					<button
-						type="button"
-						onclick={doExport}
-						class="inline-flex items-center gap-1.5 rounded-md bg-a-600 px-4 py-2 text-sm text-on-accent hover:bg-a-700"
-					>
-						<Download class="h-4 w-4" />
+		<div class="{card} flex flex-col gap-6">
+			<div>
+				<div class="mb-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-n-500">Sync</div>
+				<p class="text-sm">
+					{#if settingsSync.syncError}
+						<span class="text-danger">{settingsSync.syncError} — settings are kept in this browser and will sync when the server is reachable.</span>
+					{:else if settingsSync.lastSyncAt}
+						<span class="text-success">Synced with server at {new Date(settingsSync.lastSyncAt).toLocaleTimeString()}.</span>
+					{:else}
+						<span class="text-n-500">Not synced yet in this session.</span>
+					{/if}
+				</p>
+			</div>
+
+			<div class="border-t border-n-200 pt-5">
+				<div class="mb-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-n-500">Export</div>
+				<div class="flex flex-wrap items-center gap-4">
+					<button type="button" onclick={doExport} class={primaryBtn}>
+						<Download size={14} />
 						Export settings
 					</button>
 					<label class="flex items-center gap-2 text-sm text-n-700">
@@ -367,82 +366,74 @@
 					</label>
 				</div>
 				{#if includeSecrets}
-					<p class="-mt-1 text-xs text-warning">
+					<p class="mt-2 text-xs text-warning">
 						The exported file will contain your Miniflux token and AI key — keep it private.
 					</p>
 				{/if}
-
-				<div>
-					<button
-						type="button"
-						onclick={() => fileInput?.click()}
-						class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100"
-					>
-						<Upload class="h-4 w-4" />
-						Import settings…
-					</button>
-					<input
-						bind:this={fileInput}
-						type="file"
-						accept="application/json,.json"
-						class="hidden"
-						onchange={onImportFile}
-					/>
-					<p class="mt-1 text-xs text-n-500">
-						Overwrites matching settings in this browser, then reloads. Other data (caches) is kept.
-					</p>
-				</div>
-
-				{#if hasOpml}
-					<div class="border-t border-n-100 pt-4">
-						<h4 class="mb-1 text-sm font-medium text-n-700">Subscriptions (OPML)</h4>
-						<p class="mb-3 text-xs text-n-500">
-							Your categories and feeds as an OPML file — the format every reader exchanges. Importing subscribes to
-							each feed in the file (folders become categories, feeds you already have are skipped); the entries
-							arrive with the next fetch.
-						</p>
-						<div class="flex flex-wrap items-center gap-3">
-							<button
-								type="button"
-								onclick={exportOpml}
-								class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100"
-							>
-								<Rss class="h-4 w-4" />
-								Export OPML
-							</button>
-							<button
-								type="button"
-								onclick={() => opmlInput?.click()}
-								disabled={opmlBusy}
-								class="inline-flex items-center gap-1.5 rounded-md border border-n-300 px-4 py-2 text-sm text-n-700 hover:bg-n-100 disabled:opacity-50"
-							>
-								{#if opmlBusy}<RotateCw class="h-4 w-4 animate-spin" />{:else}<Upload class="h-4 w-4" />{/if}
-								Import OPML…
-							</button>
-							<input bind:this={opmlInput} type="file" accept=".opml,.xml,text/xml,application/xml,text/x-opml" class="hidden" onchange={onOpmlFile} />
-						</div>
-						{#if opmlError}
-							<p class="mt-2 text-xs text-danger">{opmlError}</p>
-						{/if}
-						{#if opmlReport}
-							{#if opmlReport.added !== undefined}
-								<p class="mt-2 text-xs {opmlReport.added > 0 ? 'text-success' : 'text-n-600'}">
-									Added {opmlReport.added}{opmlReport.categoriesCreated ? ` (${opmlReport.categoriesCreated} new categories)` : ''}{opmlReport.exists ? `, already subscribed ${opmlReport.exists}` : ''}{opmlReport.invalid ? `, invalid URL ${opmlReport.invalid}` : ''}{opmlReport.limit ? `, over the plan's feed limit ${opmlReport.limit}` : ''}.
-								</p>
-								{#if opmlReport.rows?.some((r) => r.status !== 'added')}
-									<ul class="mt-1 max-h-40 overflow-y-auto text-xs text-n-500">
-										{#each opmlReport.rows.filter((r) => r.status !== 'added') as r (r.xmlUrl)}
-											<li class="truncate"><span class="text-n-400">{r.status}</span> · {r.title} <span class="text-n-400">{r.xmlUrl}</span></li>
-										{/each}
-									</ul>
-								{/if}
-							{:else}
-								<p class="mt-2 text-xs text-success">{opmlReport.message ?? 'Imported.'}</p>
-							{/if}
-						{/if}
-					</div>
-				{/if}
 			</div>
-		</section>
-	</div>
+
+			<div class="border-t border-n-200 pt-5">
+				<div class="mb-2.5 text-xs font-semibold uppercase tracking-[0.06em] text-n-500">Import</div>
+				<button type="button" onclick={() => fileInput?.click()} class={secondaryBtn}>
+					<Upload size={14} />
+					Import settings…
+				</button>
+				<input
+					bind:this={fileInput}
+					type="file"
+					accept="application/json,.json"
+					class="hidden"
+					onchange={onImportFile}
+				/>
+				<p class="mt-2 text-xs text-n-500">
+					Overwrites matching settings in this browser, then reloads. Other data (caches) is kept.
+				</p>
+			</div>
+
+			{#if hasOpml}
+				<div class="border-t border-n-200 pt-5">
+					<div class="mb-1 text-xs font-semibold uppercase tracking-[0.06em] text-n-500">Subscriptions (OPML)</div>
+					<p class="mb-3 text-xs text-n-500 text-pretty">
+						Your categories and feeds as an OPML file — the format every reader exchanges. Importing subscribes to
+						each feed in the file (folders become categories, feeds you already have are skipped); the entries
+						arrive with the next fetch.
+					</p>
+					<div class="flex flex-wrap items-center gap-2.5">
+						<button type="button" onclick={exportOpml} class={secondaryBtn}>
+							<Rss size={14} />
+							Export OPML
+						</button>
+						<button
+							type="button"
+							onclick={() => opmlInput?.click()}
+							class="{secondaryBtn} {opmlBusy ? 'pointer-events-none' : ''}"
+						>
+							{#if opmlBusy}<RotateCw size={14} class="animate-spin" />{:else}<Upload size={14} />{/if}
+							{opmlBusy ? 'Importing…' : 'Import OPML…'}
+						</button>
+						<input bind:this={opmlInput} type="file" accept=".opml,.xml,text/xml,application/xml,text/x-opml" class="hidden" onchange={onOpmlFile} />
+					</div>
+					{#if opmlError}
+						<p class="mt-2 text-xs text-danger">{opmlError}</p>
+					{/if}
+					{#if opmlReport}
+						{#if opmlReport.added !== undefined}
+							<p class="mt-2 text-xs {opmlReport.added > 0 ? 'text-success' : 'text-n-600'}">
+								Added {opmlReport.added}{opmlReport.categoriesCreated ? ` (${opmlReport.categoriesCreated} new categories)` : ''}{opmlReport.exists ? `, already subscribed ${opmlReport.exists}` : ''}{opmlReport.invalid ? `, invalid URL ${opmlReport.invalid}` : ''}{opmlReport.limit ? `, over the plan's feed limit ${opmlReport.limit}` : ''}.
+							</p>
+							{#if opmlReport.rows?.some((r) => r.status !== 'added')}
+								<ul class="mt-1 max-h-40 overflow-y-auto text-xs text-n-500">
+									{#each opmlReport.rows.filter((r) => r.status !== 'added') as r (r.xmlUrl)}
+										<li class="truncate"><span class="text-n-400">{r.status}</span> · {r.title} <span class="text-n-400">{r.xmlUrl}</span></li>
+									{/each}
+								</ul>
+							{/if}
+						{:else}
+							<p class="mt-2 text-xs text-success">{opmlReport.message ?? 'Imported.'}</p>
+						{/if}
+					{/if}
+				</div>
+			{/if}
+		</div>
+	</section>
 </div>

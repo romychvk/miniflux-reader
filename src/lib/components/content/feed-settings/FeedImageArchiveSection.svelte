@@ -3,9 +3,9 @@
 		$props();
 </script>
 
-<section class:hidden={!active} class="rounded-lg border border-n-100 shadow-xl bg-surface p-5">
-	<h3 class="mb-4 text-sm font-semibold uppercase tracking-wide text-n-500">Image Archive</h3>
-	<p class="mb-4 text-xs text-n-500">
+<section class:hidden={!active} class="rounded-xl bg-surface px-8 py-7 shadow-card max-md:px-5 max-md:py-5">
+	<h3 class="mb-0.5 text-base font-bold text-n-900">Image Archive</h3>
+	<p class="mb-4.5 text-[12.5px] text-n-500 text-pretty">
 		Download this feed's images to the reader's own server as its entries arrive, and serve them
 		from there. Sources can stop handing their pictures to a third-party page at any time — hotlink
 		protection, a bot challenge, or the image simply being deleted — and by then the article is

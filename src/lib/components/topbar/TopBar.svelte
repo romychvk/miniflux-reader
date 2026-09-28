@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Menu, Circle, Check, ChevronDown, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, CheckCheck, RotateCw, Search, X, ExternalLink, Filter } from 'lucide-svelte';
+	import { Menu, ArrowLeft, Circle, Check, ChevronDown, List, LayoutList, LayoutGrid, EllipsisVertical, Pencil, CheckCheck, RotateCw, Search, X, ExternalLink, Filter } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import type { LayoutMode } from '$lib/layoutMode';
 	import { entries } from '$lib/stores/entries.svelte';
@@ -208,14 +208,40 @@
 
 <svelte:document onclick={viewDropdownOpen ? handleClickOutside : undefined} onkeydown={onGlobalKeydown} />
 
-<header class="h-13 border-b border-nb-200 bg-navbar text-nb-900 flex items-center pl-4 md:pl-5 pr-2 md:pr-3 gap-2 md:gap-2.5 shrink-0">
+<header class="h-13 border-b border-nb-200 bg-navbar text-nb-900 flex items-center {isSettingsView ? 'pl-3 pr-3 gap-2.5' : 'pl-4 md:pl-5 pr-2 md:pr-3 gap-2 md:gap-2.5'} shrink-0">
 	{#if ui.isMobile}
 		<button onclick={() => ui.toggleSidebar()} class="text-nb-600 hover:text-nb-900 mr-0.5">
 			<Menu size={20} />
 		</button>
 	{/if}
 
-	{#if isFullView}
+	{#if isSettingsView}
+		<!-- Feed settings: back to the feed, what is being edited, close. Save/Discard live under the
+		     settings card, never here. -->
+		<button
+			onclick={() => history.back()}
+			title="Back to feed"
+			aria-label="Back to feed"
+			class="size-8 shrink-0 grid place-items-center rounded-lg text-nb-600 transition-colors hover:bg-nb-200/60 hover:text-nb-900"
+		>
+			<ArrowLeft size={18} strokeWidth={2} />
+		</button>
+		<div class="flex items-center gap-3 flex-1 min-w-0">
+			{#if backIcon}
+				<img src={backIcon} alt="" class="size-5 rounded-[4px] shrink-0" />
+			{/if}
+			<span class="truncate text-lg font-bold tracking-[-0.01em]">{backTitle}</span>
+			<span class="shrink-0 pt-0.5 text-[13px] text-nb-500 max-sm:hidden">Edit feed</span>
+		</div>
+		<button
+			onclick={() => history.back()}
+			title="Close settings"
+			aria-label="Close settings"
+			class="size-9 shrink-0 grid place-items-center rounded-full text-nb-600 transition-colors hover:bg-nb-200/60 hover:text-nb-900"
+		>
+			<X size={22} />
+		</button>
+	{:else if isFullView}
 		<div class="group flex items-center gap-3 flex-1 min-w-0">
 			<button onclick={() => history.back()} class="max-w-fit hover:underline flex gap-3 items-center text-lg font-bold tracking-[-0.01em] truncate min-w-0">
 				{#if backIcon}
