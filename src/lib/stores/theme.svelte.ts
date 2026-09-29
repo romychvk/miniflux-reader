@@ -112,9 +112,12 @@ function createTheme() {
 		applyCurrent();
 	}
 
-	/** Rail button: light → dark → system → light. */
-	function cycleMode() {
-		setMode(modePref === 'light' ? 'dark' : modePref === 'dark' ? 'system' : 'light');
+	/** Rail button: every click flips what is on screen. Landing on what the OS shows anyway
+	 *  means "system" — a plain light → dark → system cycle had a click that changed nothing
+	 *  (system and light look the same on a light OS). */
+	function toggleMode() {
+		const next: Mode = effectiveMode === 'dark' ? 'light' : 'dark';
+		setMode(next === (systemDark ? 'dark' : 'light') ? 'system' : next);
 	}
 
 	function persistCustom() {
@@ -180,7 +183,7 @@ function createTheme() {
 		init,
 		setTheme,
 		setMode,
-		cycleMode,
+		toggleMode,
 		saveCustom,
 		deleteCustom,
 		preview,

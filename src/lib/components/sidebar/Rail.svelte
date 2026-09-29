@@ -19,11 +19,11 @@
 	const isStarred = $derived(routeId === '/(app)/starred');
 	const isSettings = $derived(routeId === '/(app)/settings');
 
-	// Cycles light → dark → system; the icon shows what is on screen, the title the preference.
+	// Flips the mode on screen (see theme.toggleMode); the icon shows what is on screen, the title the preference.
 	const ModeIcon = $derived(theme.effectiveMode === 'dark' ? Moon : Sun);
 	const modeTitle = $derived(
 		`Theme: ${theme.modePref === 'system' ? `system (${theme.effectiveMode})` : theme.modePref} — click for ${
-			theme.modePref === 'light' ? 'dark' : theme.modePref === 'dark' ? 'system' : 'light'
+			theme.effectiveMode === 'dark' ? 'light' : 'dark'
 		}`
 	);
 
@@ -106,7 +106,7 @@
 	<span class="flex-1"></span>
 	<button
 		type="button"
-		onclick={theme.cycleMode}
+		onclick={theme.toggleMode}
 		title={modeTitle}
 		aria-label={modeTitle}
 		class="grid place-items-center size-10 rounded-[10px] transition-colors hover:bg-rail-strong/16 hover:text-rail-strong"
