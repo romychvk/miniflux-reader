@@ -2,10 +2,11 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Bookmark, House, LogOut, Monitor, Rss, Settings } from 'lucide-svelte';
+	import { Bookmark, House, LogOut, Monitor, Moon, Rss, Settings, Sun } from 'lucide-svelte';
 	import { backend } from '$lib/backend';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
+	import { theme } from '$lib/stores/theme.svelte';
 
 	// The desktop rail: app-level destinations (All, Bookmarks, Settings) and the account, kept out
 	// of the feed tree so the tree is only feeds. Mobile keeps the drawer, which carries all of
@@ -17,6 +18,14 @@
 	const isAll = $derived(routeId === '/(app)');
 	const isStarred = $derived(routeId === '/(app)/starred');
 	const isSettings = $derived(routeId === '/(app)/settings');
+
+	// Cycles light → dark → system; the icon shows what is on screen, the title the preference.
+	const ModeIcon = $derived(theme.effectiveMode === 'dark' ? Moon : Sun);
+	const modeTitle = $derived(
+		`Theme: ${theme.modePref === 'system' ? `system (${theme.effectiveMode})` : theme.modePref} — click for ${
+			theme.modePref === 'light' ? 'dark' : theme.modePref === 'dark' ? 'system' : 'light'
+		}`
+	);
 
 	const serverHost = $derived.by(() => {
 		try {
@@ -95,6 +104,15 @@
 	{@render railLink('/', allUnread > 0 ? `All · ${allUnread}` : 'All', isAll, House)}
 	{@render railLink('/starred', 'Bookmarks', isStarred, Bookmark)}
 	<span class="flex-1"></span>
+	<button
+		type="button"
+		onclick={theme.cycleMode}
+		title={modeTitle}
+		aria-label={modeTitle}
+		class="grid place-items-center size-10 rounded-[10px] transition-colors hover:bg-rail-strong/16 hover:text-rail-strong"
+	>
+		<ModeIcon size={20} strokeWidth={2} />
+	</button>
 	{@render railLink('/settings', 'Settings', isSettings, Settings)}
 	<button
 		bind:this={avatarEl}

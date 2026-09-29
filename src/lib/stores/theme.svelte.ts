@@ -1,33 +1,60 @@
 import { storageGet, storageGetString, storageSet } from '$lib/storage';
-import { PRESETS, resolveThemeCss, type Theme } from '$lib/themes';
+import {
+	PRESETS,
+	RETIRED_PRESETS,
+	resolveThemeCss,
+	variantFor,
+	type Mode,
+	type ModePref,
+	type Theme,
+} from '$lib/themes';
 
 const THEME_KEY = 'theme';
+const MODE_KEY = 'themeMode';
 const CUSTOM_KEY = 'customThemes';
-// Resolved vars of the active theme, applied pre-paint by the app.html script.
+// Resolved vars of the active theme, applied pre-paint by the app.html script:
+// { mode, vars } for the variant showing now, plus — when a paired theme follows the
+// system — `sys: { light, dark }` so the script can pick by prefers-color-scheme itself.
 const VARS_KEY = 'themeVars';
+const DEFAULT_ID = 'indigo';
+
+const isModePref = (v: unknown): v is ModePref => v === 'light' || v === 'dark' || v === 'system';
 
 function createTheme() {
-	let current = $state<string>('default');
+	let current = $state<string>(DEFAULT_ID);
 	let custom = $state<Theme[]>([]);
+	let modePref = $state<ModePref>('system');
+	let systemDark = $state(false);
 
 	const all = $derived<readonly Theme[]>([...PRESETS, ...custom]);
+	const effectiveMode = $derived<Mode>(modePref === 'system' ? (systemDark ? 'dark' : 'light') : modePref);
 
 	function find(id: string): Theme | undefined {
 		return PRESETS.find((p) => p.id === id) ?? custom.find((c) => c.id === id);
 	}
 
-	function applyVars(mode: 'light' | 'dark', vars: Record<string, string>) {
+	function applyVars(mode: Mode, vars: Record<string, string>) {
 		const s = document.documentElement.style;
 		for (const [k, v] of Object.entries(vars)) s.setProperty('--' + k, v);
 		// Native scrollbars / form controls follow the theme
 		s.colorScheme = mode;
 	}
 
+	function payload(t: Theme, mode: Mode) {
+		const v = variantFor(t, mode);
+		return { mode: v.inputs.mode, vars: resolveThemeCss(v) };
+	}
+
 	function applyCurrent() {
 		const t = find(current) ?? PRESETS[0];
-		const vars = resolveThemeCss(t);
-		applyVars(t.inputs.mode, vars);
-		storageSet(VARS_KEY, { mode: t.inputs.mode, vars });
+		const now = payload(t, effectiveMode);
+		applyVars(now.mode, now.vars);
+		storageSet(
+			VARS_KEY,
+			modePref === 'system' && t.dark
+				? { ...now, sys: { light: payload(t, 'light'), dark: payload(t, 'dark') } }
+				: now
+		);
 	}
 
 	function init() {
@@ -39,10 +66,35 @@ function createTheme() {
 				t.inputs &&
 				(t.inputs.mode === 'light' || t.inputs.mode === 'dark')
 		);
-		for (const t of custom) t.overrides ??= {};
+		for (const t of custom) {
+			t.overrides ??= {};
+			if (t.dark) t.dark.overrides ??= {};
+		}
 
-		const saved = storageGetString(THEME_KEY);
-		current = saved && find(saved) ? saved : 'default';
+		const savedMode = storageGetString(MODE_KEY);
+		modePref = isModePref(savedMode) ? savedMode : 'system';
+
+		let saved = storageGetString(THEME_KEY);
+		// Presets that became light/dark pairs: move to the successor palette (the old Dark
+		// preset also meant "dark mode", unless a mode was chosen since).
+		const retired = saved ? RETIRED_PRESETS[saved] : undefined;
+		if (retired && !find(saved!)) {
+			saved = retired.id;
+			storageSet(THEME_KEY, saved);
+			if (retired.mode && !isModePref(savedMode)) {
+				modePref = retired.mode;
+				storageSet(MODE_KEY, modePref);
+			}
+		}
+		current = saved && find(saved) ? saved : DEFAULT_ID;
+
+		const mq = window.matchMedia('(prefers-color-scheme: dark)');
+		systemDark = mq.matches;
+		mq.addEventListener('change', (e) => {
+			systemDark = e.matches;
+			if (modePref === 'system') applyCurrent();
+		});
+
 		// Also heals a stale/missing themeVars (e.g. right after a settings import)
 		applyCurrent();
 	}
@@ -52,6 +104,17 @@ function createTheme() {
 		current = id;
 		storageSet(THEME_KEY, id);
 		applyCurrent();
+	}
+
+	function setMode(pref: ModePref) {
+		modePref = pref;
+		storageSet(MODE_KEY, pref);
+		applyCurrent();
+	}
+
+	/** Rail button: light → dark → system → light. */
+	function cycleMode() {
+		setMode(modePref === 'light' ? 'dark' : modePref === 'dark' ? 'system' : 'light');
 	}
 
 	function persistCustom() {
@@ -69,12 +132,14 @@ function createTheme() {
 	function deleteCustom(id: string) {
 		custom = custom.filter((c) => c.id !== id);
 		persistCustom();
-		if (current === id) setTheme('default');
+		if (current === id) setTheme(DEFAULT_ID);
 	}
 
-	/** Editor live preview — applies a draft theme without persisting anything. */
+	/** Editor live preview — applies the variant of a draft theme that matches the current
+	 *  mode, without persisting anything. */
 	function preview(t: Theme) {
-		applyVars(t.inputs.mode, resolveThemeCss(t));
+		const p = payload(t, effectiveMode);
+		applyVars(p.mode, p.vars);
 	}
 
 	/** Restore the persisted current theme after a cancelled/finished preview. */
@@ -82,7 +147,10 @@ function createTheme() {
 		// No fallback here: if the current id can't be resolved (transient state
 		// during a save), keeping the previewed vars beats flashing the default.
 		const t = find(current);
-		if (t) applyVars(t.inputs.mode, resolveThemeCss(t));
+		if (t) {
+			const p = payload(t, effectiveMode);
+			applyVars(p.mode, p.vars);
+		}
 	}
 
 	function newId(): string {
@@ -102,8 +170,17 @@ function createTheme() {
 		get all() {
 			return all;
 		},
+		get modePref() {
+			return modePref;
+		},
+		/** light / dark after resolving `system` against the OS setting. */
+		get effectiveMode() {
+			return effectiveMode;
+		},
 		init,
 		setTheme,
+		setMode,
+		cycleMode,
 		saveCustom,
 		deleteCustom,
 		preview,

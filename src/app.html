@@ -11,11 +11,16 @@
 		<title>Miniflux Reader</title>
 		<!-- Anti-FOUC: apply the active theme's resolved CSS variables before first paint.
 		     The theme store rewrites 'themeVars' on every init/switch/save; absent or
-		     corrupt data degrades to the :root fallback palette in app.css. -->
+		     corrupt data degrades to the :root fallback palette in app.css. A paired
+		     theme following the OS carries both variants in 'sys' — pick by the OS now. -->
 		<script nonce="%sveltekit.nonce%">
 			(function () {
 				try {
 					var d = JSON.parse(localStorage.getItem('themeVars') || 'null');
+					if (d && d.sys) {
+						var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+						d = d.sys[dark ? 'dark' : 'light'] || d;
+					}
 					if (d && d.vars) {
 						var s = document.documentElement.style;
 						for (var k in d.vars) s.setProperty('--' + k, String(d.vars[k]));

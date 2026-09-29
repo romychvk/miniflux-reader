@@ -9,7 +9,7 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { refresh } from '$lib/stores/refresh.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
-	import { resolveTheme } from '$lib/themes';
+	import { swatchOf } from '$lib/themes';
 	import { makeFeedSlug } from '$lib/slug';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
@@ -451,7 +451,7 @@
 							<div class="{sectionLabel}">Theme</div>
 							<div class="px-2.5 pt-1.5 pb-2 flex flex-wrap gap-3">
 								{#each theme.all as t (t.id)}
-									{@const swatch = resolveTheme(t)}
+									{@const swatch = swatchOf(t)}
 									<button
 										onclick={() => theme.setTheme(t.id)}
 										class="flex size-9 overflow-hidden rounded-full transition-shadow {theme.current === t.id
@@ -461,8 +461,9 @@
 										aria-label="{t.label} theme"
 										aria-pressed={theme.current === t.id}
 									>
-										<span class="block w-1/2 h-full" style="background:{swatch['n-200']}"></span>
-										<span class="block w-1/2 h-full" style="background:{swatch['a-600']}"></span>
+										{#each swatch as color, i (i)}
+											<span class="block flex-1 h-full" style="background:{color}"></span>
+										{/each}
 									</button>
 								{/each}
 							</div>
