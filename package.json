@@ -32,6 +32,7 @@
   "dependencies": {
     "cheerio": "^1.2.0",
     "dompurify": "^3.2.4",
+    "iconv-lite": "^0.7.3",
     "ipaddr.js": "^2.2.0",
     "lucide-svelte": "^0.474.0"
   },

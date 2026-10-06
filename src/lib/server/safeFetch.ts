@@ -6,6 +6,7 @@ import type { IncomingMessage } from 'node:http';
 import type { Readable } from 'node:stream';
 import { lookup as dnsLookupCb } from 'node:dns';
 import ipaddr from 'ipaddr.js';
+import { decodeTextBytes } from './charset';
 
 // Guarded fetch for arbitrary user-supplied URLs (the fetch-page / og-image / rss-bridge
 // endpoints). It is NOT for Miniflux-targeted requests (proxy, /v1/me) — those are pinned to
@@ -80,7 +81,7 @@ export interface SafeFetchOptions {
 	// is returned as `location` and its destination is never fetched. Each hop is still address-
 	// validated before this point, so a false value never skips an SSRF check.
 	followRedirects?: boolean;
-	// Default false (the body is decoded as utf-8 text). Set true for binary payloads — images
+	// Default false (the body is decoded as text: BOM, header charset, <meta>/XML label, utf-8). Set true for binary payloads — images
 	// for the archive — and read `bytes` instead of `body`. The byte cap applies identically.
 	asBytes?: boolean;
 }
@@ -241,11 +242,12 @@ export async function safeFetch(rawUrl: string, opts: SafeFetchOptions): Promise
 			throw classifyError(e);
 		}
 		const ct = res.headers['content-type'];
+		const contentType = (Array.isArray(ct) ? ct[0] : ct) ?? null;
 		return {
 			status,
 			ok: status >= 200 && status < 300,
-			contentType: (Array.isArray(ct) ? ct[0] : ct) ?? null,
-			body: asBytes ? '' : bytes.toString('utf-8'),
+			contentType,
+			body: asBytes ? '' : decodeTextBytes(bytes, contentType).text,
 			...(asBytes ? { bytes } : {})
 		};
 	}
