@@ -6,7 +6,7 @@
 	import FeedItem from './FeedItem.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
-	import { ChevronRight, ChevronDown, Pencil, RotateCw, Plus } from 'lucide-svelte';
+	import { ChevronRight, ChevronDown, Pencil, RotateCw, Plus, ArrowDownAZ } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { makeFeedSlug } from '$lib/slug';
 	import { storageGet, storageSet } from '$lib/storage';
@@ -223,7 +223,8 @@
 			{ label: 'Refresh Feeds', icon: RotateCw, action: () => {
 				const cat = feeds.feedTree.find(n => n.id === contextMenu!.catId);
 				if (cat) void refresh.refreshNode(cat);
-			}}
+			}},
+			{ label: 'Sort Feeds A–Z', icon: ArrowDownAZ, action: () => feeds.sortFeedsAlphabetically(contextMenu!.catId) }
 		]}
 		onclose={() => { contextMenu = null; }}
 	/>

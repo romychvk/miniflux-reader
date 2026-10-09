@@ -192,6 +192,19 @@ function createFeedsStore() {
 		persistOrder(feedTree);
 	}
 
+	// Locale-aware, case-insensitive, numbers in natural order ("Feed 2" before "Feed 10").
+	function sortFeedsAlphabetically(catId: number) {
+		const cat = feedTree.find(n => n.id === catId);
+		if (!cat?.children || cat.children.length < 2) return;
+
+		cat.children.sort((a, b) =>
+			a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true })
+		);
+		feedTree = [...feedTree];
+		rebuildFeedIndex();
+		persistOrder(feedTree);
+	}
+
 	function reorderCategory(catId: number, newIndex: number) {
 		// offset by 1 for "All" node at index 0
 		const oldIndex = feedTree.findIndex(n => n.id === catId);
@@ -465,6 +478,7 @@ function createFeedsStore() {
 		setFeedIcon,
 		updateCounters,
 		reorderFeed,
+		sortFeedsAlphabetically,
 		reorderCategory,
 		moveFeedToCategory,
 		allFeedNodes,
