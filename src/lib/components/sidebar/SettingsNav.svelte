@@ -1,15 +1,10 @@
 <script lang="ts">
-	import { ArrowLeft, Palette, Bot, Archive } from 'lucide-svelte';
-	import { appSettings, APP_SETTINGS_SECTIONS, type AppSettingsSectionId } from '$lib/stores/appSettings.svelte';
+	import { ArrowLeft } from 'lucide-svelte';
+	import { appSettings, APP_SETTINGS_SECTIONS, APP_SETTINGS_ICONS as icons } from '$lib/stores/appSettings.svelte';
 	import { settingsSync } from '$lib/settingsSync.svelte';
 
 	// Stands in for the feed tree while /settings is open — same column, same width, so nothing
 	// shifts between the reader and settings.
-	const icons: Record<AppSettingsSectionId, typeof Palette> = {
-		appearance: Palette,
-		ai: Bot,
-		backup: Archive
-	};
 
 	const groups = [...new Set(APP_SETTINGS_SECTIONS.map((s) => s.group))];
 </script>

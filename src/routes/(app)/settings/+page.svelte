@@ -7,7 +7,7 @@
 	import { aiConfig } from '$lib/stores/aiConfig.svelte';
 	import { authedFetch } from '$lib/api';
 	import { ui } from '$lib/stores/ui.svelte';
-	import { appSettings, APP_SETTINGS_SECTIONS } from '$lib/stores/appSettings.svelte';
+	import { appSettings, APP_SETTINGS_SECTIONS, APP_SETTINGS_ICONS } from '$lib/stores/appSettings.svelte';
 	import { exportSettings, importSettings } from '$lib/settingsBackup';
 	import { settingsSync } from '$lib/settingsSync.svelte';
 	import AppearanceSection from '$lib/components/settings/AppearanceSection.svelte';
@@ -202,17 +202,21 @@
 <div class="flex w-full max-w-200 flex-col gap-5 px-10 py-9 max-md:px-3 max-md:py-4">
 	{#if ui.isMobile}
 		<!-- The tabs share their row with the floating Close button — keep clear of it. -->
-		<ul class="flex gap-1 overflow-x-auto pr-11 [scrollbar-width:none]">
+		<!-- Same tabs as Feed Settings' on a phone: icon + label. -->
+		<ul class="flex gap-0.5 overflow-x-auto pr-11 [scrollbar-width:none]">
 			{#each APP_SETTINGS_SECTIONS as item (item.id)}
+				{@const Icon = APP_SETTINGS_ICONS[item.id]}
+				{@const active = activeSection === item.id}
 				<li class="shrink-0">
 					<button
 						type="button"
 						onclick={() => (appSettings.section = item.id)}
-						class="h-8.5 whitespace-nowrap rounded-lg px-3 text-[13.5px] transition-colors {activeSection === item.id
+						aria-current={active ? 'page' : undefined}
+						class="flex h-9 items-center gap-2.5 whitespace-nowrap rounded-lg px-2.5 text-[13.5px] transition-colors {active
 							? 'bg-a-600/12 font-[650] text-a-700'
-							: 'text-n-700 hover:bg-n-200/60'}"
+							: 'font-[450] text-n-700 hover:bg-n-200/60'}"
 					>
-						{item.label}
+						<Icon size={16} class="shrink-0 {active ? '' : 'text-n-500'}" />{item.label}
 					</button>
 				</li>
 			{/each}
