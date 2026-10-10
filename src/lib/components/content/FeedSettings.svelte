@@ -443,7 +443,7 @@
 <div class="flex w-full flex-col gap-7 py-6 pl-5 pr-6 md:flex-row max-md:gap-4 max-md:px-2 max-md:py-4">
 	<!-- Section navigation: a column on desktop, horizontal tabs on mobile -->
 	<nav
-		class="flex shrink-0 gap-0.5 md:sticky md:top-6 md:w-58 md:flex-col md:self-start max-md:overflow-x-auto max-md:[scrollbar-width:none]"
+		class="flex shrink-0 gap-0.5 md:sticky md:top-6 md:w-58 md:flex-col md:self-start flex-wrap gap-y-1"
 	>
 		{#each navItems as item (item.id)}
 			{@const active = activeSection === item.id}

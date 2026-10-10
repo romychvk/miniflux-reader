@@ -203,7 +203,7 @@
 	{#if ui.isMobile}
 		<!-- The tabs share their row with the floating Close button — keep clear of it. -->
 		<!-- Same tabs as Feed Settings' on a phone: icon + label. -->
-		<ul class="flex gap-0.5 overflow-x-auto pr-11 [scrollbar-width:none]">
+		<ul class="flex gap-1 overflow-x-auto pr-11 flex-wrap">
 			{#each APP_SETTINGS_SECTIONS as item (item.id)}
 				{@const Icon = APP_SETTINGS_ICONS[item.id]}
 				{@const active = activeSection === item.id}
@@ -212,7 +212,7 @@
 						type="button"
 						onclick={() => (appSettings.section = item.id)}
 						aria-current={active ? 'page' : undefined}
-						class="flex h-9 items-center gap-2.5 whitespace-nowrap rounded-lg px-2.5 text-[13.5px] transition-colors {active
+						class="flex max-md:border max-md:border-n-300 h-9 items-center gap-2.5 whitespace-nowrap rounded-lg px-2.5 text-[13.5px] transition-colors {active
 							? 'bg-a-600/12 font-[650] text-a-700'
 							: 'font-[450] text-n-700 hover:bg-n-200/60'}"
 					>
