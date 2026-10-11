@@ -281,8 +281,9 @@
 	async function persistChanges(changes: FeedUpdate) {
 		if (Object.keys(changes).length > 0) await feeds.updateFeed(feed.id, changes);
 		// Always save the RSS-Bridge config — disabled-state param edits don't touch feed_url.
-		// (Not for page feeds: their URL is the config, and a bridge entry would be bogus.)
-		if (!isPageFeed) {
+		// (Not for page feeds: their URL is the config, and a bridge entry would be bogus. Nor
+		// without the RSS-Bridge tab: there is nothing the user could have set.)
+		if (!isPageFeed && caps().rssBridge) {
 			const rssConfig: RssBridgeConfig = {
 				instance: rssInstance,
 				bridge: rssBridge,
