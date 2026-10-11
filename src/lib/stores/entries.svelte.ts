@@ -371,24 +371,15 @@ function createEntriesStore() {
   // Page through the current view's unread backlog and mark it read in chunks. Used for the
   // Bookmarks (starred) and search views, which have no native mark-all-as-read operation.
   async function markAllReadPaged(scope: EntryScope): Promise<void> {
-    const PAGE = 100;
     const MAX = 10000; // safety bound against a runaway sweep
     const ids: number[] = [];
-    let offset = 0;
-    let total = Infinity;
-    while (offset < total && offset < MAX) {
-      const data = await backend().listEntries(scope, {
-        search: searchQuery || undefined,
-        status: "unread",
-        limit: PAGE,
-        offset,
-      });
-      total = data.total;
-      const page = data.entries;
-      for (const e of page) ids.push(e.id);
-      offset += PAGE;
-      if (page.length < PAGE) break;
-    }
+    await scanUnread(
+      scope,
+      { search: searchQuery || undefined, max: MAX },
+      (page) => {
+        for (const e of page) ids.push(e.id);
+      },
+    );
     await bulkMarkRead(ids);
   }
 
@@ -620,24 +611,35 @@ function createEntriesStore() {
   const BACKLOG_PAGE = 100;
   const BACKLOG_MAX = 5000; // safety bound against runaway backlogs
 
-  // Walk a feed's unread entries newest-first, a page at a time.
-  async function scanUnreadBacklog(
-    feedId: number,
+  // Walk a scope's unread entries newest-first, a page at a time, stopping at `max` of them.
+  async function scanUnread(
+    scope: EntryScope,
+    opts: { search?: string; max: number },
     onPage: (page: Entry[]) => void,
   ): Promise<void> {
     let offset = 0;
     let total = Infinity;
-    while (offset < total && offset < BACKLOG_MAX) {
-      const data = await backend().listEntries(
-        { kind: "feed", id: feedId },
-        { status: "unread", limit: BACKLOG_PAGE, offset },
-      );
+    while (offset < total && offset < opts.max) {
+      const data = await backend().listEntries(scope, {
+        search: opts.search,
+        status: "unread",
+        limit: BACKLOG_PAGE,
+        offset,
+      });
       total = data.total;
       const page = data.entries;
       onPage(page);
       offset += BACKLOG_PAGE;
       if (page.length < BACKLOG_PAGE) break;
     }
+  }
+
+  // The same over one feed, for the hide-rule and dedup sweeps.
+  function scanUnreadBacklog(
+    feedId: number,
+    onPage: (page: Entry[]) => void,
+  ): Promise<void> {
+    return scanUnread({ kind: "feed", id: feedId }, { max: BACKLOG_MAX }, onPage);
   }
 
   // Apply a "mark read" rule set to a feed's whole existing unread backlog.
