@@ -95,7 +95,7 @@ npm run preview   # Preview production build
 - No Prettier/ESLint configured — use tabs for indentation in Svelte/TS files
 - Keep components small and focused
 - Prefer `$derived` over `$effect` for computed values
-- Error handling: catch in store methods, display via `ui.showError()`
+- Error handling: catch in store methods, display via `ui.showError()` — `ui.showCaught(e, fallback)` for a caught error (its own message when it has one)
 - No `client:only` directives — use `onMount` for browser-only code
 
 ## Miniflux API endpoints used
