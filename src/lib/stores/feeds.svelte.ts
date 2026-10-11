@@ -16,7 +16,6 @@ function createFeedsStore() {
 	let feedTree = $state<FeedNode[]>([]);
 	let rawFeeds = $state<Feed[]>([]);
 	let rawCategories = $state<Category[]>([]);
-	let loading = $state(false);
 	let abortController: AbortController | null = null;
 
 	// O(1) lookup indexes: feedId → FeedNode, feedId → parent category node
@@ -41,7 +40,6 @@ function createFeedsStore() {
 		abortController = new AbortController();
 		const signal = abortController.signal;
 
-		loading = true;
 		try {
 			const [feedList, counters, catList] = await Promise.all([
 				backend().listFeeds(signal),
@@ -106,8 +104,6 @@ function createFeedsStore() {
 		} catch (e) {
 			if (e instanceof DOMException && e.name === 'AbortError') return;
 			ui.showError(e instanceof Error ? e.message : 'Failed to load feeds');
-		} finally {
-			if (!signal.aborted) loading = false;
 		}
 	}
 
@@ -474,7 +470,6 @@ function createFeedsStore() {
 	return {
 		get feedTree() { return feedTree; },
 		get rawFeeds() { return rawFeeds; },
-		get loading() { return loading; },
 		loadFeeds,
 		setFeedIcon,
 		updateCounters,
