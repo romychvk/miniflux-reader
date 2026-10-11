@@ -14,27 +14,17 @@
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
 
-	const isArticleView = $derived(page.route.id?.includes('/article/') ?? false);
+	// The (app) layout renders this bar only outside the article view, so there is no article
+	// state to show here: the settings view and the list view are the two shapes.
 	const isSettingsView = $derived(page.route.id?.includes('/settings') ?? false);
-	const isFullView = $derived(isArticleView || isSettingsView);
-	const articleFeedNode = $derived(
-		ui.selectedEntry?.feed ? feeds.findFeedNodeById(ui.selectedEntry.feed.id, true) : null
-	);
 	const selectedFeedNode = $derived(
 		ui.selectedFeed?.isFeed ? ui.selectedFeed : null
 	);
 	const selectedFeedSiteUrl = $derived(
 		selectedFeedNode ? (feeds.getRawFeed(selectedFeedNode.id)?.site_url || '') : ''
 	);
-	const backIcon = $derived(isArticleView ? articleFeedNode?.iconData : selectedFeedNode?.iconData);
-	const backTitle = $derived(
-		isArticleView ? (ui.selectedEntry?.feed?.title || 'Article') : (ui.selectedFeed?.title || 'Feed')
-	);
-	const backSiteUrl = $derived(
-		isArticleView
-			? (ui.selectedEntry?.feed ? feeds.getRawFeed(ui.selectedEntry.feed.id)?.site_url || '' : '')
-			: selectedFeedSiteUrl
-	);
+	const backIcon = $derived(selectedFeedNode?.iconData);
+	const backTitle = $derived(ui.selectedFeed?.title || 'Feed');
 
 	const unreadCount = $derived(ui.selectedFeed?.unread ?? 0);
 
@@ -69,10 +59,6 @@
 		viewDropdownOpen = false;
 		if (ui.layoutMode === mode) return;
 		ui.setLayoutMode(mode);
-		// Switching to a split pane while reading pops back to the list, where that pane is what
-		// shows the article. Full-page placements (two-column, zen) are already correct — stay put.
-		// NOTE: dead today, the top bar isn't rendered on the article route; kept honest.
-		if (mode !== 'two-column' && mode !== 'zen' && isArticleView) history.back();
 	}
 
 	// composedPath() is fixed at dispatch, so a click still counts as inside even when the clicked
@@ -241,26 +227,6 @@
 		>
 			<X size={22} />
 		</button>
-	{:else if isFullView}
-		<div class="group flex items-center gap-3 flex-1 min-w-0">
-			<button onclick={() => history.back()} class="max-w-fit hover:underline flex gap-3 items-center text-lg font-bold tracking-[-0.01em] truncate min-w-0">
-				{#if backIcon}
-					<img src={backIcon} alt="" class="size-5 rounded-[4px] shrink-0" />
-				{/if}
-				<span class="truncate">{backTitle}</span>
-			</button>
-			{#if backSiteUrl}
-				<a
-					href={backSiteUrl}
-					target="_blank"
-					rel="noopener noreferrer"
-					title="Open site"
-					class="shrink-0 text-nb-500 hover:text-nb-800 opacity-0 group-hover:opacity-100 transition-opacity"
-				>
-					<ExternalLink size={16} />
-				</a>
-			{/if}
-		</div>
 	{:else}
 		{#if !(ui.isMobile && searchOpen)}
 			<div class="group flex-1 min-w-5.5 flex gap-2.5 items-center">
