@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { X, RotateCw, ChevronLeft, ChevronRight, Ban, Bookmark, Check, Circle, Ellipsis, ExternalLink, Expand, Shrink } from 'lucide-svelte';
 	import { goto, onNavigate } from '$app/navigation';
 	import type { Entry } from '$lib/types';
@@ -212,8 +213,9 @@
 		coverFailed = { key, count: (coverFailed.key === key ? coverFailed.count : 0) + 1 };
 	}
 
+	// Untracked like EntryRow's: the store reads rules and other entries on the way.
 	$effect(() => {
-		if (!entry._thumbnailUrl && entry.url) entries.ensureThumbnail(entry);
+		if (!entry._thumbnailUrl && entry.url) untrack(() => entries.ensureThumbnail(entry));
 	});
 
 	function openCover() {

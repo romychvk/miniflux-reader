@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import type { Entry } from '$lib/types';
 	import { entries } from '$lib/stores/entries.svelte';
@@ -151,12 +151,14 @@
 	}
 
 	// In image-bearing views, fall back to the article's og:image when content + enclosure
-	// gave us nothing. Lazy + cached in the store, so this is a no-op once resolved.
+	// gave us nothing. Lazy + cached in the store, so this is a no-op once resolved. The call is
+	// untracked: ensureThumbnail reads the source and cover rules and, through a source's
+	// prime(), other rows — none of which should re-run this row's effect.
 	$effect(() => {
 		// the raw value, not the broken-filtered one: a blocked image means the whole host is
 		// unreachable to us, so chasing its og:image would only add another failing request
 		if ((viewMode === 'magazine' || viewMode === 'cards') && !entry._thumbnailUrl) {
-			entries.ensureThumbnail(entry);
+			untrack(() => entries.ensureThumbnail(entry));
 		}
 	});
 
