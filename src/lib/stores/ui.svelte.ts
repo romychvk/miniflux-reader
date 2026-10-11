@@ -136,6 +136,11 @@ function createUI() {
 		errorMessage = msg;
 	}
 
+	// A caught error: its own sentence when it has one, else the caller's.
+	function showCaught(e: unknown, fallback: string) {
+		showError(e instanceof Error ? e.message : fallback);
+	}
+
 	function clearError() {
 		errorMessage = '';
 	}
@@ -280,6 +285,7 @@ function createUI() {
 		toggleSidebar,
 		setMobile,
 		showError,
+		showCaught,
 		clearError,
 		showSuccess,
 		clearSuccess,

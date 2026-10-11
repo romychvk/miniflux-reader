@@ -103,7 +103,7 @@ function createFeedsStore() {
 			loadIcons(feedList, signal);
 		} catch (e) {
 			if (e instanceof DOMException && e.name === 'AbortError') return;
-			ui.showError(e instanceof Error ? e.message : 'Failed to load feeds');
+			ui.showCaught(e, 'Failed to load feeds');
 		}
 	}
 
@@ -243,7 +243,7 @@ function createFeedsStore() {
 			sourceCat.children.splice(feedIdx, 0, feed);
 			sourceCat.unread += feed.unread;
 			commitOrder();
-			ui.showError(e instanceof Error ? e.message : 'Failed to move feed');
+			ui.showCaught(e, 'Failed to move feed');
 		}
 	}
 
@@ -312,7 +312,7 @@ function createFeedsStore() {
 			await loadFeeds();
 			return cat;
 		} catch (e) {
-			ui.showError(e instanceof Error ? e.message : 'Failed to create category');
+			ui.showCaught(e, 'Failed to create category');
 			throw e;
 		}
 	}
@@ -323,7 +323,7 @@ function createFeedsStore() {
 			await loadFeeds();
 			return res?.feed_id;
 		} catch (e) {
-			ui.showError(e instanceof Error ? e.message : 'Failed to create feed');
+			ui.showCaught(e, 'Failed to create feed');
 			throw e;
 		}
 	}
@@ -367,7 +367,7 @@ function createFeedsStore() {
 				if (updated) ui.selectFeed(updated);
 			}
 		} catch (e) {
-			ui.showError(e instanceof Error ? e.message : 'Failed to update feed');
+			ui.showCaught(e, 'Failed to update feed');
 			throw e;
 		}
 	}
@@ -377,7 +377,7 @@ function createFeedsStore() {
 			await backend().deleteFeed(feedId);
 			await loadFeeds();
 		} catch (e) {
-			ui.showError(e instanceof Error ? e.message : 'Failed to unsubscribe from feed');
+			ui.showCaught(e, 'Failed to unsubscribe from feed');
 			throw e;
 		}
 	}
@@ -396,7 +396,7 @@ function createFeedsStore() {
 				if (updated) ui.selectFeed(updated);
 			}
 		} catch (e) {
-			ui.showError(e instanceof Error ? e.message : 'Failed to update category');
+			ui.showCaught(e, 'Failed to update category');
 			throw e;
 		}
 	}
@@ -429,7 +429,7 @@ function createFeedsStore() {
 		try {
 			await backend().refreshFeed(feedId);
 		} catch (e) {
-			ui.showError(e instanceof Error ? e.message : 'Failed to refresh feed');
+			ui.showCaught(e, 'Failed to refresh feed');
 			throw e;
 		}
 		await loadCounters();

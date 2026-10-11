@@ -211,7 +211,7 @@ function createEntriesStore() {
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return;
-      ui.showError(e instanceof Error ? e.message : "Failed to load entries");
+      ui.showCaught(e, "Failed to load entries");
       entries = [];
     } finally {
       if (!signal.aborted) loading = false;
@@ -332,7 +332,7 @@ function createEntriesStore() {
         }
       }
     } catch (e) {
-      ui.showError(e instanceof Error ? e.message : "Failed to update status");
+      ui.showCaught(e, "Failed to update status");
     }
   }
 
@@ -362,9 +362,7 @@ function createEntriesStore() {
       }
       await feeds.loadCounters();
     } catch (e) {
-      ui.showError(
-        e instanceof Error ? e.message : "Failed to mark all as read",
-      );
+      ui.showCaught(e, "Failed to mark all as read");
     }
   }
 
@@ -391,7 +389,7 @@ function createEntriesStore() {
       const entry = entries.find((e) => e.id === entryId);
       if (entry) entry.starred = !entry.starred;
     } catch (e) {
-      ui.showError(e instanceof Error ? e.message : "Failed to update bookmark");
+      ui.showCaught(e, "Failed to update bookmark");
     }
   }
 
@@ -520,9 +518,7 @@ function createEntriesStore() {
     try {
       return await fetchAndStore(entryId);
     } catch (e) {
-      ui.showError(
-        e instanceof Error ? e.message : "Failed to re-fetch content",
-      );
+      ui.showCaught(e, "Failed to re-fetch content");
       return null;
     }
   }
