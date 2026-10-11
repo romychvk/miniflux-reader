@@ -172,6 +172,14 @@ function createFeedsStore() {
 		}
 	}
 
+	// After an order change: a fresh array so the sidebar re-renders, the indexes rebuilt over it,
+	// the order saved.
+	function commitOrder() {
+		feedTree = [...feedTree];
+		rebuildFeedIndex();
+		persistOrder(feedTree);
+	}
+
 	function reorderFeed(catId: number, feedId: number, newIndex: number) {
 		const cat = feedTree.find(n => n.id === catId);
 		if (!cat?.children) return;
@@ -183,9 +191,7 @@ function createFeedsStore() {
 		// Adjust index if we removed before the target
 		const adjustedIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
 		cat.children.splice(adjustedIndex, 0, item);
-		feedTree = [...feedTree];
-		rebuildFeedIndex();
-		persistOrder(feedTree);
+		commitOrder();
 	}
 
 	// Locale-aware, case-insensitive, numbers in natural order ("Feed 2" before "Feed 10").
@@ -196,9 +202,7 @@ function createFeedsStore() {
 		cat.children.sort((a, b) =>
 			a.title.localeCompare(b.title, undefined, { sensitivity: 'base', numeric: true })
 		);
-		feedTree = [...feedTree];
-		rebuildFeedIndex();
-		persistOrder(feedTree);
+		commitOrder();
 	}
 
 	function reorderCategory(catId: number, newIndex: number) {
@@ -209,9 +213,7 @@ function createFeedsStore() {
 		const [item] = feedTree.splice(oldIndex, 1);
 		const adjustedIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
 		feedTree.splice(adjustedIndex, 0, item);
-		feedTree = [...feedTree];
-		rebuildFeedIndex();
-		persistOrder(feedTree);
+		commitOrder();
 	}
 
 	async function moveFeedToCategory(feedId: number, sourceCatId: number, targetCatId: number, insertIndex: number) {
@@ -227,9 +229,7 @@ function createFeedsStore() {
 		sourceCat.unread -= feed.unread;
 		targetCat.children.splice(insertIndex, 0, feed);
 		targetCat.unread += feed.unread;
-		feedTree = [...feedTree];
-		rebuildFeedIndex();
-		persistOrder(feedTree);
+		commitOrder();
 
 		try {
 			await backend().updateFeed(feedId, { category_id: targetCatId });
@@ -242,9 +242,7 @@ function createFeedsStore() {
 			}
 			sourceCat.children.splice(feedIdx, 0, feed);
 			sourceCat.unread += feed.unread;
-			feedTree = [...feedTree];
-			rebuildFeedIndex();
-			persistOrder(feedTree);
+			commitOrder();
 			ui.showError(e instanceof Error ? e.message : 'Failed to move feed');
 		}
 	}
