@@ -1,4 +1,5 @@
 import type { RequestHandler } from './$types';
+import { describeRefusal } from '$lib/fetchErrors';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 import { SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
 import { UPSTREAM_FAILED, fetchSourcePage } from '$lib/server/sourcePage';
@@ -47,7 +48,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		// DoS guard on the raw read; clean()+slice below apply the real 80KB semantic cap.
 		const result = await fetchSourcePage(parsed.toString(), { maxBytes: 3_000_000 });
 		if (!result.ok) {
-			return new Response(JSON.stringify({ error: `Source returned ${result.status}` }), {
+			return new Response(JSON.stringify({ error: describeRefusal(result.status, result.body) }), {
 				status: UPSTREAM_FAILED,
 				headers: { 'Content-Type': 'application/json' }
 			});

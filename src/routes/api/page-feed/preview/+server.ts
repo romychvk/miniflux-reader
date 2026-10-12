@@ -1,4 +1,5 @@
 import type { RequestHandler } from './$types';
+import { describeRefusal } from '$lib/fetchErrors';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 import { SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
 import { clean } from '$lib/server/htmlClean';
@@ -56,7 +57,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		}
 		return json(UPSTREAM_FAILED, { error: 'Failed to fetch the page' });
 	}
-	if (!page.ok) return json(UPSTREAM_FAILED, { error: `Source returned ${page.status}` });
+	if (!page.ok) return json(UPSTREAM_FAILED, { error: describeRefusal(page.status, page.html) });
 
 	const $ = parsePage(page.html);
 	// Suggestions cost a dozen extractions over the whole page, so only on the first call

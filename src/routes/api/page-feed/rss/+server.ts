@@ -1,4 +1,5 @@
 import type { RequestHandler } from './$types';
+import { describeRefusal } from '$lib/fetchErrors';
 import { SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
 import { decodePageFeedParams } from '$lib/pageFeed';
 import { parseSignedQuery, verifyPageFeedSignature } from '$lib/server/pageFeed/sign';
@@ -49,7 +50,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		if (e instanceof SafeFetchError) return text(e.isPolicy ? 400 : UPSTREAM_FAILED, describeSafeFetchError(e));
 		return text(UPSTREAM_FAILED, 'Failed to fetch the page');
 	}
-	if (!page.ok) return text(UPSTREAM_FAILED, `Source returned ${page.status}`);
+	if (!page.ok) return text(UPSTREAM_FAILED, describeRefusal(page.status, page.html));
 
 	let result;
 	try {

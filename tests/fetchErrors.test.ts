@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { explainError, httpFailureMessage, pageWall } from '../src/lib/fetchErrors.ts';
+import { describeRefusal, explainError, httpFailureMessage, pageWall } from '../src/lib/fetchErrors.ts';
 
 test('pageWall: Cloudflare challenge page', () => {
 	const body = '<!DOCTYPE html><html><head><title>Just a moment...</title><script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1?ray=1"></script><script>window._cf_chl_opt={}</script>';
@@ -24,6 +24,13 @@ test('httpFailureMessage: the wall wins over the status', () => {
 	assert.match(httpFailureMessage(429), /try again later/);
 	assert.match(httpFailureMessage(502), /having trouble.*HTTP 502/);
 	assert.equal(httpFailureMessage(418), 'The site answered HTTP 418');
+});
+
+test('describeRefusal: what a route answers for a refused page', () => {
+	assert.equal(describeRefusal(403, '<title>Just a moment...</title>'), httpFailureMessage(403, 'cloudflare'));
+	assert.equal(describeRefusal(404, ''), httpFailureMessage(404));
+	// The route's answer reaches the toast with the client's path appended — it stays as it is.
+	assert.equal(explainError(`${describeRefusal(503, '')} (page-feed/preview)`), describeRefusal(503, ''));
 });
 
 test('explainError: Miniflux shorthand, with the API path the client appends', () => {

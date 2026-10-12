@@ -33,6 +33,12 @@ export function httpFailureMessage(status: number, wall: PageWall = null): strin
 	return `The site answered HTTP ${status}`;
 }
 
+// What a server route answers when the source page came back non-2xx: the wall read from the
+// body, else the status.
+export function describeRefusal(status: number, body: string): string {
+	return httpFailureMessage(status, pageWall(status, body));
+}
+
 // The API clients append the path they called — " (entries/22666/fetch-content)" — which says
 // nothing to a reader once the message itself is understood.
 const PATH_SUFFIX = / \([\w./-]+\)$/;

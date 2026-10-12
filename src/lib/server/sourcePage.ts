@@ -41,7 +41,7 @@ function hostOf(url: string): string | null {
 
 // What these routes answer with when the source page can't be fetched or comes back non-2xx.
 // Not 502: Cloudflare replaces an origin 502/504 with its own HTML error page, so the reason
-// ("Source returned 403") would never reach the browser — 424 passes through untouched.
+// (describeRefusal's sentence) would never reach the browser — 424 passes through untouched.
 export const UPSTREAM_FAILED = 424;
 
 export interface SourcePageOptions {

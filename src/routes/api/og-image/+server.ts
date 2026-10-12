@@ -1,4 +1,5 @@
 import type { RequestHandler } from './$types';
+import { describeRefusal } from '$lib/fetchErrors';
 import { requireMinifluxAuth } from '$lib/server/minifluxAuth';
 import { SafeFetchError, describeSafeFetchError } from '$lib/server/safeFetch';
 import { UPSTREAM_FAILED, fetchSourcePage } from '$lib/server/sourcePage';
@@ -45,7 +46,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		const result = await fetchSourcePage(parsed.toString(), {
 			maxBytes: 200_000 // og/twitter meta live in <head>
 		});
-		if (!result.ok) return fail(UPSTREAM_FAILED, `Source returned ${result.status}`);
+		if (!result.ok) return fail(UPSTREAM_FAILED, describeRefusal(result.status, result.body));
 
 		const html = result.body;
 		const raw =
