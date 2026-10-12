@@ -3,6 +3,7 @@
 	import { AlertTriangle } from 'lucide-svelte';
 	import { relaTimestamp } from '$lib/time';
 	import { normalizeLang } from '$lib/lang';
+	import { explainError } from '$lib/fetchErrors';
 	import { caps } from '$lib/backend';
 	import CategorySelect from '$lib/components/ui/CategorySelect.svelte';
 
@@ -65,7 +66,7 @@
 				Parsing errors {feed.parsing_error_count}×
 			</p>
 			{#if feed.parsing_error_message}
-				<p class="mt-1 text-[13px]">{feed.parsing_error_message}</p>
+				<p class="mt-1 text-[13px]">{explainError(feed.parsing_error_message)}</p>
 			{/if}
 		</div>
 	{/if}

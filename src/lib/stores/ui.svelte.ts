@@ -1,6 +1,7 @@
 import type { Entry, FeedNode } from '$lib/types';
 import { storageGet, storageGetString, storageSet } from '$lib/storage';
 import { migrateLegacyZen, parseLayoutMode, type LayoutMode } from '$lib/layoutMode';
+import { explainError } from '$lib/fetchErrors';
 
 const SIDEBAR_WIDTH_KEY = 'sidebarWidth';
 const DEFAULT_SIDEBAR_WIDTH = 236;
@@ -131,9 +132,10 @@ function createUI() {
 	}
 
 	// Errors persist until dismissed (X) or a page reload — they often carry a reason
-	// the user needs time to read (e.g. a failed re-fetch), unlike transient successes.
+	// the user needs time to read (e.g. a failed re-fetch), unlike transient successes. A fetch
+	// failure in a backend's shorthand is reworded here, so no caller has to remember to.
 	function showError(msg: string) {
-		errorMessage = msg;
+		errorMessage = explainError(msg);
 	}
 
 	// A caught error: its own sentence when it has one, else the caller's.
