@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Bookmark, House, LogOut, Monitor, Moon, Rss, Settings, Sun } from 'lucide-svelte';
-	import { backend } from '$lib/backend';
+	import { Bookmark, CircleHelp, House, LogOut, Monitor, Moon, Rss, Settings, Sun } from 'lucide-svelte';
+	import { backend, caps } from '$lib/backend';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { theme } from '$lib/stores/theme.svelte';
@@ -18,6 +18,9 @@
 	const isAll = $derived(routeId === '/(app)');
 	const isStarred = $derived(routeId === '/(app)/starred');
 	const isSettings = $derived(routeId === '/(app)/settings');
+	// Help (caps.helpUrl): a page of this app opens in place, an external address in a new tab.
+	const helpUrl = $derived(caps().helpUrl);
+	const helpExternal = $derived(/^https?:/.test(helpUrl ?? ''));
 
 	// Flips the mode on screen (see theme.toggleMode); the icon shows what is on screen, the title the preference.
 	const ModeIcon = $derived(theme.effectiveMode === 'dark' ? Moon : Sun);
@@ -78,12 +81,14 @@
 	}
 </script>
 
-{#snippet railLink(href: string, label: string, active: boolean, Icon: typeof House)}
+{#snippet railLink(href: string, label: string, active: boolean, Icon: typeof House, external = false)}
 	<a
 		{href}
 		title={label}
 		aria-label={label}
 		aria-current={active ? 'page' : undefined}
+		target={external ? '_blank' : undefined}
+		rel={external ? 'noopener' : undefined}
 		class="relative grid place-items-center size-10 rounded-[10px] transition-colors {active
 			? 'bg-rail-active text-rail-active-fg'
 			: 'hover:bg-rail-strong/16 hover:text-rail-strong'}"
@@ -104,6 +109,9 @@
 	{@render railLink('/', allUnread > 0 ? `All · ${allUnread}` : 'All', isAll, House)}
 	{@render railLink('/starred', 'Bookmarks', isStarred, Bookmark)}
 	<span class="flex-1"></span>
+	{#if helpUrl}
+		{@render railLink(helpUrl, 'Help', false, CircleHelp, helpExternal)}
+	{/if}
 	<button
 		type="button"
 		onclick={theme.toggleMode}

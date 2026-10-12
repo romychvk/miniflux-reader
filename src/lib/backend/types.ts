@@ -47,6 +47,10 @@ export interface BackendCapabilities {
 	// backlogs, and the "hide (mark read)" mode that keeps rules in localStorage has no reason to
 	// exist. Miniflux's rules drop the entry at download and this app emulates hiding client-side.
 	serverHideRules: boolean;
+	// Where the Help link in the rail and the mobile drawer leads: a page of this app or an
+	// external address; undefined hides the link. Miniflux has no help of its own, so the
+	// adapter names this project's README.
+	helpUrl?: string;
 }
 
 // What an OPML import did. A backend that subscribes feed by feed reports counts and rows;

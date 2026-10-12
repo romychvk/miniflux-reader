@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { LogOut, Plus, RotateCw, Settings } from 'lucide-svelte';
+	import { CircleHelp, LogOut, Plus, RotateCw, Settings } from 'lucide-svelte';
+	import { caps } from '$lib/backend';
 	import { auth } from '$lib/stores/auth.svelte';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { refresh } from '$lib/stores/refresh.svelte';
@@ -78,6 +79,17 @@
 			<Settings size={16} />
 			Settings
 		</a>
+		{#if caps().helpUrl}
+			<a
+				href={caps().helpUrl}
+				target={/^https?:/.test(caps().helpUrl ?? '') ? '_blank' : undefined}
+				rel="noopener"
+				class="flex items-center gap-2 text-sm text-sb-500 hover:text-sb-700 transition-colors w-full cursor-pointer"
+			>
+				<CircleHelp size={16} />
+				Help
+			</a>
+		{/if}
 		<button
 			onclick={handleLogout}
 			class="flex items-center justify-end gap-2 text-sm text-sb-500 hover:text-sb-700 transition-colors w-full cursor-pointer"

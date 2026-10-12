@@ -32,7 +32,7 @@ async function currentUserId(): Promise<number> {
 
 export const minifluxBackend: ReaderBackend = {
 	kind: 'miniflux',
-	caps: { rssBridge: true, opml: true, serverHideRules: false },
+	caps: { rssBridge: true, opml: true, serverHideRules: false, helpUrl: 'https://github.com/romychvk/miniflux-reader#readme' },
 
 	me(signal) {
 		return apiCall<CurrentUser>('me', { signal });
