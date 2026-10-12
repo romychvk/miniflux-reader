@@ -39,6 +39,8 @@ test('explainError: Miniflux shorthand, with the API path the client appends', (
 test("explainError: this app's own server shorthand", () => {
 	assert.equal(explainError('Source returned 403 (entries/82025/fetch-content)'), httpFailureMessage(403));
 	assert.equal(explainError('Source returned 503'), httpFailureMessage(503));
+	const worded = httpFailureMessage(403, 'cloudflare');
+	assert.equal(explainError(`${worded} (entries/82025/fetch-content)`), worded);
 });
 
 test('explainError: anything else is left as it is, path included', () => {

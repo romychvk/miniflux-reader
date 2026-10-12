@@ -49,5 +49,8 @@ export function explainError(message: string): string {
 	// This app's own server routes.
 	m = /^Source returned (\d{3})$/.exec(bare);
 	if (m) return httpFailureMessage(Number(m[1]));
+	// Already in these words (a server that words its own failures with httpFailureMessage): only
+	// the path goes.
+	if (/\(HTTP \d{3}\)/.test(bare)) return bare;
 	return message;
 }
