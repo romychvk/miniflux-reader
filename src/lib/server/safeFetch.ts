@@ -28,10 +28,14 @@ export type SafeFetchReason = 'scheme' | 'blocked' | 'dns' | 'redirects' | 'time
 
 export class SafeFetchError extends Error {
 	readonly reason: SafeFetchReason;
-	constructor(reason: SafeFetchReason, message?: string) {
+	// The system error code behind an 'upstream' failure (ENOTFOUND, ECONNREFUSED, CERT_HAS_EXPIRED…)
+	// when Node gave one: the reason alone cannot tell a dropped domain from a refused connection.
+	readonly code: string | null;
+	constructor(reason: SafeFetchReason, message?: string, code?: string | null) {
 		super(message ?? reason);
 		this.name = 'SafeFetchError';
 		this.reason = reason;
+		this.code = code ?? null;
 	}
 	// True when the caller asked for something we refuse (map to 4xx); false for upstream/network
 	// failures (map to 5xx).
@@ -141,7 +145,7 @@ function classifyError(e: unknown): SafeFetchError {
 	if (err?.name === 'AbortError' || err?.name === 'TimeoutError' || err?.code === 'ABORT_ERR') {
 		return new SafeFetchError('timeout', 'request timed out');
 	}
-	return new SafeFetchError('upstream', msg);
+	return new SafeFetchError('upstream', msg, typeof err?.code === 'string' ? err.code : null);
 }
 
 function performRequest(url: URL, headers: Record<string, string>, signal: AbortSignal): Promise<IncomingMessage> {
