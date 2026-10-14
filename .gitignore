@@ -7,3 +7,6 @@ data
 .env
 .env.*
 !.env.example
+
+# Design
+design
