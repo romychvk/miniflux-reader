@@ -208,7 +208,14 @@
 		saving = true;
 		try {
 			const changes = computeChanges();
-			if (Object.keys(changes).length > 0) await feeds.updateFeed(feedId, changes);
+			if (Object.keys(changes).length > 0) {
+				await feeds.updateFeed(feedId, changes);
+				// A server-side engine re-applies changed rules to the stored posts itself, marking
+				// matches read in its own database — reconcileBacklog below has no local rules to walk,
+				// so nothing on this side would bring the sidebar and top-bar counters down until the
+				// next counter poll (MicroRSS, 2026-10-23: "19 unread" stayed on a feed the rules emptied).
+				if (serverRules) await feeds.loadCounters();
+			}
 			// Client-side settings (localStorage). In block mode the rules live in Miniflux, so the
 			// client hide list is cleared.
 			storageSet(dedupKey, dedupMode);
