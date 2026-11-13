@@ -1,6 +1,9 @@
 export interface Category {
 	id: number;
 	title: string;
+	// The category this one sits under (caps.nestedCategories); null or absent = the top level.
+	// Miniflux has no such field — its categories are flat.
+	parent_id?: number | null;
 }
 
 export interface Feed {

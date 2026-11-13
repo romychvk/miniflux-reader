@@ -468,8 +468,9 @@
 {#if showCatEdit && ui.selectedFeed && !ui.selectedFeed.isFeed}
 	<CategoryEditModal
 		title={ui.selectedFeed.title}
+		categoryId={ui.selectedFeed.id}
 		onclose={() => { showCatEdit = false; }}
-		onsave={(title) => feeds.updateCategory(ui.selectedFeed!.id, title)}
+		onsave={(title, parentId) => feeds.editCategory(ui.selectedFeed!.id, title, parentId)}
 	/>
 {/if}
 

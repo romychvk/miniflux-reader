@@ -9,9 +9,11 @@
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import { FolderPlus, Pencil, RotateCw } from 'lucide-svelte';
 
-	let { feed, parentCatId, onAddCategory }: {
+	// depth: how deep its category sits (FeedTree), for the indent.
+	let { feed, parentCatId, depth = 0, onAddCategory }: {
 		feed: FeedNode;
 		parentCatId?: number;
+		depth?: number;
 		onAddCategory?: (afterCategoryId?: number) => void;
 	} = $props();
 
@@ -49,10 +51,10 @@
 
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		const midY = rect.top + rect.height / 2;
-		const cat = feeds.feedTree.find(n => n.id === parentCatId);
+		const cat = feeds.findFeedNodeById(parentCatId, false);
 		if (!cat?.children) return;
 
-		const feedIndex = cat.children.findIndex(f => f.id === feed.id);
+		const feedIndex = cat.children.findIndex(f => f.isFeed && f.id === feed.id);
 		const insertIndex = e.clientY < midY ? feedIndex : feedIndex + 1;
 
 		dnd.setDropTarget({ type: 'feed', catId: parentCatId, insertIndex });
@@ -64,7 +66,7 @@
 
 	function ondrop(e: DragEvent) {
 		e.preventDefault();
-		if (!dnd.dropTarget || dnd.dragType !== 'feed' || dnd.dragId === null) return;
+		if (dnd.dropTarget?.type !== 'feed' || dnd.dragType !== 'feed' || dnd.dragId === null) return;
 
 		const { catId, insertIndex } = dnd.dropTarget;
 
@@ -94,7 +96,8 @@
 	{ondragover}
 	{ondragleave}
 	{ondrop}
-	class="w-full flex items-center gap-2 h-8 pr-2 {parentCatId !== undefined ? 'pl-7.5' : 'pl-2'} text-[13.5px] leading-5 rounded-lg text-left transition-colors {isSelected
+	style={parentCatId !== undefined ? `padding-left: ${30 + depth * 14}px` : undefined}
+	class="w-full flex items-center gap-2 h-8 pr-2 {parentCatId !== undefined ? '' : 'pl-2'} text-[13.5px] leading-5 rounded-lg text-left transition-colors {isSelected
 		? `bg-a-600/12 text-a-700 ${feed.unread > 0 ? 'font-[650]' : 'font-[450]'}`
 		: `hover:bg-sb-200/60 hover:text-sb-900 ${feed.unread > 0 ? 'text-sb-900 font-semibold' : 'text-sb-600 font-[450]'}`} {isDragged ? 'opacity-40' : ''}"
 >

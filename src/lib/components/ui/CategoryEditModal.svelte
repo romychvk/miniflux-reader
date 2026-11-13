@@ -1,13 +1,31 @@
 <script lang="ts">
-	let { title: initialTitle, onclose, onsave }: {
+	import { caps } from '$lib/backend';
+	import { feeds } from '$lib/stores/feeds.svelte';
+	import CategoryParentSelect from './CategoryParentSelect.svelte';
+
+	// `categoryId` names the category being edited; with caps.nestedCategories the modal also
+	// moves it (Parent), so a category can be nested without dragging — on a phone there is no drag.
+	let { title: initialTitle, categoryId, onclose, onsave }: {
 		title: string;
+		categoryId?: number;
 		onclose: () => void;
-		onsave: (title: string) => Promise<void>;
+		onsave: (title: string, parentId: number | null) => Promise<void>;
 	} = $props();
 
 	// svelte-ignore state_referenced_locally
 	let title = $state(initialTitle);
+	// svelte-ignore state_referenced_locally
+	const initialParentId = categoryId === undefined ? null : feeds.parentIdOf(categoryId);
+	let parentId = $state<number | null>(initialParentId);
 	let saving = $state(false);
+
+	const nested = $derived(caps().nestedCategories && categoryId !== undefined && categoryId !== feeds.getNoCategoryId());
+	// Said before Save: the server refuses a title a sibling under the chosen parent already has.
+	const taken = $derived.by(() => {
+		const t = title.trim();
+		if (!t || categoryId === undefined || (t === initialTitle && parentId === initialParentId)) return false;
+		return feeds.categoryTitleTaken(t, parentId, categoryId);
+	});
 
 	function onkeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onclose();
@@ -15,13 +33,14 @@
 
 	async function handleSave() {
 		const trimmed = title.trim();
-		if (!trimmed || trimmed === initialTitle) {
+		if (taken) return;
+		if (!trimmed || (trimmed === initialTitle && parentId === initialParentId)) {
 			onclose();
 			return;
 		}
 		saving = true;
 		try {
-			await onsave(trimmed);
+			await onsave(trimmed, parentId);
 			onclose();
 		} catch {
 			// Error shown by store
@@ -51,7 +70,17 @@
 					bind:value={title}
 					class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 				/>
+				{#if taken}
+					<p class="mt-1 text-xs text-red-600">There is already a category with this name there.</p>
+				{/if}
 			</div>
+
+			{#if nested}
+				<div>
+					<label for="cat-parent" class="block text-sm font-medium text-n-700 mb-1">Parent</label>
+					<CategoryParentSelect id="cat-parent" bind:value={parentId} excludeId={categoryId} />
+				</div>
+			{/if}
 
 			<div class="flex justify-end gap-2 pt-2">
 				<button
@@ -63,7 +92,7 @@
 				</button>
 				<button
 					type="submit"
-					disabled={saving}
+					disabled={saving || taken}
 					class="px-4 py-2 text-sm bg-a-600 text-on-accent rounded-md hover:bg-a-700 disabled:opacity-50"
 				>
 					{saving ? 'Saving...' : 'Save'}

@@ -20,12 +20,15 @@
 		inputClass?: string;
 	} = $props();
 
-	const categories = $derived(feeds.getCategories());
+	// The tree as a picker lists it (feeds.categoryOptions): a subcategory indented under its
+	// parent, and a group — a category with subcategories — shown for its place but not
+	// selectable, since it holds no feeds.
+	const categories = $derived(feeds.categoryOptions());
 </script>
 
 <select {id} bind:value class={selectClass}>
 	{#each categories as cat (cat.id)}
-		<option value={cat.id}>{cat.title}</option>
+		<option value={cat.id} disabled={cat.group}>{'\u00a0\u00a0\u00a0'.repeat(cat.depth)}{cat.title}</option>
 	{/each}
 	<option value={NEW_CATEGORY_SENTINEL}>＋ New category…</option>
 </select>

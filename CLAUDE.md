@@ -57,6 +57,8 @@ src/
     api.ts                      # authedFetch() for our /api/* helpers; apiCall() is the Miniflux transport
     backend/                    # ReaderBackend adapter: types, miniflux impl, register (per build), index (backend()/caps())
     icons.ts                    # Canvas-based fallback feed icons
+    categoryTree.ts             # Pure: the sidebar tree from categories + feeds, what may nest where (caps.nestedCategories)
+    feedOrder.ts                # Saved sidebar order (one depth-first category list + feeds per category)
     time.ts                     # Relative timestamps
     stores/
       auth.svelte.ts            # Auth state (localStorage)
@@ -76,7 +78,7 @@ src/
 
 - **Stores** use Svelte 5 runes in plain `.svelte.ts` files (not Svelte 4 `writable`/`readable`)
 - **API proxy** at `/api/proxy/[...path]` forwards requests to Miniflux, reading `X-Auth-Token` and `X-Miniflux-Server` from request headers
-- **Backend adapter**: stores and components never call `apiCall` — they go through `backend()` from `$lib/backend`, a `ReaderBackend` (feeds, categories, entries, states, refresh, discover, fetch-content) whose one implementation here is `backend/miniflux.ts`. Lists of entries are addressed by an `EntryScope` (`all | starred | feed | category`), never by a path. `backend/register.ts` names the backends a build ships and is the only repo-specific file; `caps().rssBridge` gates the RSS-Bridge UI; `caps().serverHideRules` (false here) says the engine applies block/keep rules itself, which switches off the client-side «Hide (mark read)» mode, the backlog sweep's hide pass and turns on the one-time `hideRulesMigration.ts` of those localStorage rules into the feed's rule fields. The auth store carries `backend: BackendKind` (localStorage `backend`, absent = miniflux)
+- **Backend adapter**: stores and components never call `apiCall` — they go through `backend()` from `$lib/backend`, a `ReaderBackend` (feeds, categories, entries, states, refresh, discover, fetch-content) whose one implementation here is `backend/miniflux.ts`. Lists of entries are addressed by an `EntryScope` (`all | starred | feed | category`), never by a path. `backend/register.ts` names the backends a build ships and is the only repo-specific file; `caps().rssBridge` gates the RSS-Bridge UI; `caps().serverHideRules` (false here) says the engine applies block/keep rules itself, which switches off the client-side «Hide (mark read)» mode, the backlog sweep's hide pass and turns on the one-time `hideRulesMigration.ts` of those localStorage rules into the feed's rule fields. `caps().nestedCategories` (false here — Miniflux's categories are flat) lets a category sit under another (`Category.parent_id`, `createCategory(title, parentId)`, `moveCategory?()`): the sidebar draws the tree, a category with subcategories is a group that holds no feeds, and Add Subcategory, the Parent pickers and drag-into-a-category appear. `$lib/categoryTree` holds the rules; the store walks the tree through its indexes, never `feedTree`'s top level. The auth store carries `backend: BackendKind` (localStorage `backend`, absent = miniflux)
 - **Auth** is client-side only (localStorage), no SSR auth — page guard via `onMount`
 - **IntersectionObserver** as a Svelte `use:` action for auto-mark-read on scroll-down
 - **Feed icons** cached in localStorage under `favicons` key

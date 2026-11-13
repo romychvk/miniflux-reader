@@ -5,19 +5,23 @@
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
 	import CategorySelect from './CategorySelect.svelte';
+	import CategoryParentSelect from './CategoryParentSelect.svelte';
 	import { findFeeds, type FoundFeed } from '$lib/feedFinder';
 	import { findBridges, warmBridgeCatalog, type BridgeChoice } from '$lib/bridgeFinder';
 	import { defaultInstance } from '$lib/rssbridge';
 	import { caps } from '$lib/backend';
 	import type { BridgeMatch } from '$lib/rssbridgeCatalog';
 
-	let { onclose, onsave, onpagefeed, onwizard, onbridge, oncategory, initialCategoryId, initialMode = 'feed' }: {
+	let { onclose, onsave, onpagefeed, onwizard, onbridge, oncategory, initialCategoryId, initialMode = 'feed', initialParentId = null }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
 		// The same modal makes a bare category: the switch at the top right flips it between the two
 		// forms, and the sidebar's "Add Category" opens it on that one. Told the category once it exists.
 		oncategory?: (category: Category) => void;
 		initialMode?: 'feed' | 'category';
+		// Where Add Category puts the new one (caps.nestedCategories): the parent of the category
+		// right-clicked, or that category itself for Add Subcategory; null = the top level.
+		initialParentId?: number | null;
 		// "Build a feed from the page": Miniflux Reader's own page-feed wizard, always offered — discovery
 		// can succeed with the wrong feed (a site-wide feed advertised on a tag page). The category
 		// picked here travels along (undefined when it's the still-unnamed "new category" row).
@@ -36,6 +40,8 @@
 	// The Add Category form's own field — not newCategoryName, which belongs to the picker's
 	// "＋ New category…" row and is created only together with a feed.
 	let categoryTitle = $state('');
+	// svelte-ignore state_referenced_locally
+	let parentId = $state<number | null>(initialParentId);
 
 	// Preselect the category the user acted on (e.g. right-clicked in the sidebar);
 	// otherwise fall back to the "— Without category —" (Miniflux "All") bucket, so
@@ -61,10 +67,11 @@
 
 	const needsCategoryName = $derived(categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim());
 
-	// Said before Add rather than after: the server refuses a second category of the same name.
+	// Said before Add rather than after: the server will not make a second category of the same
+	// name in one place (a sibling under the chosen parent).
 	const categoryExists = $derived.by(() => {
 		const title = categoryTitle.trim();
-		return title !== '' && feeds.getCategories().some((c) => c.title === title);
+		return title !== '' && feeds.categoryTitleTaken(title, parentId);
 	});
 
 	// Results belong to the URL they were found for, so editing the field drops them. Both sets are
@@ -103,7 +110,7 @@
 		if (!title || categoryExists || saving) return;
 		saving = true;
 		try {
-			const category = await feeds.createCategory(title);
+			const category = await feeds.createCategory(title, parentId);
 			oncategory?.(category);
 			onclose();
 		} catch {
@@ -185,9 +192,16 @@
 						class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
 					/>
 					{#if categoryExists}
-						<p class="mt-1 text-xs text-red-600">You already have a category with this name.</p>
+						<p class="mt-1 text-xs text-red-600">You already have a category with this name{parentId === null ? '' : ' there'}.</p>
 					{/if}
 				</div>
+
+				{#if caps().nestedCategories}
+					<div>
+						<label for="add-category-parent" class="block text-sm font-medium text-n-700 mb-1">Parent</label>
+						<CategoryParentSelect id="add-category-parent" bind:value={parentId} />
+					</div>
+				{/if}
 
 				<div class="flex justify-end gap-2 pt-2">
 					<button

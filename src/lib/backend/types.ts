@@ -51,6 +51,10 @@ export interface BackendCapabilities {
 	// external address; undefined hides the link. Miniflux has no help of its own, so the
 	// adapter names this project's README.
 	helpUrl?: string;
+	// Categories nest: a category may sit under another (Category.parent_id), the sidebar draws
+	// the tree, and a category with subcategories is a group that holds no feeds. createCategory
+	// takes a parent and moveCategory() re-parents. Miniflux's categories are flat.
+	nestedCategories: boolean;
 }
 
 // What an OPML import did. A backend that subscribes feed by feed reports counts and rows;
@@ -91,8 +95,11 @@ export interface ReaderBackend {
 	deleteFeed(feedId: number): Promise<void>;
 	// Blocks until the feed has been crawled, so counters read afterwards are trustworthy.
 	refreshFeed(feedId: number): Promise<void>;
-	createCategory(title: string): Promise<Category>;
+	// `parentId` only with caps.nestedCategories; null or absent = the top level.
+	createCategory(title: string, parentId?: number | null): Promise<Category>;
 	updateCategory(categoryId: number, title: string): Promise<void>;
+	// Re-parent a category, null = to the top level (caps.nestedCategories).
+	moveCategory?(categoryId: number, parentId: number | null): Promise<void>;
 
 	listEntries(scope: EntryScope, query: EntryQuery, signal?: AbortSignal): Promise<EntryPage>;
 	getEntry(entryId: number, signal?: AbortSignal): Promise<Entry>;

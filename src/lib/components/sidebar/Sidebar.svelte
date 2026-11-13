@@ -49,18 +49,28 @@
 	// when opened from a right-click menu, undefined when opened from the header "+" button.
 	let addFeedCategoryId = $state<number | undefined>(undefined);
 	let addModalMode = $state<'feed' | 'category'>('feed');
+	// Where Add Category puts the new one: the right-clicked category's parent (a sibling), or the
+	// category itself for Add Subcategory; null = the top level.
+	let addParentId = $state<number | null>(null);
 
-	function openAddModal(categoryId?: number, mode: 'feed' | 'category' = 'feed') {
+	function openAddModal(categoryId?: number, mode: 'feed' | 'category' = 'feed', parentId: number | null = null) {
 		addFeedCategoryId = categoryId;
 		addModalMode = mode;
+		addParentId = parentId;
 		showAddModal = true;
 	}
 
+	function openAddCategory(afterCategoryId?: number) {
+		openAddModal(afterCategoryId, 'category', afterCategoryId === undefined ? null : feeds.parentIdOf(afterCategoryId));
+	}
+
 	// A category made from a right-click goes right under the one acted on, not to the bottom of a
-	// long list; then it opens, like a new feed does.
+	// long list — when it was made beside it, not moved elsewhere in the form; then it opens, like a
+	// new feed does (its group opens around it: FeedTree).
 	function handleCategoryCreated(category: Category) {
-		const anchor = feeds.feedTree.findIndex((n) => n.id === addFeedCategoryId && !n.isFeed);
-		if (anchor !== -1) feeds.reorderCategory(category.id, anchor + 1);
+		const parentId = category.parent_id ?? null;
+		const anchor = addFeedCategoryId;
+		if (anchor !== undefined && feeds.parentIdOf(anchor) === parentId) void feeds.placeCategory(category.id, parentId, { after: anchor });
 		goto(`/category/${makeFeedSlug(category.id, category.title)}`);
 		if (ui.isMobile) ui.toggleSidebar();
 	}
@@ -140,7 +150,7 @@
 					</button>
 				</div>
 				<div class="scroll-quiet flex-1">
-					<FeedTree onAddFeed={openAddModal} onAddCategory={(id) => openAddModal(id, 'category')} />
+					<FeedTree onAddFeed={openAddModal} onAddCategory={openAddCategory} onAddSubcategory={(id) => openAddModal(undefined, 'category', id)} />
 				</div>
 			{/if}
 			<!-- Resize handle -->
@@ -183,7 +193,7 @@
 			</div>
 		</div>
 		<div class="scroll-quiet flex-1">
-			<FeedTree onAddFeed={openAddModal} onAddCategory={(id) => openAddModal(id, 'category')} pinned />
+			<FeedTree onAddFeed={openAddModal} onAddCategory={openAddCategory} onAddSubcategory={(id) => openAddModal(undefined, 'category', id)} pinned />
 		</div>
 		{@render logoutButton()}
 	</aside>
@@ -193,6 +203,7 @@
 	<FeedAddModal
 		initialCategoryId={addFeedCategoryId}
 		initialMode={addModalMode}
+		initialParentId={addParentId}
 		onclose={() => showAddModal = false}
 		onsave={handleCreateFeed}
 		oncategory={handleCategoryCreated}

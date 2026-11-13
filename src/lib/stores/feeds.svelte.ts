@@ -5,6 +5,20 @@ import { storageGet, storageSet } from '$lib/storage';
 import type { Category, Feed, FeedCreate, FeedNode, FeedUpdate } from '$lib/types';
 import { mapPool } from '$lib/pool';
 import { applySavedOrder, persistOrder } from '$lib/feedOrder';
+import {
+	buildFeedTree,
+	categoryOptions as listCategoryOptions,
+	canNestUnder,
+	canTakeSubcategory,
+	isCategoryNode,
+	isGroup,
+	recountUnread,
+	subtreeCategoryIds,
+	subtreeFeeds,
+	walkCategories,
+	type CategoryEntry,
+	type CategoryOption
+} from '$lib/categoryTree';
 import { ui } from './ui.svelte';
 
 // Cap the icon and refresh fan-outs (category and all-feeds) so a big account doesn't fire
@@ -18,21 +32,37 @@ function createFeedsStore() {
 	let rawCategories = $state<Category[]>([]);
 	let abortController: AbortController | null = null;
 
-	// O(1) lookup indexes: feedId → FeedNode, feedId → parent category node
+	// O(1) lookup indexes: feedId → FeedNode, feedId → its category node, categoryId → its node,
+	// categoryId → the category it sits under (null at the top level). Categories nest
+	// (caps.nestedCategories), so every walk below goes through these, never feedTree's top level.
 	let feedIndex = new Map<number, FeedNode>();
 	let parentIndex = new Map<number, FeedNode>();
+	let catIndex = new Map<number, FeedNode>();
+	let catParent = new Map<number, FeedNode | null>();
 
 	function rebuildFeedIndex() {
 		feedIndex = new Map();
 		parentIndex = new Map();
-		for (const node of feedTree) {
-			if (node.children) {
-				for (const child of node.children) {
+		catIndex = new Map();
+		catParent = new Map();
+		const visit = (node: FeedNode, parent: FeedNode | null) => {
+			catIndex.set(node.id, node);
+			catParent.set(node.id, parent);
+			for (const child of node.children ?? []) {
+				if (child.isFeed) {
 					feedIndex.set(child.id, child);
 					parentIndex.set(child.id, node);
-				}
+				} else if (isCategoryNode(child)) visit(child, node);
 			}
-		}
+		};
+		for (const node of feedTree) if (isCategoryNode(node)) visit(node, null);
+	}
+
+	// The category and every category above it, nearest first.
+	function ancestry(catId: number): FeedNode[] {
+		const out: FeedNode[] = [];
+		for (let n = catIndex.get(catId) ?? null; n; n = catParent.get(n.id) ?? null) out.push(n);
+		return out;
 	}
 
 	async function loadFeeds() {
@@ -51,56 +81,17 @@ function createFeedsStore() {
 			rawCategories = catList;
 			const unreads = counters.unreads;
 
-			// Every category the feeds sit in, and the empty ones too: a category just made with Add
-			// Category holds nothing until a feed is dropped onto it, and it has to be in the sidebar
-			// to be dropped onto. The default category (Miniflux's "All") is the exception — empty, it
-			// is only the account's built-in bucket, so it shows once a feed is filed there.
-			const categoryMap = new Map<number, string>();
-			for (const f of feedList) {
-				if (f.category && !categoryMap.has(f.category.id)) {
-					categoryMap.set(f.category.id, f.category.title);
-				}
-			}
-			const defaultCategoryId = getNoCategoryId();
-			for (const c of catList) {
-				if (c.id !== defaultCategoryId && !categoryMap.has(c.id)) categoryMap.set(c.id, c.title);
-			}
-
-			// Build tree
-			const totalUnread = Object.values(unreads).reduce((sum, n) => sum + n, 0);
-
-			const tree: FeedNode[] = [
-				{ id: -1, title: 'All', scope: { kind: 'all' }, isFeed: false, unread: totalUnread }
-			];
-
-			const sortedCategories = [...categoryMap.entries()].sort((a, b) =>
-				a[1].localeCompare(b[1])
-			);
-
-			for (const [catId, catTitle] of sortedCategories) {
-				const catFeeds = feedList
-					.filter((f) => f.category?.id === catId)
-					.sort((a, b) => a.title.localeCompare(b.title))
-					.map((f): FeedNode => ({
-						id: f.id,
-						title: f.title,
-						scope: { kind: 'feed', id: f.id },
-						isFeed: true,
-						iconData: createFeedIcon(f.title),
-						unread: unreads[f.id] || 0
-					}));
-
-				const catUnread = catFeeds.reduce((sum, f) => sum + f.unread, 0);
-
-				tree.push({
-					id: catId,
-					title: categoryDisplayTitle(catTitle),
-					scope: { kind: 'category', id: catId },
-					isFeed: false,
-					unread: catUnread,
-					children: catFeeds
-				});
-			}
+			// Every category, empty ones too (a category just made with Add Category holds nothing
+			// until a feed is dropped onto it), nested under its parent — except an empty default
+			// category, which is only the account's built-in bucket ($lib/categoryTree).
+			const tree = buildFeedTree({
+				categories: catList,
+				feeds: feedList,
+				unreads,
+				defaultId: getNoCategoryId(),
+				categoryTitle: categoryDisplayTitle,
+				feedIcon: (f) => createFeedIcon(f.title)
+			});
 
 			applySavedOrder(tree);
 			feedTree = tree;
@@ -175,7 +166,7 @@ function createFeedsStore() {
 		if (child) {
 			child.unread += delta;
 			const parent = parentIndex.get(feedId);
-			if (parent) parent.unread += delta;
+			if (parent) for (const cat of ancestry(parent.id)) cat.unread += delta;
 		}
 	}
 
@@ -188,7 +179,7 @@ function createFeedsStore() {
 	}
 
 	function reorderFeed(catId: number, feedId: number, newIndex: number) {
-		const cat = feedTree.find(n => n.id === catId);
+		const cat = catIndex.get(catId);
 		if (!cat?.children) return;
 
 		const oldIndex = cat.children.findIndex(f => f.id === feedId);
@@ -203,7 +194,8 @@ function createFeedsStore() {
 
 	// Locale-aware, case-insensitive, numbers in natural order ("Feed 2" before "Feed 10").
 	function sortFeedsAlphabetically(catId: number) {
-		const cat = feedTree.find(n => n.id === catId);
+		const cat = catIndex.get(catId);
+		if (cat && isGroup(cat)) return;
 		if (!cat?.children || cat.children.length < 2) return;
 
 		cat.children.sort((a, b) =>
@@ -212,43 +204,72 @@ function createFeedsStore() {
 		commitOrder();
 	}
 
-	function reorderCategory(catId: number, newIndex: number) {
-		// offset by 1 for "All" node at index 0
-		const oldIndex = feedTree.findIndex(n => n.id === catId);
-		if (oldIndex === -1 || oldIndex === newIndex) return;
+	// Recount every category's unread from its feeds — after a feed or a category changed places.
+	function recountAll() {
+		for (const node of feedTree) if (isCategoryNode(node)) recountUnread(node);
+	}
 
-		const [item] = feedTree.splice(oldIndex, 1);
-		const adjustedIndex = oldIndex < newIndex ? newIndex - 1 : newIndex;
-		feedTree.splice(adjustedIndex, 0, item);
+	// Put a category under `parentId` (null = the top level), before or after a sibling, or last
+	// among its new siblings. Within one parent it is only the saved order; a new parent is a
+	// server move too (caps.nestedCategories), and a refused one reloads the tree as the server has
+	// it. The caller asks canNest first; this re-checks so a stale drop can never break the tree.
+	async function placeCategory(catId: number, parentId: number | null, anchor: { before: number } | { after: number } | null = null) {
+		const node = catIndex.get(catId);
+		const from = catParent.get(catId) ?? null;
+		const to = parentId === null ? null : (catIndex.get(parentId) ?? null);
+		if (!node || (parentId !== null && !to)) return;
+		const moving = (from?.id ?? null) !== parentId;
+		if (moving && (!backend().caps.nestedCategories || !canNestUnder(node, to, getNoCategoryId()))) return;
+
+		const fromList = from ? from.children! : feedTree;
+		fromList.splice(fromList.findIndex((n) => !n.isFeed && n.id === catId), 1);
+		const toList = to ? to.children! : feedTree;
+		let at = toList.length;
+		if (anchor) {
+			const anchorId = 'before' in anchor ? anchor.before : anchor.after;
+			const i = toList.findIndex((n) => !n.isFeed && n.id === anchorId);
+			if (i !== -1) at = 'before' in anchor ? i : i + 1;
+		} else if (to) {
+			// Last among the subcategories, ahead of any feeds.
+			at = toList.filter(isCategoryNode).length;
+		}
+		toList.splice(at, 0, node);
+		recountAll();
 		commitOrder();
+
+		if (!moving) return;
+		try {
+			await backend().moveCategory!(catId, parentId);
+			const raw = rawCategories.find((c) => c.id === catId);
+			if (raw) raw.parent_id = parentId;
+		} catch (e) {
+			ui.showCaught(e, 'Failed to move category');
+			await loadFeeds();
+		}
 	}
 
 	async function moveFeedToCategory(feedId: number, sourceCatId: number, targetCatId: number, insertIndex: number) {
-		const sourceCat = feedTree.find(n => n.id === sourceCatId);
-		const targetCat = feedTree.find(n => n.id === targetCatId);
-		if (!sourceCat?.children || !targetCat?.children) return;
+		const sourceCat = catIndex.get(sourceCatId);
+		const targetCat = catIndex.get(targetCatId);
+		if (!sourceCat?.children || !targetCat?.children || isGroup(targetCat)) return;
 
-		const feedIdx = sourceCat.children.findIndex(f => f.id === feedId);
+		const feedIdx = sourceCat.children.findIndex(f => f.isFeed && f.id === feedId);
 		if (feedIdx === -1) return;
 
 		// Optimistic update
 		const [feed] = sourceCat.children.splice(feedIdx, 1);
-		sourceCat.unread -= feed.unread;
 		targetCat.children.splice(insertIndex, 0, feed);
-		targetCat.unread += feed.unread;
+		recountAll();
 		commitOrder();
 
 		try {
 			await backend().updateFeed(feedId, { category_id: targetCatId });
 		} catch (e) {
 			// Revert
-			const revertIndex = targetCat.children.findIndex(f => f.id === feedId);
-			if (revertIndex !== -1) {
-				targetCat.children.splice(revertIndex, 1);
-				targetCat.unread -= feed.unread;
-			}
+			const revertIndex = targetCat.children.findIndex(f => f.isFeed && f.id === feedId);
+			if (revertIndex !== -1) targetCat.children.splice(revertIndex, 1);
 			sourceCat.children.splice(feedIdx, 0, feed);
-			sourceCat.unread += feed.unread;
+			recountAll();
 			commitOrder();
 			ui.showCaught(e, 'Failed to move feed');
 		}
@@ -282,8 +303,56 @@ function createFeedsStore() {
 
 	function findFeedNodeById(id: number, isFeed: boolean): FeedNode | null {
 		if (isFeed) return feedIndex.get(id) ?? null;
-		// Category or "All" node — small list, linear scan is fine
-		return feedTree.find(n => n.id === id && n.isFeed === isFeed) ?? null;
+		if (id === -1) return getAllNode();
+		return catIndex.get(id) ?? null;
+	}
+
+	// The category a category sits under; null at the top level (and for an unknown id).
+	function parentIdOf(catId: number): number | null {
+		return catParent.get(catId)?.id ?? null;
+	}
+
+	// Every category in sidebar order with its depth and path — the pickers' list (CategorySelect,
+	// the parent picker) and the other places that pick a category.
+	function categoryEntries(): CategoryEntry[] {
+		return walkCategories(feedTree);
+	}
+
+	// Every category as the pickers list it — the default first, then the tree alphabetically,
+	// each with its depth, whether it is a group and whether it holds feeds.
+	function categoryOptions(): CategoryOption[] {
+		return listCategoryOptions(rawCategories, {
+			defaultId: getNoCategoryId(),
+			title: categoryDisplayTitle,
+			withFeeds: new Set(rawFeeds.map((f) => f.category?.id).filter((id): id is number => id !== undefined))
+		});
+	}
+
+	// The category and every category under it (just itself when it is not in the tree).
+	function subtreeIdsOf(catId: number): Set<number> {
+		const node = catIndex.get(catId);
+		return node ? subtreeCategoryIds(node) : new Set([catId]);
+	}
+
+	// May this category go under that one (null = the top level)? The engine's rules, asked
+	// before a drop or a save is offered ($lib/categoryTree).
+	function canNest(catId: number, parentId: number | null): boolean {
+		const node = catIndex.get(catId);
+		if (!node) return false;
+		if (parentId === null) return true;
+		const parent = catIndex.get(parentId);
+		return !!parent && backend().caps.nestedCategories && canNestUnder(node, parent, getNoCategoryId());
+	}
+
+	function canAddSubcategory(catId: number): boolean {
+		const node = catIndex.get(catId);
+		return !!node && backend().caps.nestedCategories && canTakeSubcategory(node, getNoCategoryId());
+	}
+
+	// A sibling under that parent already has this title: the server would refuse a rename or a
+	// move there, and answer a create with the existing one. Raw titles, as the server compares.
+	function categoryTitleTaken(title: string, parentId: number | null, exceptId?: number): boolean {
+		return rawCategories.some((c) => c.id !== exceptId && (c.parent_id ?? null) === parentId && c.title === title);
 	}
 
 	function getRawFeed(feedId: number): Feed | null {
@@ -313,9 +382,9 @@ function createFeedsStore() {
 		return rawCategories.reduce((min, c) => (c.id < min.id ? c : min)).id;
 	}
 
-	async function createCategory(title: string): Promise<Category> {
+	async function createCategory(title: string, parentId: number | null = null): Promise<Category> {
 		try {
-			const cat = await backend().createCategory(title);
+			const cat = await backend().createCategory(title, parentId);
 			await loadFeeds();
 			return cat;
 		} catch (e) {
@@ -394,8 +463,10 @@ function createFeedsStore() {
 			await backend().updateCategory(catId, title);
 
 			// Update tree locally
-			const cat = feedTree.find(n => n.id === catId);
+			const cat = catIndex.get(catId);
 			if (cat) cat.title = title;
+			const raw = rawCategories.find((c) => c.id === catId);
+			if (raw) raw.title = title;
 
 			// Re-select if selected
 			if (ui.selectedFeed && !ui.selectedFeed.isFeed && ui.selectedFeed.id === catId) {
@@ -408,23 +479,21 @@ function createFeedsStore() {
 		}
 	}
 
+	// Edit Category's save: a new title, a new parent (null = the top level), either or both. A
+	// moved category goes last among its new siblings.
+	async function editCategory(catId: number, title: string, parentId: number | null) {
+		const raw = rawCategories.find((c) => c.id === catId);
+		if (raw && raw.title !== title && categoryDisplayTitle(raw.title) !== title) await updateCategory(catId, title);
+		if (parentId !== parentIdOf(catId)) await placeCategory(catId, parentId);
+	}
+
 	async function loadCounters() {
 		try {
 			const counters = await backend().counters();
 			const unreads = counters.unreads;
+			for (const [id, feed] of feedIndex) feed.unread = unreads[id] || 0;
 			let totalUnread = 0;
-			for (const node of feedTree) {
-				if (node.id === -1) continue;
-				if (node.children) {
-					let catUnread = 0;
-					for (const child of node.children) {
-						child.unread = unreads[child.id] || 0;
-						catUnread += child.unread;
-					}
-					node.unread = catUnread;
-					totalUnread += catUnread;
-				}
-			}
+			for (const node of feedTree) if (isCategoryNode(node)) totalUnread += recountUnread(node);
 			const allNode = feedTree.find(n => n.id === -1);
 			if (allNode) allNode.unread = totalUnread;
 		} catch {
@@ -466,10 +535,11 @@ function createFeedsStore() {
 		await refreshFeedList(rawFeeds.filter(f => !f.disabled));
 	}
 
+	// A group's feeds are its subcategories', at any depth.
 	async function refreshCategoryFeeds(catId: number) {
-		const cat = feedTree.find(n => n.id === catId);
-		if (!cat?.children) return;
-		await refreshFeedList(cat.children);
+		const cat = catIndex.get(catId);
+		if (!cat) return;
+		await refreshFeedList(subtreeFeeds(cat));
 	}
 
 	return {
@@ -480,7 +550,7 @@ function createFeedsStore() {
 		updateCounters,
 		reorderFeed,
 		sortFeedsAlphabetically,
-		reorderCategory,
+		placeCategory,
 		moveFeedToCategory,
 		allFeedNodes,
 		getAllNode,
@@ -489,11 +559,19 @@ function createFeedsStore() {
 		getRawFeed,
 		getCategories,
 		getNoCategoryId,
+		parentIdOf,
+		categoryEntries,
+		categoryOptions,
+		subtreeIdsOf,
+		canNest,
+		canAddSubcategory,
+		categoryTitleTaken,
 		createCategory,
 		createFeed,
 		updateFeed,
 		deleteFeed,
 		updateCategory,
+		editCategory,
 		loadCounters,
 		refreshFeed,
 		refreshAllFeeds,

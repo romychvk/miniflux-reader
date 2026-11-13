@@ -1,10 +1,11 @@
 export type DragType = 'feed' | 'category' | null;
 
-export interface DropTarget {
-	type: 'feed' | 'category';
-	catId: number;
-	insertIndex: number;
-}
+// A feed lands in category `catId` at `insertIndex` among its feeds. A category lands before or
+// after the category `catId` (as its sibling), or into it as its last subcategory
+// (caps.nestedCategories).
+export type DropTarget =
+	| { type: 'feed'; catId: number; insertIndex: number }
+	| { type: 'category'; catId: number; position: 'before' | 'after' | 'into' };
 
 function createDndStore() {
 	let dragType = $state<DragType>(null);
