@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { ExternalLink } from 'lucide-svelte';
-	import type { FeedCreate } from '$lib/types';
+	import { ExternalLink, FolderPlus, Plus } from 'lucide-svelte';
+	import type { Category, FeedCreate } from '$lib/types';
 	import { feeds } from '$lib/stores/feeds.svelte';
 	import { NEW_CATEGORY_SENTINEL } from '$lib/category';
 	import CategorySelect from './CategorySelect.svelte';
@@ -11,9 +11,13 @@
 	import { caps } from '$lib/backend';
 	import type { BridgeMatch } from '$lib/rssbridgeCatalog';
 
-	let { onclose, onsave, onpagefeed, onwizard, onbridge, initialCategoryId }: {
+	let { onclose, onsave, onpagefeed, onwizard, onbridge, oncategory, initialCategoryId, initialMode = 'feed' }: {
 		onclose: () => void;
 		onsave: (data: FeedCreate) => Promise<void>;
+		// The same modal makes a bare category: the switch at the top right flips it between the two
+		// forms, and the sidebar's "Add Category" opens it on that one. Told the category once it exists.
+		oncategory?: (category: Category) => void;
+		initialMode?: 'feed' | 'category';
 		// "Build a feed from the page": Miniflux Reader's own page-feed wizard, always offered — discovery
 		// can succeed with the wrong feed (a site-wide feed advertised on a tag page). The category
 		// picked here travels along (undefined when it's the still-unnamed "new category" row).
@@ -24,9 +28,14 @@
 		initialCategoryId?: number;
 	} = $props();
 
+	// svelte-ignore state_referenced_locally
+	let mode = $state(initialMode);
 	let feedUrl = $state('');
 	let categoryId: number = $state(0);
 	let newCategoryName = $state('');
+	// The Add Category form's own field — not newCategoryName, which belongs to the picker's
+	// "＋ New category…" row and is created only together with a feed.
+	let categoryTitle = $state('');
 
 	// Preselect the category the user acted on (e.g. right-clicked in the sidebar);
 	// otherwise fall back to the "— Without category —" (Miniflux "All") bucket, so
@@ -52,6 +61,12 @@
 
 	const needsCategoryName = $derived(categoryId === NEW_CATEGORY_SENTINEL && !newCategoryName.trim());
 
+	// Said before Add rather than after: the server refuses a second category of the same name.
+	const categoryExists = $derived.by(() => {
+		const title = categoryTitle.trim();
+		return title !== '' && feeds.getCategories().some((c) => c.title === title);
+	});
+
 	// Results belong to the URL they were found for, so editing the field drops them. Both sets are
 	// written together, so one key covers them.
 	const results = $derived(discoveredFor !== null && discoveredFor === feedUrl.trim() ? found : null);
@@ -75,6 +90,21 @@
 				category_id: categoryIdToUse,
 			};
 			await onsave(data);
+			onclose();
+		} catch {
+			// Error shown by store
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function addCategory() {
+		const title = categoryTitle.trim();
+		if (!title || categoryExists || saving) return;
+		saving = true;
+		try {
+			const category = await feeds.createCategory(title);
+			oncategory?.(category);
 			onclose();
 		} catch {
 			// Error shown by store
@@ -121,10 +151,66 @@
 <div class="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
 	<div class="bg-surface rounded-lg shadow-xl w-full max-w-md mx-4 pointer-events-auto">
 		<div class="px-5 py-4 border-b border-n-200">
-			<h2 class="text-lg font-semibold text-n-800">Add Feed</h2>
+			<div class="flex items-center justify-between gap-3">
+				<h2 class="text-lg font-semibold text-n-800">{mode === 'category' ? 'Add Category' : 'Add Feed'}</h2>
+				<button
+					type="button"
+					onclick={() => { mode = mode === 'category' ? 'feed' : 'category'; }}
+					class="h-7 pl-1.75 pr-2.5 flex shrink-0 items-center gap-1 rounded-full bg-a-50 text-a-700 text-[12.5px] font-semibold transition-colors hover:bg-a-600/12 hover:text-a-600"
+				>
+					{#if mode === 'category'}
+						<Plus size={14} strokeWidth={2.5} />
+						Add Feed
+					{:else}
+						<FolderPlus size={14} strokeWidth={2.5} />
+						Add Category
+					{/if}
+				</button>
+			</div>
 		</div>
 
-		<form onsubmit={(e) => { e.preventDefault(); handleSave(); }} class="px-5 py-4 space-y-4">
+		{#if mode === 'category'}
+			<form onsubmit={(e) => { e.preventDefault(); addCategory(); }} class="px-5 py-4 space-y-4">
+				<div>
+					<label for="add-category-title" class="block text-sm font-medium text-n-700 mb-1">Title</label>
+					<!-- Focused on mount rather than by autofocus: after the switch is clicked, the browser
+					     skips autofocus because the switch already holds the focus. -->
+					<input
+						{@attach (node) => node.focus()}
+						id="add-category-title"
+						type="text"
+						bind:value={categoryTitle}
+						required
+						placeholder="Category name"
+						class="w-full px-3 py-2 border border-n-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-n-400"
+					/>
+					{#if categoryExists}
+						<p class="mt-1 text-xs text-red-600">You already have a category with this name.</p>
+					{/if}
+				</div>
+
+				<div class="flex justify-end gap-2 pt-2">
+					<button
+						type="button"
+						onclick={onclose}
+						class="px-4 py-2 text-sm text-n-600 hover:bg-n-100 rounded-md"
+					>
+						Cancel
+					</button>
+					<button
+						type="submit"
+						disabled={saving || !categoryTitle.trim() || categoryExists}
+						class="px-4 py-2 text-sm bg-a-600 text-on-accent rounded-md hover:bg-a-700 disabled:opacity-50"
+					>
+						{saving ? 'Adding...' : 'Add'}
+					</button>
+				</div>
+			</form>
+		{/if}
+
+		<!-- Hidden rather than unmounted while the category form shows, so flipping back finds the
+		     URL, the picked category and the search results as they were. -->
+		<form onsubmit={(e) => { e.preventDefault(); handleSave(); }} hidden={mode !== 'feed'} class="px-5 py-4 space-y-4">
 			<div>
 				<label for="add-feed-url" class="block text-sm font-medium text-n-700 mb-1">Feed URL</label>
 				<input

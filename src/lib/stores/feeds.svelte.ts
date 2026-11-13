@@ -51,12 +51,19 @@ function createFeedsStore() {
 			rawCategories = catList;
 			const unreads = counters.unreads;
 
-			// Extract unique categories
+			// Every category the feeds sit in, and the empty ones too: a category just made with Add
+			// Category holds nothing until a feed is dropped onto it, and it has to be in the sidebar
+			// to be dropped onto. The default category (Miniflux's "All") is the exception — empty, it
+			// is only the account's built-in bucket, so it shows once a feed is filed there.
 			const categoryMap = new Map<number, string>();
 			for (const f of feedList) {
 				if (f.category && !categoryMap.has(f.category.id)) {
 					categoryMap.set(f.category.id, f.category.title);
 				}
+			}
+			const defaultCategoryId = getNoCategoryId();
+			for (const c of catList) {
+				if (c.id !== defaultCategoryId && !categoryMap.has(c.id)) categoryMap.set(c.id, c.title);
 			}
 
 			// Build tree

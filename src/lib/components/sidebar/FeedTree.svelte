@@ -6,14 +6,19 @@
 	import FeedItem from './FeedItem.svelte';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
 	import CategoryEditModal from '$lib/components/ui/CategoryEditModal.svelte';
-	import { ChevronRight, ChevronDown, Pencil, RotateCw, Plus, ArrowDownAZ } from 'lucide-svelte';
+	import { ChevronRight, ChevronDown, Pencil, RotateCw, Plus, ArrowDownAZ, FolderPlus } from 'lucide-svelte';
 	import { ui } from '$lib/stores/ui.svelte';
 	import { makeFeedSlug } from '$lib/slug';
 	import { storageGet, storageSet } from '$lib/storage';
 
 	// All and Bookmarks live in the desktop rail; only the mobile drawer (no rail) pins them here.
-	let { onAddFeed, pinned = false }: { onAddFeed: (categoryId: number) => void; pinned?: boolean } =
-		$props();
+	// onAddCategory gets the category right-clicked (a feed's own one), which the new category is
+	// placed after.
+	let { onAddFeed, onAddCategory, pinned = false }: {
+		onAddFeed: (categoryId: number) => void;
+		onAddCategory: (afterCategoryId?: number) => void;
+		pinned?: boolean;
+	} = $props();
 
 	let contextMenu = $state<{ x: number; y: number; catId: number } | null>(null);
 	let editingCatId = $state<number | null>(null);
@@ -189,7 +194,7 @@
 						{#if showInsertLine(node.id, childIndex)}
 							<div class="h-0.5 bg-a-500 mx-2 rounded"></div>
 						{/if}
-						<FeedItem feed={child} parentCatId={node.id} />
+						<FeedItem feed={child} parentCatId={node.id} {onAddCategory} />
 					{/each}
 					{#if showInsertLineAfterLast(node.id)}
 						<div class="h-0.5 bg-a-500 mx-2 rounded"></div>
@@ -219,6 +224,7 @@
 		y={contextMenu.y}
 		items={[
 			{ label: 'Add Feed', icon: Plus, action: () => onAddFeed(contextMenu!.catId) },
+			{ label: 'Add Category', icon: FolderPlus, action: () => onAddCategory(contextMenu!.catId) },
 			{ label: 'Edit Category', icon: Pencil, action: () => { editingCatId = contextMenu!.catId; } },
 			{ label: 'Refresh Feeds', icon: RotateCw, action: () => {
 				const cat = feeds.feedTree.find(n => n.id === contextMenu!.catId);

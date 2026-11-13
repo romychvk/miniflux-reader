@@ -7,9 +7,13 @@
 	import { refresh } from '$lib/stores/refresh.svelte';
 	import { makeFeedSlug } from '$lib/slug';
 	import ContextMenu from '$lib/components/ui/ContextMenu.svelte';
-	import { Pencil, RotateCw } from 'lucide-svelte';
+	import { FolderPlus, Pencil, RotateCw } from 'lucide-svelte';
 
-	let { feed, parentCatId }: { feed: FeedNode; parentCatId?: number } = $props();
+	let { feed, parentCatId, onAddCategory }: {
+		feed: FeedNode;
+		parentCatId?: number;
+		onAddCategory?: (afterCategoryId?: number) => void;
+	} = $props();
 
 	const isSelected = $derived(ui.selectedFeed?.id === feed.id && ui.selectedFeed?.isFeed === feed.isFeed);
 	const isDragged = $derived(dnd.dragType === 'feed' && dnd.dragId === feed.id);
@@ -115,7 +119,10 @@
 		y={contextMenu.y}
 		items={[
 			{ label: 'Edit Feed', icon: Pencil, action: () => { goto(`/feed/${makeFeedSlug(feed.id, feed.title)}/settings`); } },
-			{ label: 'Refresh Feed', icon: RotateCw, action: () => { void refresh.refreshNode(feed); } }
+			{ label: 'Refresh Feed', icon: RotateCw, action: () => { void refresh.refreshNode(feed); } },
+			...(onAddCategory
+				? [{ label: 'Add Category', icon: FolderPlus, action: () => onAddCategory(parentCatId) }]
+				: [])
 		]}
 		onclose={() => { contextMenu = null; }}
 	/>

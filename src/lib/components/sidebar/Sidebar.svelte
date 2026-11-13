@@ -9,7 +9,7 @@
 	import { ui } from '$lib/stores/ui.svelte';
 	import { resizable } from '$lib/actions/resize';
 	import { makeFeedSlug } from '$lib/slug';
-	import type { FeedCreate } from '$lib/types';
+	import type { Category, FeedCreate } from '$lib/types';
 	import FeedTree from './FeedTree.svelte';
 	import Rail from './Rail.svelte';
 	import SettingsNav from './SettingsNav.svelte';
@@ -45,13 +45,24 @@
 	// Set when Add Feed offered a ready-made bridge and the user picked one.
 	let showBridgeWizard = $state(false);
 	let bridgeChoice = $state.raw<BridgeChoice | null>(null);
-	// Category to preselect in the Add Feed modal; set when opened from a category's
-	// right-click menu, undefined when opened from the header "+" button.
+	// Category to preselect in the Add Feed modal, and the one a new category is placed after; set
+	// when opened from a right-click menu, undefined when opened from the header "+" button.
 	let addFeedCategoryId = $state<number | undefined>(undefined);
+	let addModalMode = $state<'feed' | 'category'>('feed');
 
-	function openAddModal(categoryId?: number) {
+	function openAddModal(categoryId?: number, mode: 'feed' | 'category' = 'feed') {
 		addFeedCategoryId = categoryId;
+		addModalMode = mode;
 		showAddModal = true;
+	}
+
+	// A category made from a right-click goes right under the one acted on, not to the bottom of a
+	// long list; then it opens, like a new feed does.
+	function handleCategoryCreated(category: Category) {
+		const anchor = feeds.feedTree.findIndex((n) => n.id === addFeedCategoryId && !n.isFeed);
+		if (anchor !== -1) feeds.reorderCategory(category.id, anchor + 1);
+		goto(`/category/${makeFeedSlug(category.id, category.title)}`);
+		if (ui.isMobile) ui.toggleSidebar();
 	}
 
 	// After a feed is created, open it so the user lands on their new feed
@@ -129,7 +140,7 @@
 					</button>
 				</div>
 				<div class="scroll-quiet flex-1">
-					<FeedTree onAddFeed={openAddModal} />
+					<FeedTree onAddFeed={openAddModal} onAddCategory={(id) => openAddModal(id, 'category')} />
 				</div>
 			{/if}
 			<!-- Resize handle -->
@@ -172,7 +183,7 @@
 			</div>
 		</div>
 		<div class="scroll-quiet flex-1">
-			<FeedTree onAddFeed={openAddModal} pinned />
+			<FeedTree onAddFeed={openAddModal} onAddCategory={(id) => openAddModal(id, 'category')} pinned />
 		</div>
 		{@render logoutButton()}
 	</aside>
@@ -181,8 +192,10 @@
 {#if showAddModal}
 	<FeedAddModal
 		initialCategoryId={addFeedCategoryId}
+		initialMode={addModalMode}
 		onclose={() => showAddModal = false}
 		onsave={handleCreateFeed}
+		oncategory={handleCategoryCreated}
 		onpagefeed={(url, categoryId) => {
 			wizardPageUrl = url;
 			wizardCategoryId = categoryId ?? addFeedCategoryId;
